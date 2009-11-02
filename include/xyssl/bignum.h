@@ -12,13 +12,13 @@ extern "C" {
 
 #include "ssl_conf.h"
 
-#define ERR_MPI_INVALID_CHARACTER               0x0002
-#define ERR_MPI_INVALID_PARAMETER               0x0004
-#define ERR_MPI_BUFFER_TOO_SMALL                0x0006
-#define ERR_MPI_NEGATIVE_VALUE                  0x0008
-#define ERR_MPI_DIVISION_BY_ZERO                0x000A
-#define ERR_MPI_NOT_INVERTIBLE                  0x000C
-#define ERR_MPI_IS_COMPOSITE                    0x000E
+#define ERR_MPI_FILE_IO_ERROR                   0x0002
+#define ERR_MPI_INVALID_CHARACTER               0x0004
+#define ERR_MPI_INVALID_PARAMETER               0x0006
+#define ERR_MPI_BUFFER_TOO_SMALL                0x0008
+#define ERR_MPI_NEGATIVE_VALUE                  0x000A
+#define ERR_MPI_DIVISION_BY_ZERO                0x000C
+#define ERR_MPI_NOT_ACCEPTABLE                  0x000E
 
 #define CHK(fc) if( ( ret = fc ) != 0 ) goto cleanup
 
@@ -31,7 +31,7 @@ typedef unsigned long t_dbl;
 #else
   typedef unsigned long t_int;
   #if defined(_MSC_VER) && defined(_M_IX86)
-    typedef __int64 t_dbl;
+    typedef unsigned __int64 t_dbl;
   #else
     #if defined(__amd64__) || defined(__x86_64__)    || \
         defined(__ppc64__) || defined(__powerpc64__) || \
@@ -69,7 +69,7 @@ void mpi_init( mpi *X, ... );
 void mpi_free( mpi *X, ... );
 
 /**
- * \brief          Enlarge X to the specified # of limbs
+ * \brief          Enlarge X to the specified number of limbs
  *
  * \return         0 if successful,
  *                 1 if memory allocation failed
@@ -98,80 +98,90 @@ void mpi_swap( mpi *X, mpi *Y );
 int mpi_lset( mpi *X, int z );
 
 /**
- * \brief          Set value from string
+ * \brief          Import X from an ASCII string
  *
  * \param X        destination mpi
- * \param s        string to read the value from
- * \param radix    numeric base of "s"
+ * \param radix    input numeric base
+ * \param s        null-terminated string buffer
  *
- * \return         0 if successful,
- *                 1 if memory allocation failed,
- *                 ERR_MPI_INVALID_PARAMETER if the radix is invalid
- *                 ERR_MPI_INVALID_CHARACTER if a non-digit is found
+ * \return         0 if successful, or an ERR_MPI_XXX error code
  */
-int mpi_read( mpi *X, char *s, int radix );
+int mpi_read_string( mpi *X, int radix, char *s );
 
 /**
- * \brief          Print the value of X into fout
+ * \brief          Export X into an ASCII string
  *
- * \param name     string printed before the value
- * \param X        mpi to be printed
- * \param radix    chosen numeric base
- * \param fout     output file stream
+ * \param X        source mpi
+ * \param radix    output numeric base
+ * \param s        string buffer
+ * \param slen     string buffer size
  *
- * \return         0 if successful,
- *                 1 if memory allocation failed,
- *                 ERR_MPI_INVALID_PARAMETER if the radix is invalid
+ * \return         0 if successful, or an ERR_MPI_XXX error code
+ *
+ * \note           Call this function with *slen = 0 to obtain the
+ *                 minimum required buffer size in *slen.
  */
-int mpi_showf( char *name, mpi *X, int radix, FILE *fout );
+int mpi_write_string( mpi *X, int radix, char *s, int *slen );
 
 /**
- * \brief          Print the value of X on the console
+ * \brief          Read X from an opened file
  *
- * \param name     string printed before the value
- * \param X        mpi to be printed
- * \param radix    chosen numeric base
+ * \param X        destination mpi
+ * \param radix    input numeric base
+ * \param fin      input file handle
  *
- * \return         0 if successful,
- *                 1 if memory allocation failed,
- *                 ERR_MPI_INVALID_PARAMETER if the radix is invalid
+ * \return         0 if successful, or an ERR_MPI_XXX error code
  */
-int mpi_show( char *name, mpi *X, int radix );
+int mpi_read_file( mpi *X, int radix, FILE *fin );
 
 /**
- * \brief          Import an unsigned value from binary data
+ * \brief          Write X into an opened file, or stdout
+ *
+ * \param p        prefix, can be NULL
+ * \param X        source mpi
+ * \param radix    output numeric base
+ * \param fout     output file handle
+ *
+ * \return         0 if successful, or an ERR_MPI_XXX error code
+ *
+ * \note           Set fout == NULL to print X on the console.
+ */
+int mpi_write_file( char *p, mpi *X, int radix, FILE *fout );
+
+/**
+ * \brief          Import X from unsigned binary data, big endian
  *
  * \param X        destination mpi
  * \param buf      input buffer
- * \param buflen   size of buffer
+ * \param buflen   input buffer size
  *
  * \return         0 if successful,
  *                 1 if memory allocation failed
  */
-int mpi_import( mpi *X, unsigned char *buf, int buflen );
+int mpi_read_binary( mpi *X, unsigned char *buf, int buflen );
 
 /**
- * \brief          Export an unsigned value into binary data
+ * \brief          Export X into unsigned binary data, big endian
  *
  * \param X        source mpi
  * \param buf      output buffer
- * \param buflen   size of buffer
+ * \param buflen   output buffer size
  *
  * \return         0 if successful,
  *                 ERR_MPI_BUFFER_TOO_SMALL if buf isn't large enough
  *
  * \note           Call this function with *buflen = 0 to obtain the
- *                 required buffer size in *buflen.
+ *                 minimum required buffer size in *buflen.
  */
-int mpi_export( mpi *X, unsigned char *buf, int *buflen );
+int mpi_write_binary( mpi *X, unsigned char *buf, int *buflen );
 
 /**
- * \brief          Return actual size in bits (without leading 0s)
+ * \brief          Return the total size in bits, without leading 0s
  */
-int mpi_size( mpi *X );
+int mpi_msb( mpi *X );
 
 /**
- * \brief          Return number of least significant bits
+ * \brief          Return the number of least significant bits
  */
 int mpi_lsb( mpi *X );
 
@@ -349,7 +359,7 @@ int mpi_gcd( mpi *G, mpi *A, mpi *B );
  * \return         0 if successful,
  *                 1 if memory allocation failed,
  *                 ERR_MPI_INVALID_PARAMETER if N is negative or nil
- *                 ERR_MPI_NOT_INVERTIBLE if A has no inverse mod N
+ *                 ERR_MPI_NOT_ACCEPTABLE if A has no inverse mod N
  */
 int mpi_inv_mod( mpi *X, mpi *A, mpi *N );
 
@@ -358,7 +368,7 @@ int mpi_inv_mod( mpi *X, mpi *A, mpi *N );
  *
  * \return         0 if successful (probably prime),
  *                 1 if memory allocation failed,
- *                 ERR_MPI_IS_COMPOSITE if X is not prime
+ *                 ERR_MPI_NOT_ACCEPTABLE if X is not prime
  */
 int mpi_is_prime( mpi *X );
 
@@ -367,8 +377,7 @@ int mpi_is_prime( mpi *X );
  *
  * \param X        destination mpi
  * \param nbits    required size of X in bits
- * \param dh_flag  set this to 1 if (X-1)/2 must also be prime
- *                 (needed for Diffie-Hellman)
+ * \param dh_flag  if 1, then (X-1)/2 will be prime too
  * \param rng_f    points to the RNG function
  * \param rng_d    points to the RNG data 
  *
@@ -384,7 +393,7 @@ int mpi_gen_prime( mpi *X, int nbits, int dh_flag,
  *
  * \return         0 if successful, or 1 if the test failed
  */
-int mpi_self_test( void );
+int mpi_self_test( int verbose );
 
 #ifdef __cplusplus
 }

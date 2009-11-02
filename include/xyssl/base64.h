@@ -53,7 +53,7 @@ int base64_decode( unsigned char *dst, int *dlen,
  *
  * \return         0 if successful, or 1 if the test failed
  */
-int base64_self_test( void );
+int base64_self_test( int verbose );
 
 #ifdef __cplusplus
 }

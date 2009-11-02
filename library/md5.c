@@ -1,7 +1,7 @@
 /*
  *  RFC 1321 compliant MD5 implementation
  *
- *  Copyright (C) 2003-2006  Christophe Devine
+ *  Copyright (C) 2006-2007  Christophe Devine
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -30,7 +30,7 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "md5.h"
+#include "xyssl/md5.h"
 
 /*
  * 32-bit integer manipulation macros (little endian)
@@ -44,6 +44,7 @@
         | ( (unsigned long) (b)[(i) + 3] << 24 );       \
 }
 #endif
+
 #ifndef PUT_UINT32_LE
 #define PUT_UINT32_LE(n,b,i)                            \
 {                                                       \
@@ -72,16 +73,16 @@ static void md5_process( md5_context *ctx, unsigned char data[64] )
 {
     unsigned long X[16], A, B, C, D;
 
-    GET_UINT32_LE( X[0],  data,  0 );
-    GET_UINT32_LE( X[1],  data,  4 );
-    GET_UINT32_LE( X[2],  data,  8 );
-    GET_UINT32_LE( X[3],  data, 12 );
-    GET_UINT32_LE( X[4],  data, 16 );
-    GET_UINT32_LE( X[5],  data, 20 );
-    GET_UINT32_LE( X[6],  data, 24 );
-    GET_UINT32_LE( X[7],  data, 28 );
-    GET_UINT32_LE( X[8],  data, 32 );
-    GET_UINT32_LE( X[9],  data, 36 );
+    GET_UINT32_LE( X[ 0], data,  0 );
+    GET_UINT32_LE( X[ 1], data,  4 );
+    GET_UINT32_LE( X[ 2], data,  8 );
+    GET_UINT32_LE( X[ 3], data, 12 );
+    GET_UINT32_LE( X[ 4], data, 16 );
+    GET_UINT32_LE( X[ 5], data, 20 );
+    GET_UINT32_LE( X[ 6], data, 24 );
+    GET_UINT32_LE( X[ 7], data, 28 );
+    GET_UINT32_LE( X[ 8], data, 32 );
+    GET_UINT32_LE( X[ 9], data, 36 );
     GET_UINT32_LE( X[10], data, 40 );
     GET_UINT32_LE( X[11], data, 44 );
     GET_UINT32_LE( X[12], data, 48 );
@@ -246,7 +247,7 @@ static const unsigned char md5_padding[64] =
 /*
  * MD5 final digest
  */
-void md5_finish( md5_context *ctx, unsigned char output[16] )
+void md5_finish( md5_context *ctx, unsigned char *output )
 {
     unsigned long last, padn;
     unsigned long high, low;
@@ -272,9 +273,24 @@ void md5_finish( md5_context *ctx, unsigned char output[16] )
 }
 
 /*
+ * Output = MD5( input buffer )
+ */
+void md5( unsigned char *input, int ilen,
+          unsigned char *output )
+{
+    md5_context ctx;
+
+    md5_starts( &ctx );
+    md5_update( &ctx, input, ilen );
+    md5_finish( &ctx, output );
+
+    memset( &ctx, 0, sizeof( md5_context ) );
+}
+
+/*
  * Output = MD5( file contents )
  */
-int md5_file( char *path, unsigned char output[16] )
+int md5_file( char *path, unsigned char *output )
 {
     FILE *f;
     size_t n;
@@ -291,66 +307,85 @@ int md5_file( char *path, unsigned char output[16] )
 
     md5_finish( &ctx, output );
 
+    memset( &ctx, 0, sizeof( md5_context ) );
+
+    if( ferror( f ) != 0 )
+    {
+        fclose( f );
+        return( 2 );
+    }
+
     fclose( f );
     return( 0 );
 }
 
 /*
- * Output = MD5( input buffer )
+ * MD5 HMAC context setup
  */
-void md5_csum( unsigned char *input, int ilen,
-               unsigned char output[16] )
-{
-    md5_context ctx;
-
-    md5_starts( &ctx );
-    md5_update( &ctx, input, ilen );
-    md5_finish( &ctx, output );
-}
-
-/*
- * Output = HMAC-MD5( input buffer, hmac key )
- */
-void md5_hmac( unsigned char *key, int keylen,
-               unsigned char *input, int ilen,
-               unsigned char output[16] )
+void md5_hmac_starts( md5_context *ctx,
+                      unsigned char *key, int keylen )
 {
     int i;
-    md5_context ctx;
-    unsigned char k_ipad[64];
-    unsigned char k_opad[64];
-    unsigned char tmpbuf[16];
 
-    memset( k_ipad, 0x36, 64 );
-    memset( k_opad, 0x5C, 64 );
+    memset( ctx->ipad, 0x36, 64 );
+    memset( ctx->opad, 0x5C, 64 );
 
     for( i = 0; i < keylen; i++ )
     {
         if( i >= 64 ) break;
 
-        k_ipad[i] ^= key[i];
-        k_opad[i] ^= key[i];
+        ctx->ipad[i] ^= key[i];
+        ctx->opad[i] ^= key[i];
     }
 
-    md5_starts( &ctx );
-    md5_update( &ctx, k_ipad, 64 );
-    md5_update( &ctx, input, ilen );
-    md5_finish( &ctx, tmpbuf );
+    md5_starts( ctx );
+    md5_update( ctx, ctx->ipad, 64 );
+}
 
-    md5_starts( &ctx );
-    md5_update( &ctx, k_opad, 64 );
-    md5_update( &ctx, tmpbuf, 16 );
-    md5_finish( &ctx, output );
+/*
+ * MD5 HMAC process buffer
+ */
+void md5_hmac_update( md5_context *ctx,
+                      unsigned char *input, int ilen )
+{
+    md5_update( ctx, input, ilen );
+}
 
-    memset( k_ipad, 0, 64 );
-    memset( k_opad, 0, 64 );
-    memset( tmpbuf, 0, 16 );
+/*
+ * MD5 HMAC final digest
+ */
+void md5_hmac_finish( md5_context *ctx, unsigned char *output )
+{
+    unsigned char tmpbuf[16];
+
+    md5_finish( ctx, tmpbuf );
+    md5_starts( ctx );
+    md5_update( ctx, ctx->opad, 64 );
+    md5_update( ctx, tmpbuf, 16 );
+    md5_finish( ctx, output );
+
+    memset( tmpbuf, 0, sizeof( tmpbuf ) );
+}
+
+/*
+ * Output = HMAC-MD5( hmac key, input buffer )
+ */
+void md5_hmac( unsigned char *key, int keylen,
+               unsigned char *input, int ilen,
+               unsigned char *output )
+{
+    md5_context ctx;
+
+    md5_hmac_starts( &ctx, key, keylen );
+    md5_hmac_update( &ctx, input, ilen );
+    md5_hmac_finish( &ctx, output );
+
     memset( &ctx, 0, sizeof( md5_context ) );
 }
 
 static const char _md5_src[] = "_md5_src";
 
-#ifdef SELF_TEST
+#if defined(SELF_TEST)
 /*
  * RFC 1321 test vectors
  */
@@ -387,32 +422,38 @@ static const unsigned char md5_test_sum[7][16] =
 /*
  * Checkup routine
  */
-int md5_self_test( void )
+int md5_self_test( int verbose )
 {
     int i;
     unsigned char md5sum[16];
 
     for( i = 0; i < 7; i++ )
     {
-        printf( "  MD5 test #%d: ", i + 1 );
+        if( verbose != 0 )
+            printf( "  MD5 test #%d: ", i + 1 );
 
-        md5_csum( (unsigned char *) md5_test_str[i],
-                  strlen( md5_test_str[i] ), md5sum );
+        md5( (unsigned char *) md5_test_str[i],
+             strlen( md5_test_str[i] ), md5sum );
 
         if( memcmp( md5sum, md5_test_sum[i], 16 ) != 0 )
         {
-            printf( "failed\n" );
+            if( verbose != 0 )
+                printf( "failed\n" );
+
             return( 1 );
         }
 
-        printf( "passed\n" );
+        if( verbose != 0 )
+            printf( "passed\n" );
     }
 
-    printf( "\n" );
+    if( verbose != 0 )
+        printf( "\n" );
+
     return( 0 );
 }
 #else
-int md5_self_test( void )
+int md5_self_test( int verbose )
 {
     return( 0 );
 }

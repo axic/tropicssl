@@ -1,7 +1,7 @@
 /*
  *  Multi-precision integer library
  *
- *  Copyright (C) 2006  Christophe Devine
+ *  Copyright (C) 2006-2007  Christophe Devine
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -33,11 +33,11 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-#include "bignum.h"
-#include "bn_asm.h"
+#include "xyssl/bignum.h"
+#include "xyssl/bn_asm.h"
 
 /*
- * Bits/chars to # of limbs conversion
+ * Convert between bits/chars and number of limbs
  */
 #define BITS_TO_LIMBS(i)  (((i) + biL - 1) / biL)
 #define CHARS_TO_LIMBS(i) (((i) + ciL - 1) / ciL)
@@ -86,7 +86,7 @@ void mpi_free( mpi *X, ... )
 }
 
 /*
- * Enlarge X to the specified # of limbs
+ * Enlarge X to the specified number of limbs
  */
 int mpi_grow( mpi *X, int nblimbs )
 {
@@ -183,9 +183,9 @@ static int mpi_get_digit( t_int *d, int radix, char c )
 }
 
 /*
- * Set value from string
+ * Import X from an ASCII string
  */
-int mpi_read( mpi *X, char *s, int radix )
+int mpi_read_string( mpi *X, int radix, char *s )
 {
     int ret, i, j, n;
     t_int d;
@@ -198,7 +198,7 @@ int mpi_read( mpi *X, char *s, int radix )
 
     if( radix == 16 )
     {
-        n = BITS_TO_LIMBS( strlen(s) << 2 );
+        n = BITS_TO_LIMBS( strlen( s ) << 2 );
 
         CHK( mpi_grow( X, n ) );
         CHK( mpi_lset( X, 0 ) );
@@ -240,9 +240,9 @@ cleanup:
 }
 
 /*
- * Helper to display the digits high-order first
+ * Helper to write the digits high-order first
  */
-static int mpi_recurse_showf( mpi *X, int radix, FILE *fout )
+static int mpi_write_hlp( mpi *X, int radix, char **p )
 {
     int ret;
     t_int r;
@@ -254,14 +254,10 @@ static int mpi_recurse_showf( mpi *X, int radix, FILE *fout )
     CHK( mpi_div_int( X, NULL, X, radix ) );
 
     if( mpi_cmp_int( X, 0 ) != 0 )
-        CHK( mpi_recurse_showf( X, radix, fout ) );
+        CHK( mpi_write_hlp( X, radix, p ) );
 
-    if( fout != NULL )
-        fprintf( fout, "%c", ( r < 10 ) ? ( (char) r + 0x30 )
-                                        : ( (char) r + 0x37 ) );
-    else
-        printf( "%c", ( r < 10 ) ? ( (char) r + 0x30 )
-                                 : ( (char) r + 0x37 ) );
+    *(*p)++ = ( r < 10 ) ? ( (char) r + 0x30 )
+                         : ( (char) r + 0x37 );
 
 cleanup:
 
@@ -269,55 +265,60 @@ cleanup:
 }
 
 /*
- * Print the value of X into fout
+ * Export X into an ASCII string
  */
-int mpi_showf( char *name, mpi *X, int radix, FILE *fout )
+int mpi_write_string( mpi *X, int radix, char *s, int *slen )
 {
-    int ret, i, j, k, l;
+    int ret = 0, n;
+    char *p;
     mpi T;
 
     if( radix < 2 || radix > 16 )
         return( ERR_MPI_INVALID_PARAMETER );
 
+    n = mpi_msb( X );
+    if( radix >=  4 ) n >>= 1;
+    if( radix >= 16 ) n >>= 1;
+    n += 3;
+
+    if( *slen < n )
+    {
+        *slen = n;
+        return( ERR_MPI_BUFFER_TOO_SMALL );
+    }
+
+    p = s;
     mpi_init( &T, NULL );
 
-    if( fout != NULL )
-        fprintf( fout, "%s%c", name, ( X->s == -1 ) ? '-' : ' ' );
-    else
-        printf( "%s%c", name, ( X->s == -1 ) ? '-' : ' ' );
+    if( X->s == -1 )
+        *p++ = '-';
 
     if( radix == 16 )
     {
-        ret = 0;
+        int c, i, j, k;
 
-        for( i = X->n - 1, l = 0; i >= 0; i-- )
+        for( i = X->n - 1, k = 0; i >= 0; i-- )
         {
             for( j = ciL - 1; j >= 0; j-- )
             {
-                k = ( X->p[i] >> (j << 3) ) & 0xFF;
+                c = ( X->p[i] >> (j << 3) ) & 0xFF;
 
-                if( k == 0 && l == 0 && (i + j) != 0 )
+                if( c == 0 && k == 0 && (i + j) != 0 )
                     continue;
 
-                if( fout != NULL )
-                    fprintf( fout, "%02X", k );
-                else
-                    printf( "%02X", k );
-
-                l = 1;
+                p += sprintf( p, "%02X", c );
+                k = 1;
             }
         }
     }
     else
     {
         CHK( mpi_copy( &T, X ) );
-        CHK( mpi_recurse_showf( &T, radix, fout ) );
+        CHK( mpi_write_hlp( &T, radix, &p ) );
     }
 
-    if( fout != NULL )
-        fprintf( fout, "\n" );
-    else
-        printf( "\n" );
+    *p++ = '\0';
+    *slen = p - s;
 
 cleanup:
 
@@ -326,29 +327,62 @@ cleanup:
 }
 
 /*
- * Print the value of X on the console
+ * Read X from an opened file
  */
-int mpi_show( char *name, mpi *X, int radix )
+int mpi_read_file( mpi *X, int radix, FILE *fin )
 {
-    return( mpi_showf( name, X, radix, NULL ) );
+    char s[1536], *p;
+    int slen;
+    t_int d;
+
+    memset( s, 0, sizeof( s ) );
+    if( fgets( s, sizeof( s ) - 1, fin ) == NULL )
+        return( ERR_MPI_FILE_IO_ERROR );
+
+    slen = strlen( s );
+    if( s[slen - 1] == '\n' ) { slen--; s[slen] = '\0'; }
+    if( s[slen - 1] == '\r' ) { slen--; s[slen] = '\0'; }
+
+    p = s + slen;
+    while( --p >= s )
+        if( mpi_get_digit( &d, radix, *p ) != 0 )
+            break;
+
+    return( mpi_read_string( X, radix, p + 1 ) );
 }
 
 /*
- * Import an unsigned value from binary data
+ * Write X into an opened file (or stdout if fout == NULL)
  */
-int mpi_import( mpi *X, unsigned char *buf, int buflen )
+int mpi_write_file( char *p, mpi *X, int radix, FILE *fout )
 {
-    int ret, i, j, n;
+    int ret = 0;
+    size_t slen;
+    size_t plen;
+    char s[1536];
 
-    for( n = 0; n < buflen; n++ )
-        if( buf[n] != 0 )
-            break;
+    slen = sizeof( s );
+    memset( s, 0, slen );
+    slen -= 2;
 
-    CHK( mpi_grow( X, CHARS_TO_LIMBS(buflen - n) ) );
-    CHK( mpi_lset( X, 0 ) );
+    CHK( mpi_write_string( X, radix, s, (int *) &slen ) );
 
-    for( i = buflen - 1, j = 0; i >= n; i--, j++ )
-        X->p[j / ciL] |= (t_int) buf[i] << ((j % ciL ) << 3);
+    if( p == NULL )
+        p = "";
+
+    plen = strlen( p );
+    slen = strlen( s );
+    s[slen++] = '\r';
+    s[slen++] = '\n';
+
+    if( fout != NULL )
+    {
+        if( fwrite( p, 1, plen, fout ) != plen ||
+            fwrite( s, 1, slen, fout ) != slen )
+            return( ERR_MPI_FILE_IO_ERROR );
+    }
+    else
+        printf( "%s%s", p, s );
 
 cleanup:
 
@@ -356,13 +390,35 @@ cleanup:
 }
 
 /*
- * Export an unsigned value into binary data
+ * Import X from unsigned binary data, big endian
  */
-int mpi_export( mpi *X, unsigned char *buf, int *buflen )
+int mpi_read_binary( mpi *X, unsigned char *buf, int buflen )
+{
+    int ret, i, j, n;
+
+    for( n = 0; n < buflen; n++ )
+        if( buf[n] != 0 )
+            break;
+
+    CHK( mpi_grow( X, CHARS_TO_LIMBS( buflen - n ) ) );
+    CHK( mpi_lset( X, 0 ) );
+
+    for( i = buflen - 1, j = 0; i >= n; i--, j++ )
+        X->p[j / ciL] |= (t_int)( buf[i] << ((j % ciL) << 3) );
+
+cleanup:
+
+    return( ret );
+}
+
+/*
+ * Export X into unsigned binary data, big endian
+ */
+int mpi_write_binary( mpi *X, unsigned char *buf, int *buflen )
 {
     int i, j, n;
 
-    n = ( mpi_size( X ) + 7 ) >> 3;
+    n = ( mpi_msb( X ) + 7 ) >> 3;
 
     if( *buflen < n )
     {
@@ -373,15 +429,15 @@ int mpi_export( mpi *X, unsigned char *buf, int *buflen )
     memset( buf, 0, *buflen );
 
     for( i = *buflen - 1, j = 0; n > 0; i--, j++, n-- )
-        buf[i] = (unsigned char) (X->p[j / ciL] >> ((j % ciL) << 3));
+        buf[i] = (unsigned char)( X->p[j / ciL] >> ((j % ciL) << 3) );
 
     return( 0 );
 }
 
 /*
- * Return the actual size in bits (without leading 0s)
+ * Return the total size in bits, without leading 0s
  */
-int mpi_size( mpi *X )
+int mpi_msb( mpi *X )
 {
     int i, j;
 
@@ -422,7 +478,7 @@ int mpi_shift_l( mpi *X, int count )
     v0 = count /  biL;
     t1 = count & (biL - 1);
 
-    i = mpi_size( X ) + count;
+    i = mpi_msb( X ) + count;
 
     if( X->n * (int) biL < i )
         CHK( mpi_grow( X, BITS_TO_LIMBS( i ) ) );
@@ -781,10 +837,9 @@ int mpi_sub_int( mpi *X, mpi *A, int b )
  */ 
 static void mpi_mul_hlp( int i, t_int *s, t_int *d, t_int b )
 {
-    t_int c = 0;
+    t_int c = 0, t = 0;
 
 #if defined(MULADDC_HUIT)
-
     for( ; i >= 8; i -= 8 )
     {
         MULADDC_INIT
@@ -798,65 +853,42 @@ static void mpi_mul_hlp( int i, t_int *s, t_int *d, t_int b )
         MULADDC_CORE
         MULADDC_STOP
     }
-
 #else
-    if( i == 32 )
+    for( ; i >= 16; i -= 16 )
     {
         MULADDC_INIT
         MULADDC_CORE   MULADDC_CORE
-        MULADDC_CORE   MULADDC_CORE   MULADDC_CORE
-        MULADDC_CORE   MULADDC_CORE   MULADDC_CORE
-
         MULADDC_CORE   MULADDC_CORE
-        MULADDC_CORE   MULADDC_CORE   MULADDC_CORE
-        MULADDC_CORE   MULADDC_CORE   MULADDC_CORE
-        MULADDC_CORE   MULADDC_CORE   MULADDC_CORE
-        MULADDC_CORE   MULADDC_CORE   MULADDC_CORE
+        MULADDC_CORE   MULADDC_CORE
         MULADDC_CORE   MULADDC_CORE
 
-        MULADDC_CORE   MULADDC_CORE   MULADDC_CORE
-        MULADDC_CORE   MULADDC_CORE   MULADDC_CORE
+        MULADDC_CORE   MULADDC_CORE
+        MULADDC_CORE   MULADDC_CORE
+        MULADDC_CORE   MULADDC_CORE
         MULADDC_CORE   MULADDC_CORE
         MULADDC_STOP
     }
-    else
+
+    for( ; i >= 8; i -= 8 )
     {
-        if( i == 16 )
-        {
-            MULADDC_INIT
-            MULADDC_CORE   MULADDC_CORE
-            MULADDC_CORE   MULADDC_CORE
-            MULADDC_CORE   MULADDC_CORE
-            MULADDC_CORE   MULADDC_CORE
+        MULADDC_INIT
+        MULADDC_CORE   MULADDC_CORE
+        MULADDC_CORE   MULADDC_CORE
 
-            MULADDC_CORE   MULADDC_CORE
-            MULADDC_CORE   MULADDC_CORE
-            MULADDC_CORE   MULADDC_CORE
-            MULADDC_CORE   MULADDC_CORE
-            MULADDC_STOP
-        }
-        else
-        {
-            for( ; i >= 8; i -= 8 )
-            {
-                MULADDC_INIT
-                MULADDC_CORE   MULADDC_CORE
-                MULADDC_CORE   MULADDC_CORE
+        MULADDC_CORE   MULADDC_CORE
+        MULADDC_CORE   MULADDC_CORE
+        MULADDC_STOP
+    }
 
-                MULADDC_CORE   MULADDC_CORE
-                MULADDC_CORE   MULADDC_CORE
-                MULADDC_STOP
-            }
-
-            for( ; i > 0; i-- )
-            {
-                MULADDC_INIT
-                MULADDC_CORE
-                MULADDC_STOP
-            }
-        }
+    for( ; i > 0; i-- )
+    {
+        MULADDC_INIT
+        MULADDC_CORE
+        MULADDC_STOP
     }
 #endif
+
+    t++;
 
     do {
         *d += c; c = ( *d < c ); d++;
@@ -944,7 +976,7 @@ int mpi_div_mpi( mpi *Q, mpi *R, mpi *A, mpi *B )
     CHK( mpi_grow( &T1, 2 ) );
     CHK( mpi_grow( &T2, 3 ) );
 
-    k = mpi_size( &Y ) % biL;
+    k = mpi_msb( &Y ) % biL;
     if( k < (int) biL - 1 )
     {
         k = biL - 1 - k;
@@ -956,6 +988,7 @@ int mpi_div_mpi( mpi *Q, mpi *R, mpi *A, mpi *B )
     n = X.n - 1;
     t = Y.n - 1;
     mpi_shift_l( &Y, biL * (n - t) );
+
     while( mpi_cmp_mpi( &X, &Y ) >= 0 )
     {
         Z.p[n - t]++;
@@ -1244,7 +1277,7 @@ int mpi_exp_mod( mpi *X, mpi *A, mpi *E, mpi *N, mpi *_RR )
     mpi_init( &RR, &T, NULL );
     memset( W, 0, sizeof( W ) );
 
-    i = mpi_size( E );
+    i = mpi_msb( E );
 
     wsize = ( i > 671 ) ? 6 : ( i > 239 ) ? 5 :
             ( i >  79 ) ? 4 : ( i >  23 ) ? 3 : 1;
@@ -1467,7 +1500,7 @@ int mpi_inv_mod( mpi *X, mpi *A, mpi *N )
 
     if( mpi_cmp_int( &G, 1 ) != 0 )
     {
-        ret = ERR_MPI_NOT_INVERTIBLE;
+        ret = ERR_MPI_NOT_ACCEPTABLE;
         goto cleanup;
     }
 
@@ -1572,7 +1605,7 @@ static const int small_prime[] =
      101,  251,  421,  601,  787,  983,  1181,  1399,
      103,  257,  431,  607,  797,  991,  1187,  1409,
      107,  263,  433,  613,  809,  997,  1193,  1423,
-     109,  269,  439,  617,  811, 1009,  1201,  -110
+     109,  269,  439,  617,  811, 1009,  1201,  -111
 };
 
 /*
@@ -1593,7 +1626,7 @@ int mpi_is_prime( mpi *X )
      * test trivial factors first
      */
     if( ( X->p[0] & 1 ) == 0 )
-        return( ERR_MPI_IS_COMPOSITE );
+        return( ERR_MPI_NOT_ACCEPTABLE );
 
     for( i = 0; small_prime[i] > 0; i++ )
     {
@@ -1605,7 +1638,7 @@ int mpi_is_prime( mpi *X )
         CHK( mpi_mod_int( &r, X, small_prime[i] ) );
 
         if( r == 0 )
-            return( ERR_MPI_IS_COMPOSITE );
+            return( ERR_MPI_NOT_ACCEPTABLE );
     }
 
     /*
@@ -1626,8 +1659,8 @@ int mpi_is_prime( mpi *X )
         for( j = 0; j < A.n; j++ )
             A.p[j] = (t_int) rand() * rand();
 
-        CHK( mpi_shift_r( &A, mpi_size( &A ) -
-                              mpi_size( &W ) + 1 ) );
+        CHK( mpi_shift_r( &A, mpi_msb( &A ) -
+                              mpi_msb( &W ) + 1 ) );
         A.p[0] |= 3;
 
         /*
@@ -1659,7 +1692,7 @@ int mpi_is_prime( mpi *X )
          */
         if( mpi_cmp_mpi( &A, &W ) != 0 || j < s )
         {
-            ret = ERR_MPI_IS_COMPOSITE;
+            ret = ERR_MPI_NOT_ACCEPTABLE;
             break;
         }
     }
@@ -1695,7 +1728,7 @@ int mpi_gen_prime( mpi *X, int nbits, int dh_flag,
     for( k = 0; k < ciL * X->n; k++ )
         *p++ = rng_f( rng_d );
 
-    k = mpi_size( X );
+    k = mpi_msb( X );
     if( k < nbits ) CHK( mpi_shift_l( X, nbits - k ) );
     if( k > nbits ) CHK( mpi_shift_r( X, k - nbits ) );
     X->p[0] |= 3;
@@ -1704,7 +1737,7 @@ int mpi_gen_prime( mpi *X, int nbits, int dh_flag,
     {
         while( ( ret = mpi_is_prime( X ) ) != 0 )
         {
-            if( ret != ERR_MPI_IS_COMPOSITE )
+            if( ret != ERR_MPI_NOT_ACCEPTABLE )
                 goto cleanup;
 
             CHK( mpi_add_int( X, X, 2 ) );
@@ -1722,11 +1755,11 @@ int mpi_gen_prime( mpi *X, int nbits, int dh_flag,
                 if( ( ret = mpi_is_prime( &Y ) ) == 0 )
                     break;
 
-                if( ret != ERR_MPI_IS_COMPOSITE )
+                if( ret != ERR_MPI_NOT_ACCEPTABLE )
                     goto cleanup;
             }
 
-            if( ret != ERR_MPI_IS_COMPOSITE )
+            if( ret != ERR_MPI_NOT_ACCEPTABLE )
                 goto cleanup;
 
             CHK( mpi_add_int( &Y, X, 1 ) );
@@ -1744,99 +1777,140 @@ cleanup:
 
 static const char _bignum_src[] = "_bignum_src";
 
-#ifdef SELF_TEST
+#if defined(SELF_TEST)
 /*
  * Checkup routine
  */
-int mpi_self_test( void )
+int mpi_self_test( int verbose )
 {
     int ret;
     mpi A, E, N, X, Y, U, V;
 
     mpi_init( &A, &E, &N, &X, &Y, &U, &V, NULL );
 
-    CHK( mpi_read( &A, "EFE021C2645FD1DC586E69184AF4A31E" \
-                       "D5F53E93B5F123FA41680867BA110131" \
-                       "944FE7952E2517337780CB0DB80E61AA" \
-                       "E7C8DDC6C5C6AADEB34EB38A2F40D5E6", 16 ) );
-    CHK( mpi_read( &E, "B2E7EFD37075B9F03FF989C7C5051C20" \
-                       "34D2A323810251127E7BF8625A4F49A5" \
-                       "F3E27F4DA8BD59C47D6DAABA4C8127BD" \
-                       "5B5C25763222FEFCCFC38B832366C29E", 16 ) );
-    CHK( mpi_read( &N, "0066A198186C18C10B2F5ED9B522752A" \
-                       "9830B69916E535C8F047518A889A43A5" \
-                       "94B6BED27A168D31D4A52F88925AA8F5", 16 ) );
+    CHK( mpi_read_string( &A, 16,
+        "EFE021C2645FD1DC586E69184AF4A31E" \
+        "D5F53E93B5F123FA41680867BA110131" \
+        "944FE7952E2517337780CB0DB80E61AA" \
+        "E7C8DDC6C5C6AADEB34EB38A2F40D5E6" ) );
+
+    CHK( mpi_read_string( &E, 16,
+        "B2E7EFD37075B9F03FF989C7C5051C20" \
+        "34D2A323810251127E7BF8625A4F49A5" \
+        "F3E27F4DA8BD59C47D6DAABA4C8127BD" \
+        "5B5C25763222FEFCCFC38B832366C29E" ) );
+
+    CHK( mpi_read_string( &N, 16,
+        "0066A198186C18C10B2F5ED9B522752A" \
+        "9830B69916E535C8F047518A889A43A5" \
+        "94B6BED27A168D31D4A52F88925AA8F5" ) );
 
     CHK( mpi_mul_mpi( &X, &A, &N ) );
-    CHK( mpi_read( &U, "602AB7ECA597A3D6B56FF9829A5E8B85" \
-                       "9E857EA95A03512E2BAE7391688D264A" \
-                       "A5663B0341DB9CCFD2C4C5F421FEC814" \
-                       "8001B72E848A38CAE1C65F78E56ABDEF" \
-                       "E12D3C039B8A02D6BE593F0BBBDA56F1" \
-                       "ECF677152EF804370C1A305CAF3B5BF1" \
-                       "30879B56C61DE584A0F53A2447A51E", 16 ) );
 
-    printf( "  MPI test #1 (mul_mpi): " );
+    CHK( mpi_read_string( &U, 16,
+        "602AB7ECA597A3D6B56FF9829A5E8B85" \
+        "9E857EA95A03512E2BAE7391688D264A" \
+        "A5663B0341DB9CCFD2C4C5F421FEC814" \
+        "8001B72E848A38CAE1C65F78E56ABDEF" \
+        "E12D3C039B8A02D6BE593F0BBBDA56F1" \
+        "ECF677152EF804370C1A305CAF3B5BF1" \
+        "30879B56C61DE584A0F53A2447A51E" ) );
+
+    if( verbose != 0 )
+        printf( "  MPI test #1 (mul_mpi): " );
+
     if( mpi_cmp_mpi( &X, &U ) != 0 )
     {
-        printf( "failed\n" );
+        if( verbose != 0 )
+            printf( "failed\n" );
+
         return( 1 );
     }
-    printf( "passed\n" );
+
+    if( verbose != 0 )
+        printf( "passed\n" );
 
     CHK( mpi_div_mpi( &X, &Y, &A, &N ) );
-    CHK( mpi_read( &U, "256567336059E52CAE22925474705F39A94", 16 ) );
-    CHK( mpi_read( &V, "6613F26162223DF488E9CD48CC132C7A" \
-                       "0AC93C701B001B092E4E5B9F73BCD27B" \
-                       "9EE50D0657C77F374E903CDFA4C642", 16 ) );
 
-    printf( "  MPI test #2 (div_mpi): " );
+    CHK( mpi_read_string( &U, 16,
+        "256567336059E52CAE22925474705F39A94" ) );
+
+    CHK( mpi_read_string( &V, 16,
+        "6613F26162223DF488E9CD48CC132C7A" \
+        "0AC93C701B001B092E4E5B9F73BCD27B" \
+        "9EE50D0657C77F374E903CDFA4C642" ) );
+
+    if( verbose != 0 )
+        printf( "  MPI test #2 (div_mpi): " );
+
     if( mpi_cmp_mpi( &X, &U ) != 0 ||
         mpi_cmp_mpi( &Y, &V ) != 0 )
     {
-        printf( "failed\n" );
+        if( verbose != 0 )
+            printf( "failed\n" );
+
         return( 1 );
     }
-    printf( "passed\n" );
+
+    if( verbose != 0 )
+        printf( "passed\n" );
 
     CHK( mpi_exp_mod( &X, &A, &E, &N, NULL ) );
-    CHK( mpi_read( &U, "36E139AEA55215609D2816998ED020BB" \
-                       "BD96C37890F65171D948E9BC7CBAA4D9" \
-                       "325D24D6A3C12710F10A09FA08AB87", 16 ) );
 
-    printf( "  MPI test #3 (exp_mod): " );
+    CHK( mpi_read_string( &U, 16,
+        "36E139AEA55215609D2816998ED020BB" \
+        "BD96C37890F65171D948E9BC7CBAA4D9" \
+        "325D24D6A3C12710F10A09FA08AB87" ) );
+
+    if( verbose != 0 )
+        printf( "  MPI test #3 (exp_mod): " );
+
     if( mpi_cmp_mpi( &X, &U ) != 0 )
     {
-        printf( "failed\n" );
+        if( verbose != 0 )
+            printf( "failed\n" );
+
         return( 1 );
     }
-    printf( "passed\n" );
+
+    if( verbose != 0 )
+        printf( "passed\n" );
 
     CHK( mpi_inv_mod( &X, &A, &N ) );
-    CHK( mpi_read( &U, "003A0AAEDD7E784FC07D8F9EC6E3BFD5" \
-                       "C3DBA76456363A10869622EAC2DD84EC" \
-                       "C5B8A74DAC4D09E03B5E0BE779F2DF61", 16 ) );
 
-    printf( "  MPI test #4 (inv_mod): " );
+    CHK( mpi_read_string( &U, 16,
+        "003A0AAEDD7E784FC07D8F9EC6E3BFD5" \
+        "C3DBA76456363A10869622EAC2DD84EC" \
+        "C5B8A74DAC4D09E03B5E0BE779F2DF61" ) );
+
+    if( verbose != 0 )
+        printf( "  MPI test #4 (inv_mod): " );
+
     if( mpi_cmp_mpi( &X, &U ) != 0 )
     {
-        printf( "failed\n" );
+        if( verbose != 0 )
+            printf( "failed\n" );
+
         return( 1 );
     }
-    printf( "passed\n" );
+
+    if( verbose != 0 )
+        printf( "passed\n" );
 
 cleanup:
 
-    if( ret != 0 )
-        printf( "Unexpected error, return code = %d\n", ret );
+    if( ret != 0 && verbose != 0 )
+        printf( "Unexpected error, return code = %08X\n", ret );
 
     mpi_free( &V, &U, &Y, &X, &N, &E, &A, NULL );
 
-    printf( "\n" );
-    return( 0 );
+    if( verbose != 0 )
+        printf( "\n" );
+
+    return( ret );
 }
 #else
-int mpi_self_test( void )
+int mpi_self_test( int verbose )
 {
     return( 0 );
 }

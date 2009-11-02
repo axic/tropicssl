@@ -143,12 +143,13 @@ typedef struct
     unsigned char *in_ctr;      /*!< 64-bit incoming message counter  */
     unsigned char *in_hdr;      /*!< 5-byte record header (in_ctr+8)  */
     unsigned char *in_msg;      /*!< the message payload  (in_hdr+5)  */
+    unsigned char *in_offt;     /*!< read offset in message payload   */
 
     int read_fd;                /*!< descriptor for read operations   */
     int in_msgtype;             /*!< record header: message type      */
     int in_msglen;              /*!< record header: message length    */
 
-    int in_left;                /*!< amount of data read so far       */
+    int in_left;                /*!< amount of (tcp) data read so far */
     int in_hslen;               /*!< current handshake message length */
     int nb_zero;                /*!< # of 0-length encrypted messages */
 
@@ -175,10 +176,6 @@ typedef struct
     x509_cert *peer_cert;               /*!<  peer X.509 cert chain   */
     char *peer_cn;                      /*!<  expected peer CN        */
 
-    dhm_context dhm_ctx;                /*!<  DHM key exchange        */
-    char *dhm_P;                        /*!<  DHM modulus   (server)  */
-    char *dhm_G;                        /*!<  DHM generator (server)  */
-
     int endpoint;                       /*!<  0: client, 1: server    */
     int authmode;                       /*!<  verification mode       */
     int client_auth;                    /*!<  flag for client auth.   */
@@ -197,6 +194,7 @@ typedef struct
      */
      md5_context hs_md5;                /*!<   MD5( Handshake msgs )  */
     sha1_context hs_sha1;               /*!<  SHA1( Handshake msgs )  */
+     dhm_context dhm_ctx;               /*!<  DHM key exchange        */
 
     int (*rng_f)(void *);               /*!<  RNG function            */
     void *rng_d;                        /*!<  RNG data                */
@@ -315,8 +313,10 @@ void ssl_set_sidtable( ssl_context *ssl, unsigned char *sidtable );
 /**
  * \brief          Set the Diffie-Hellman public P and G values,
  *                 provided as hexadecimal strings (server-side only)
+ *
+ * \return         0 if successful, or 1 if the values could not be read
  */
-void ssl_set_dhm_vals( ssl_context *ssl, char *dhm_P, char *dhm_G );
+int ssl_set_dhm_vals( ssl_context *ssl, char *dhm_P, char *dhm_G );
 
 /**
  * \brief          Return the result of the certificate verification

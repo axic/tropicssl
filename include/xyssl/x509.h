@@ -235,7 +235,7 @@ void x509_free_cert( x509_cert *crt );
  *
  * \return         0 if successful, or 1 if the test failed
  */
-int x509_self_test( void );
+int x509_self_test( int verbose );
 
 #ifdef __cplusplus
 }

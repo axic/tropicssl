@@ -1,4 +1,20 @@
 
+= Version 0.7 released on 2007-07-07
+
+    * Added support for the MicroBlaze soft-core processor
+    * Fixed a bug in ssl_tls.c which sometimes prevented SSL
+      connections from being established with non-blocking I/O
+    * Fixed a couple bugs in the VS6 and UNIX Makefiles
+    * Fixed the "PIC register ebx clobbered in asm" bug
+    * Added HMAC starts/update/finish support functions
+    * Added the SHA-224, SHA-384 and SHA-512 hash functions
+    * Fixed the net_set_*block routines, thanks to Andreas
+    * Added a few demonstration programs: md5sum, sha1sum,
+      dh_client, dh_server, rsa_genkey, rsa_sign, rsa_verify
+    * Added new bignum import and export helper functions
+    * Rewrote README.txt in program/ssl/ca to better explain
+      how to create a test PKI
+
 = Version 0.6 released on 2007-04-01
 
     * Ciphers used in SSL/TLS can now be disabled at compile

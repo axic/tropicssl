@@ -12,16 +12,46 @@ Package=<5>
 Package=<4>
 {{{
     Begin Project Dependency
-    Project_Dep_Name benchmark
+    Project_Dep_Name xyssl
     End Project Dependency
     Begin Project Dependency
-    Project_Dep_Name filecrypt
+    Project_Dep_Name aescrypt2
     End Project Dependency
     Begin Project Dependency
     Project_Dep_Name hello
     End Project Dependency
     Begin Project Dependency
+    Project_Dep_Name md5sum
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name sha1sum
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name sha2sum
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name benchmark
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name dh_client
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name dh_genprime
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name dh_server
+    End Project Dependency
+    Begin Project Dependency
     Project_Dep_Name mpi_demo
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name rsa_genkey
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name rsa_sign
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name rsa_verify
     End Project Dependency
     Begin Project Dependency
     Project_Dep_Name selftest
@@ -34,6 +64,21 @@ Package=<4>
     End Project Dependency
     Begin Project Dependency
     Project_Dep_Name ssl_server
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "aescrypt2"=".\aescrypt2.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name xyssl
     End Project Dependency
 }}}
 
@@ -54,7 +99,37 @@ Package=<4>
 
 ###############################################################################
 
-Project: "filecrypt"=".\filecrypt.dsp" - Package Owner=<4>
+Project: "dh_client"=".\dh_client.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name xyssl
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "dh_genprime"=".\dh_genprime.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name xyssl
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "dh_server"=".\dh_server.dsp" - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -84,6 +159,21 @@ Package=<4>
 
 ###############################################################################
 
+Project: "md5sum"=".\md5sum.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name xyssl
+    End Project Dependency
+}}}
+
+###############################################################################
+
 Project: "mpi_demo"=".\mpi_demo.dsp" - Package Owner=<4>
 
 Package=<5>
@@ -99,7 +189,82 @@ Package=<4>
 
 ###############################################################################
 
+Project: "rsa_genkey"=".\rsa_genkey.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name xyssl
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "rsa_sign"=".\rsa_sign.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name xyssl
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "rsa_verify"=".\rsa_verify.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name xyssl
+    End Project Dependency
+}}}
+
+###############################################################################
+
 Project: "selftest"=".\selftest.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name xyssl
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "sha1sum"=".\sha1sum.dsp" - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name xyssl
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "sha2sum"=".\sha2sum.dsp" - Package Owner=<4>
 
 Package=<5>
 {{{

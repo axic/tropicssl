@@ -1,9 +1,7 @@
 /*
  *  HAVEGE: HArdware Volatile Entropy Gathering and Expansion
  *
- *  Copyright (C) 2006  Andre Seznec, Olivier Rochecouste
- *
- *  Contact: seznec(at)irisa_dot_fr - orocheco(at)irisa_dot_fr
+ *  Copyright (C) 2006-2007  Christophe Devine
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -23,6 +21,8 @@
  *  The HAVEGE RNG was designed by Andre Seznec in 2002.
  *
  *  http://www.irisa.fr/caps/projects/hipsor/publi.php
+ *
+ *  Contact: seznec(at)irisa_dot_fr - orocheco(at)irisa_dot_fr
  */
 
 #ifndef _CRT_SECURE_NO_DEPRECATE
@@ -32,8 +32,8 @@
 #include <string.h>
 #include <time.h>
 
-#include "timing.h"
-#include "havege.h"
+#include "xyssl/timing.h"
+#include "xyssl/havege.h"
 
 /* ------------------------------------------------------------------------
  * On average, one iteration accesses two 8-word blocks in the havege WALK
@@ -154,17 +154,18 @@
 static void havege_fill( havege_state *hs )
 {
     int i, n = 0;
-    int U1,  U2,  *A, *B, *C, *D;
+    int  U1,  U2, *A, *B, *C, *D;
     int PT1, PT2, *WALK, RES[16];
     int PTX, PTY, CLK, PTEST, IN;
-
-    memset( RES, 0, sizeof( RES ) );
 
     WALK = hs->WALK;
     PT1  = hs->PT1;
     PT2  = hs->PT2;
+
     PTX  = U1 = 0;
     PTY  = U2 = 0;
+
+    memset( RES, 0, sizeof( RES ) );
 
     while( n < COLLECT_SIZE * 4 )
     {
@@ -176,6 +177,7 @@ static void havege_fill( havege_state *hs )
 
     hs->PT1 = PT1;
     hs->PT2 = PT2;
+
     hs->offset[0] = 0;
     hs->offset[1] = COLLECT_SIZE / 2;
 }
@@ -206,7 +208,7 @@ int havege_rand( void *rng_d )
 
 static const char _havege_src[] = "_havege_src";
 
-#ifdef RAND_TEST
+#if defined(RAND_TEST)
 
 #include <stdio.h>
 
@@ -226,7 +228,7 @@ int main( int argc, char *argv[] )
 
     if( ( f = fopen( argv[1], "wb+" ) ) == NULL )
     {
-        fprintf( stderr, "failed to open '%s' for writing.\n", argv[0] );
+        printf( "failed to open '%s' for writing.\n", argv[0] );
         return( 1 );
     }
 

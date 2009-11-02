@@ -1,7 +1,7 @@
 /*
  *  RFC 1521 base64 encoding/decoding
  *
- *  Copyright (C) 2006  Christophe Devine
+ *  Copyright (C) 2006-2007  Christophe Devine
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -22,7 +22,7 @@
 #define _CRT_SECURE_NO_DEPRECATE 1
 #endif
 
-#include "base64.h"
+#include "xyssl/base64.h"
 
 static const int base64_enc_map[64] =
 {
@@ -178,7 +178,7 @@ int base64_decode( unsigned char *dst, int *dlen,
 
 static const char _base64_src[] = "_base64_src";
 
-#ifdef SELF_TEST
+#if defined(SELF_TEST)
 
 #include <string.h>
 #include <stdio.h>
@@ -202,12 +202,13 @@ static const unsigned char base64_test_enc[] =
 /*
  * Checkup routine
  */
-int base64_self_test( void )
+int base64_self_test( int verbose )
 {
     int len;
     unsigned char *src, buffer[128];
 
-    printf( "  Base64 encoding test: " );
+    if( verbose != 0 )
+        printf( "  Base64 encoding test: " );
 
     len = sizeof( buffer );
     src = (unsigned char *) base64_test_dec;
@@ -215,13 +216,14 @@ int base64_self_test( void )
     if( base64_encode( buffer, &len, src, 64 ) != 0 ||
         memcmp( base64_test_enc,  buffer, 88 ) != 0 ) 
     {
-        printf( "failed\n" );
+        if( verbose != 0 )
+            printf( "failed\n" );
+
         return( 1 );
     }
 
-    printf( "passed\n" );
-
-    printf( "  Base64 decoding test: " );
+    if( verbose != 0 )
+        printf( "passed\n  Base64 decoding test: " );
 
     len = sizeof( buffer );
     src = (unsigned char *) base64_test_enc;
@@ -229,16 +231,19 @@ int base64_self_test( void )
     if( base64_decode( buffer, &len, src, 88 ) != 0 ||
         memcmp( base64_test_dec,  buffer, 64 ) != 0 )
     {
-        printf( "failed\n" );
+        if( verbose != 0 )
+            printf( "failed\n" );
+
         return( 1 );
     }
 
-    printf( "passed\n\n" );
+    if( verbose != 0 )
+        printf( "passed\n\n" );
 
     return( 0 );
 }
 #else
-int base64_self_test( void )
+int base64_self_test( int verbose )
 {
     return( 0 );
 }

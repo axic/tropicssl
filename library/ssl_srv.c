@@ -1,7 +1,7 @@
 /*
  *  SSLv3/TLSv1 server-side functions
  *
- *  Copyright (C) 2006  Christophe Devine
+ *  Copyright (C) 2006-2007  Christophe Devine
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -27,12 +27,8 @@
 #include <stdio.h>
 #include <time.h>
 
-#include "net.h"
-#include "ssl.h"
-#include "rsa.h"
-#include "dhm.h"
-#include "md5.h"
-#include "sha1.h"
+#include "xyssl/net.h"
+#include "xyssl/ssl.h"
 
 static int ssl_get_session( ssl_context *ssl )
 {
@@ -68,11 +64,11 @@ static int ssl_get_session( ssl_context *ssl )
     if( time( NULL ) - t > SSL_EXPIRATION_TIME )
         return( ERR_SSL_NO_SESSION_FOUND );
 
-    sha1_csum(  buf,  86, hash );
+    sha1( buf, 86, hash );
     if( memcmp( buf + 86, hash, 20 ) != 0 )
         return( ERR_SSL_NO_SESSION_FOUND );
 
-    memcpy(  ssl->master, buf + 32, 48 );
+    memcpy( ssl->master, buf + 32, 48 );
     ssl->cipher = ( (int) buf[84] << 8 )
                 | ( (int) buf[85]      );
 
@@ -105,10 +101,10 @@ static void ssl_set_session( ssl_context *ssl )
     buf[82] = (unsigned char)( t >>  8 );
     buf[83] = (unsigned char)( t       );
 
-    buf[84] = (unsigned char)( ssl->cipher >> 8 );
-    buf[85] = (unsigned char)( ssl->cipher      );
+    buf[84] = ( ssl->cipher >> 8 );
+    buf[85] = ( ssl->cipher      );
 
-    sha1_csum( buf, 86, buf + 86 );
+    sha1( buf, 86, buf + 86 );
 
     offset = ( (int) ssl->sessid[0] << 8 )
            | ( (int) ssl->sessid[1]      );
@@ -487,10 +483,8 @@ static int ssl_write_server_key_exchange( ssl_context *ssl )
      *     opaque dh_Ys<1..2^16-1>;
      * } ServerDHParams;
      */
-    if( ( ret = dhm_ssl_make_params(  &ssl->dhm_ctx,
-                           ssl->dhm_P, ssl->dhm_G,
-                           ssl->rng_f, ssl->rng_d,
-                           ssl->out_msg + 4, &n ) ) != 0 )
+    if( ( ret = dhm_make_params( &ssl->dhm_ctx, ssl->rng_f,
+                      ssl->rng_d, ssl->out_msg + 4, &n ) ) != 0 )
         return( ret );
 
     /*
@@ -596,8 +590,8 @@ static int ssl_parse_client_key_exchange( ssl_context *ssl )
         if( ssl->minor_ver != SSLV3_MINOR_VERSION )
         {
             i += 2;
-            if( (int) ssl->in_msg[4] != ( n >> 8 ) ||
-                (int) ssl->in_msg[5] != ( n      ) )
+            if( ssl->in_msg[4] != ( ( n >> 8 ) & 0xFF ) ||
+                ssl->in_msg[5] != ( ( n      ) & 0xFF ) )
                 return( ERR_SSL_BAD_HS_CLIENT_KEY_EXCHANGE );
         }
 

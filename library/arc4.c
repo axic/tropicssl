@@ -1,7 +1,7 @@
 /*
  *  An implementation of the ARCFOUR algorithm
  *
- *  Copyright (C) 2003-2006  Christophe Devine
+ *  Copyright (C) 2006-2007  Christophe Devine
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -27,7 +27,7 @@
 #define _CRT_SECURE_NO_DEPRECATE 1
 #endif
 
-#include "arc4.h"
+#include "xyssl/arc4.h"
 
 /*
  * ARC4 key schedule
@@ -80,7 +80,7 @@ void arc4_crypt( arc4_context *ctx, unsigned char *buf, int buflen )
 
 static const char _arc4_src[] = "_arc4_src";
 
-#ifdef SELF_TEST
+#if defined(SELF_TEST)
 
 #include <string.h>
 #include <stdio.h>
@@ -112,7 +112,7 @@ static const unsigned char arc4_test_ct[3][8] =
 /*
  * Checkup routine
  */
-int arc4_self_test( void )
+int arc4_self_test( int verbose )
 {
     int i;
     unsigned char buf[8];
@@ -120,7 +120,8 @@ int arc4_self_test( void )
 
     for( i = 0; i < 3; i++ )
     {
-        printf( "  ARC4 test #%d: ", i + 1 );
+        if( verbose != 0 )
+            printf( "  ARC4 test #%d: ", i + 1 );
 
         memcpy( buf, arc4_test_pt[i], 8 );
 
@@ -129,18 +130,23 @@ int arc4_self_test( void )
 
         if( memcmp( buf, arc4_test_ct[i], 8 ) != 0 )
         {
-            printf( "failed\n" );
+            if( verbose != 0 )
+                printf( "failed\n" );
+
             return( 1 );
         }
 
-        printf( "passed\n" );
+        if( verbose != 0 )
+            printf( "passed\n" );
     }
 
-    printf( "\n" );
+    if( verbose != 0 )
+        printf( "\n" );
+
     return( 0 );
 }
 #else
-int arc4_self_test( void )
+int arc4_self_test( int verbose )
 {
     return( 0 );
 }

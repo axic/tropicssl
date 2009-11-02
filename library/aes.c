@@ -1,7 +1,7 @@
 /*
  *  FIPS-197 compliant AES implementation
  *
- *  Copyright (C) 2003-2006  Christophe Devine
+ *  Copyright (C) 2006-2007  Christophe Devine
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -30,7 +30,7 @@
 
 #include <string.h>
 
-#include "aes.h"
+#include "xyssl/aes.h"
 
 #ifndef uint8
 #define uint8 unsigned char
@@ -74,7 +74,7 @@
 /*
  * Forward S-box & tables
  */
-static uint8 FSb[256];
+static uint8  FSb[256];
 static uint32 FT0[256]; 
 static uint32 FT1[256]; 
 static uint32 FT2[256]; 
@@ -83,7 +83,7 @@ static uint32 FT3[256];
 /*
  * Reverse S-box & tables
  */
-static uint8 RSb[256];
+static uint8  RSb[256];
 static uint32 RT0[256];
 static uint32 RT1[256];
 static uint32 RT2[256];
@@ -852,7 +852,7 @@ void aes_cbc_decrypt( aes_context *ctx,
 
 static const char _aes_src[] = "_aes_src";
 
-#ifdef SELF_TEST
+#if defined(SELF_TEST)
 
 #include <stdio.h>
 
@@ -882,7 +882,7 @@ static const uint8 aes_dec_test[3][16] =
 /*
  * Checkup routine
  */
-int aes_self_test( void )
+int aes_self_test( int verbose )
 {
     int i, j, u, v;
     aes_context ctx;
@@ -891,10 +891,11 @@ int aes_self_test( void )
     for( i = 0; i < 6; i++ )
     {
         u = i >> 1;
-        v = i & 1;
+        v = i  & 1;
 
-        printf( "  AES-ECB-%3d (%s): ", 128 + u * 64,
-                ( v == 0 ) ? "enc" : "dec" );
+        if( verbose != 0 )
+            printf( "  AES-ECB-%3d (%s): ", 128 + u * 64,
+                    ( v == 0 ) ? "enc" : "dec" );
 
         memset( buf, 0, 32 );
         aes_set_key( &ctx, buf, 128 + u * 64 );
@@ -908,18 +909,23 @@ int aes_self_test( void )
         if( ( v == 0 && memcmp( buf, aes_enc_test[u], 16 ) != 0 ) ||
             ( v == 1 && memcmp( buf, aes_dec_test[u], 16 ) != 0 ) )
         {
-            printf( "failed\n" );
+            if( verbose != 0 )
+                printf( "failed\n" );
+
             return( 1 );
         }
 
-        printf( "passed\n" );
+        if( verbose != 0 )
+            printf( "passed\n" );
     }
 
-    printf( "\n" );
+    if( verbose != 0 )
+        printf( "\n" );
+
     return( 0 );
 }
 #else
-int aes_self_test( void )
+int aes_self_test( int verbose )
 {
     return( 0 );
 }

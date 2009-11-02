@@ -7,7 +7,7 @@
  *      Both MD5 and SHA-1 are required for SSL and
  *       therefore cannot be disabled here.
  *
- *  When compiling for ARMv3 with gcc 3.4.6 -Os:
+ *  When compiling for ARMv3 / ARMv4T with gcc 3.4.6 -Os:
  *
  *  NO_GENPRIME  saves    2196 bytes
  *  NO_DHM       saves    2220 bytes

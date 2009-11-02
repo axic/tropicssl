@@ -1,7 +1,7 @@
 /*
  *  Portable interface to the CPU cycle counter
  *
- *  Copyright (C) 2003-2006  Christophe Devine, Brian Gladman
+ *  Copyright (C) 2006-2007  Christophe Devine
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -22,7 +22,7 @@
 #define _CRT_SECURE_NO_DEPRECATE 1
 #endif
 
-#include "timing.h"
+#include "xyssl/timing.h"
 
 #if defined(WIN32)
 

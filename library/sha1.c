@@ -1,7 +1,7 @@
 /*
  *  FIPS-180-1 compliant SHA-1 implementation
  *
- *  Copyright (C) 2003-2006  Christophe Devine
+ *  Copyright (C) 2006-2007  Christophe Devine
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -30,7 +30,7 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "sha1.h"
+#include "xyssl/sha1.h"
 
 /*
  * 32-bit integer manipulation macros (big endian)
@@ -44,6 +44,7 @@
         | ( (unsigned long) (b)[(i) + 3]       );       \
 }
 #endif
+
 #ifndef PUT_UINT32_BE
 #define PUT_UINT32_BE(n,b,i)                            \
 {                                                       \
@@ -73,16 +74,16 @@ static void sha1_process( sha1_context *ctx, unsigned char data[64] )
 {
     unsigned long temp, W[16], A, B, C, D, E;
 
-    GET_UINT32_BE( W[0],  data,  0 );
-    GET_UINT32_BE( W[1],  data,  4 );
-    GET_UINT32_BE( W[2],  data,  8 );
-    GET_UINT32_BE( W[3],  data, 12 );
-    GET_UINT32_BE( W[4],  data, 16 );
-    GET_UINT32_BE( W[5],  data, 20 );
-    GET_UINT32_BE( W[6],  data, 24 );
-    GET_UINT32_BE( W[7],  data, 28 );
-    GET_UINT32_BE( W[8],  data, 32 );
-    GET_UINT32_BE( W[9],  data, 36 );
+    GET_UINT32_BE( W[ 0], data,  0 );
+    GET_UINT32_BE( W[ 1], data,  4 );
+    GET_UINT32_BE( W[ 2], data,  8 );
+    GET_UINT32_BE( W[ 3], data, 12 );
+    GET_UINT32_BE( W[ 4], data, 16 );
+    GET_UINT32_BE( W[ 5], data, 20 );
+    GET_UINT32_BE( W[ 6], data, 24 );
+    GET_UINT32_BE( W[ 7], data, 28 );
+    GET_UINT32_BE( W[ 8], data, 32 );
+    GET_UINT32_BE( W[ 9], data, 36 );
     GET_UINT32_BE( W[10], data, 40 );
     GET_UINT32_BE( W[11], data, 44 );
     GET_UINT32_BE( W[12], data, 48 );
@@ -280,7 +281,7 @@ static const unsigned char sha1_padding[64] =
 /*
  * SHA-1 final digest
  */
-void sha1_finish( sha1_context *ctx, unsigned char output[20] )
+void sha1_finish( sha1_context *ctx, unsigned char *output )
 {
     unsigned long last, padn;
     unsigned long high, low;
@@ -307,9 +308,24 @@ void sha1_finish( sha1_context *ctx, unsigned char output[20] )
 }
 
 /*
+ * Output = SHA-1( input buffer )
+ */
+void sha1( unsigned char *input, int ilen,
+           unsigned char *output )
+{
+    sha1_context ctx;
+
+    sha1_starts( &ctx );
+    sha1_update( &ctx, input, ilen );
+    sha1_finish( &ctx, output );
+
+    memset( &ctx, 0, sizeof( sha1_context ) );
+}
+
+/*
  * Output = SHA-1( file contents )
  */
-int sha1_file( char *path, unsigned char output[20] )
+int sha1_file( char *path, unsigned char *output )
 {
     FILE *f;
     size_t n;
@@ -326,66 +342,85 @@ int sha1_file( char *path, unsigned char output[20] )
 
     sha1_finish( &ctx, output );
 
+    memset( &ctx, 0, sizeof( sha1_context ) );
+
+    if( ferror( f ) != 0 )
+    {
+        fclose( f );
+        return( 2 );
+    }
+
     fclose( f );
     return( 0 );
 }
 
 /*
- * Output = SHA-1( input buffer )
+ * SHA-1 HMAC context setup
  */
-void sha1_csum( unsigned char *input, int ilen,
-                unsigned char output[20] )
-{
-    sha1_context ctx;
-
-    sha1_starts( &ctx );
-    sha1_update( &ctx, input, ilen );
-    sha1_finish( &ctx, output );
-}
-
-/*
- * Output = HMAC-SHA-1( input buffer, hmac key )
- */
-void sha1_hmac( unsigned char *key, int keylen,
-                unsigned char *input, int ilen,
-                unsigned char output[20] )
+void sha1_hmac_starts( sha1_context *ctx,
+                       unsigned char *key, int keylen )
 {
     int i;
-    sha1_context ctx;
-    unsigned char k_ipad[64];
-    unsigned char k_opad[64];
-    unsigned char tmpbuf[20];
 
-    memset( k_ipad, 0x36, 64 );
-    memset( k_opad, 0x5C, 64 );
+    memset( ctx->ipad, 0x36, 64 );
+    memset( ctx->opad, 0x5C, 64 );
 
     for( i = 0; i < keylen; i++ )
     {
         if( i >= 64 ) break;
 
-        k_ipad[i] ^= key[i];
-        k_opad[i] ^= key[i];
+        ctx->ipad[i] ^= key[i];
+        ctx->opad[i] ^= key[i];
     }
 
-    sha1_starts( &ctx );
-    sha1_update( &ctx, k_ipad, 64 );
-    sha1_update( &ctx, input, ilen );
-    sha1_finish( &ctx, tmpbuf );
+    sha1_starts( ctx );
+    sha1_update( ctx, ctx->ipad, 64 );
+}
 
-    sha1_starts( &ctx );
-    sha1_update( &ctx, k_opad, 64 );
-    sha1_update( &ctx, tmpbuf, 20 );
-    sha1_finish( &ctx, output );
+/*
+ * SHA-1 HMAC process buffer
+ */
+void sha1_hmac_update( sha1_context *ctx,
+                       unsigned char *input, int ilen )
+{
+    sha1_update( ctx, input, ilen );
+}
 
-    memset( k_ipad, 0, 64 );
-    memset( k_opad, 0, 64 );
-    memset( tmpbuf, 0, 20 );
+/*
+ * SHA-1 HMAC final digest
+ */
+void sha1_hmac_finish( sha1_context *ctx, unsigned char *output )
+{
+    unsigned char tmpbuf[20];
+
+    sha1_finish( ctx, tmpbuf );
+    sha1_starts( ctx );
+    sha1_update( ctx, ctx->opad, 64 );
+    sha1_update( ctx, tmpbuf, 20 );
+    sha1_finish( ctx, output );
+
+    memset( tmpbuf, 0, sizeof( tmpbuf ) );
+}
+
+/*
+ * Output = HMAC-SHA-1( hmac key, input buffer )
+ */
+void sha1_hmac( unsigned char *key, int keylen,
+                unsigned char *input, int ilen,
+                unsigned char *output )
+{
+    sha1_context ctx;
+
+    sha1_hmac_starts( &ctx, key, keylen );
+    sha1_hmac_update( &ctx, input, ilen );
+    sha1_hmac_finish( &ctx, output );
+
     memset( &ctx, 0, sizeof( sha1_context ) );
 }
 
 static const char _sha1_src[] = "_sha1_src";
 
-#ifdef SELF_TEST
+#if defined(SELF_TEST)
 /*
  * FIPS-180-1 test vectors
  */
@@ -409,7 +444,7 @@ static const unsigned char sha1_test_sum[3][20] =
 /*
  * Checkup routine
  */
-int sha1_self_test( void )
+int sha1_self_test( int verbose )
 {
     int i, j;
     unsigned char buf[1000];
@@ -418,7 +453,8 @@ int sha1_self_test( void )
 
     for( i = 0; i < 3; i++ )
     {
-        printf( "  SHA-1 test #%d: ", i + 1 );
+        if( verbose != 0 )
+            printf( "  SHA-1 test #%d: ", i + 1 );
 
         sha1_starts( &ctx );
 
@@ -436,18 +472,23 @@ int sha1_self_test( void )
 
         if( memcmp( sha1sum, sha1_test_sum[i], 20 ) != 0 )
         {
-            printf( "failed\n" );
+            if( verbose != 0 )
+                printf( "failed\n" );
+
             return( 1 );
         }
 
-        printf( "passed\n" );
+        if( verbose != 0 )
+            printf( "passed\n" );
     }
 
-    printf( "\n" );
+    if( verbose != 0 )
+        printf( "\n" );
+
     return( 0 );
 }
 #else
-int sha1_self_test( void )
+int sha1_self_test( int verbose )
 {
     return( 0 );
 }

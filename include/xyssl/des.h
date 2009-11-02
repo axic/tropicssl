@@ -161,7 +161,7 @@ void des3_cbc_decrypt( des3_context *ctx,
  *
  * \return         0 if successful, or 1 if the test failed
  */
-int des_self_test( void );
+int des_self_test( int verbose );
 
 #ifdef __cplusplus
 }

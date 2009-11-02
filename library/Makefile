@@ -6,12 +6,16 @@
 #    HAVE_RDTSC         CPU supports rdtsc (x86 only)
 #    HAVE_SSE2          CPU supports sse2  (x86 only)
 #    HAVE_LONGLONG      compiler supports long long
-#    _BSD_EXTENSION     needed to compile on Plan 9
-#
-# Add -fPIC to CFLAGS to compile as a shared library
+#    _BSD_EXTENSION     when compiling on Plan9
 
-DEFINES	= -DSELF_TEST -DHAVE_RDTSC #-DHAVE_SSE2
-CFLAGS	= $(DEFINES) -I../include/xyssl -O #-fPIC
+DEFINES	= -DSELF_TEST -DHAVE_RDTSC
+CFLAGS	= $(DEFINES) -I../include -O
+
+# To compile as a shared library:
+# CFLAGS += -fPIC
+
+# MicroBlaze specific options:
+# CFLAGS += -mno-xl-soft-mul -mxl-barrel-shift
 
 OBJS=aes.o       arc4.o      base64.o    bignum.o    \
      certs.o     des.o       dhm.o       havege.o    \

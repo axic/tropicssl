@@ -1,7 +1,7 @@
 /*
  *  Diffie-Hellman-Merkle key exchange
  *
- *  Copyright (C) 2007  Christophe Devine
+ *  Copyright (C) 2006-2007  Christophe Devine
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -29,14 +29,14 @@
 
 #include <string.h>
 
-#include "dhm.h"
+#include "xyssl/dhm.h"
 
 /*
  * helper to validate the mpi size and import it
  */
-static int dhm_ssl_read_bignum( mpi *X,
-                                unsigned char **p,
-                                unsigned char *end )
+static int dhm_read_bignum( mpi *X,
+                            unsigned char **p,
+                            unsigned char *end )
 {
     int ret, n;
 
@@ -49,7 +49,7 @@ static int dhm_ssl_read_bignum( mpi *X,
     if( (int)( end - *p ) < n )
         return( ERR_DHM_BAD_INPUT_DATA );
 
-    if( ( ret = mpi_import( X, *p, n ) ) != 0 )
+    if( ( ret = mpi_read_binary( X, *p, n ) ) != 0 )
         return( ERR_DHM_READ_PARAMS_FAILED | ret );
 
     (*p) += n;
@@ -60,20 +60,20 @@ static int dhm_ssl_read_bignum( mpi *X,
 /*
  * Parse the ServerKeyExchange parameters
  */
-int dhm_ssl_read_params( dhm_context *ctx,
-                         unsigned char **p,
-                         unsigned char *end )
+int dhm_read_params( dhm_context *ctx,
+                     unsigned char **p,
+                     unsigned char *end )
 {
     int ret, n;
 
     memset( ctx, 0, sizeof( dhm_context ) );
 
-    if( ( ret = dhm_ssl_read_bignum( &ctx->P,  p, end ) ) != 0 ||
-        ( ret = dhm_ssl_read_bignum( &ctx->G,  p, end ) ) != 0 ||
-        ( ret = dhm_ssl_read_bignum( &ctx->GY, p, end ) ) != 0 )
+    if( ( ret = dhm_read_bignum( &ctx->P,  p, end ) ) != 0 ||
+        ( ret = dhm_read_bignum( &ctx->G,  p, end ) ) != 0 ||
+        ( ret = dhm_read_bignum( &ctx->GY, p, end ) ) != 0 )
         return( ret );
 
-    ctx->len = ( mpi_size( &ctx->P ) + 7 ) >> 3;
+    ctx->len = ( mpi_msb( &ctx->P ) + 7 ) >> 3;
 
     if( end - *p < 2 )
         return( ERR_DHM_BAD_INPUT_DATA );
@@ -90,18 +90,12 @@ int dhm_ssl_read_params( dhm_context *ctx,
 /*
  * Setup and write the ServerKeyExchange parameters
  */
-int dhm_ssl_make_params( dhm_context *ctx, char *P, char *G,
-                         int (*rng_f)(void *), void *rng_d,
-                         unsigned char *output, int *olen )
+int dhm_make_params( dhm_context *ctx,
+                     int (*rng_f)(void *), void *rng_d,
+                     unsigned char *output, int *olen )
 {
     int i, ret, n, n1, n2, n3;
     unsigned char *p;
-
-    /*
-     * public parameters must be defined by the caller
-     */
-    CHK( mpi_read( &ctx->P, P, 16 ) );
-    CHK( mpi_read( &ctx->G, G, 16 ) );
 
     /*
      * generate X and calculate GX = G^X mod P
@@ -122,15 +116,13 @@ int dhm_ssl_make_params( dhm_context *ctx, char *P, char *G,
     /*
      * export P, G, GX
      */
-#define DHM_MPI_EXPORT(X,n)             \
-    CHK( mpi_export( X, p + 2, &n ) );  \
-    *p++ = ( n >> 8 );                  \
-    *p++ = ( n      );                  \
-    p += n;
+#define DHM_MPI_EXPORT(X,n)                     \
+    CHK( mpi_write_binary( X, p + 2, &n ) );    \
+    *p++ = ( n >> 8 ); *p++ = n; p += n;
 
-    n1 = ( mpi_size( &ctx->P  ) + 7 ) >> 3;
-    n2 = ( mpi_size( &ctx->G  ) + 7 ) >> 3;
-    n3 = ( mpi_size( &ctx->GX ) + 7 ) >> 3;
+    n1 = ( mpi_msb( &ctx->P  ) + 7 ) >> 3;
+    n2 = ( mpi_msb( &ctx->G  ) + 7 ) >> 3;
+    n3 = ( mpi_msb( &ctx->GX ) + 7 ) >> 3;
 
     p = output;
     DHM_MPI_EXPORT( &ctx->P , n1 );
@@ -160,7 +152,7 @@ int dhm_read_public( dhm_context *ctx,
     if( ctx == NULL || ilen < 1 || ilen > ctx->len )
         return( ERR_DHM_BAD_INPUT_DATA );
 
-    if( ( ret = mpi_import( &ctx->GY, input, ilen ) ) != 0 )
+    if( ( ret = mpi_read_binary( &ctx->GY, input, ilen ) ) != 0 )
         return( ERR_DHM_READ_PUBLIC_FAILED | ret );
 
     return( 0 );
@@ -195,7 +187,7 @@ int dhm_make_public( dhm_context *ctx,
     CHK( mpi_exp_mod( &ctx->GX, &ctx->G, &ctx->X,
                       &ctx->P , &ctx->RP ) );
 
-    CHK( mpi_export( &ctx->GX, output, &olen ) );
+    CHK( mpi_write_binary( &ctx->GX, output, &olen ) );
 
 cleanup:
 
@@ -219,9 +211,9 @@ int dhm_calc_secret( dhm_context *ctx,
     CHK( mpi_exp_mod( &ctx->K, &ctx->GY, &ctx->X,
                       &ctx->P, &ctx->RP ) );
 
-    *olen = ( mpi_size( &ctx->K ) + 7 ) >> 3;
+    *olen = ( mpi_msb( &ctx->K ) + 7 ) >> 3;
 
-    CHK( mpi_export( &ctx->K, output, olen ) );
+    CHK( mpi_write_binary( &ctx->K, output, olen ) );
 
 cleanup:
 
@@ -243,12 +235,12 @@ void dhm_free( dhm_context *ctx )
 
 static const char _dhm_src[] = "_dhm_src";
 
-#ifdef SELF_TEST
+#if defined(SELF_TEST)
+#endif
 /*
  * Checkup routine
  */
-int dhm_self_test( void )
+int dhm_self_test( int verbose )
 {
-    return( 0 );
+    return( verbose = 0 );
 }
-#endif

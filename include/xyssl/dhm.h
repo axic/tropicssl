@@ -39,26 +39,28 @@ dhm_context;
  *
  * \return         0 if successful, or ERR_DHM_READ_PARAMS_FAILED
  */
-int dhm_ssl_read_params( dhm_context *ctx,
-                         unsigned char **p,
-                         unsigned char *end );
+int dhm_read_params( dhm_context *ctx,
+                     unsigned char **p,
+                     unsigned char *end );
 
 /**
  * \brief          Setup and write the ServerKeyExchange parameters
  *
  * \param ctx      DHM context
- * \param P        public modulus   (hex string)
- * \param G        public generator (hex string)
  * \param rng_f    points to the RNG function
  * \param rng_d    points to the RNG data 
  * \param output   destination buffer
  * \param olen     number of chars written
  *
+ * \note           This function assumes that ctx->P and ctx->G
+ *                 have already been properly set (for example
+ *                 using mpi_read_string).
+ *
  * \return         0 if successful, or an MPI error code
  */
-int dhm_ssl_make_params( dhm_context *ctx, char *P, char *G,
-                         int (*rng_f)(void *), void *rng_d,
-                         unsigned char *output, int *olen );
+int dhm_make_params( dhm_context *ctx,
+                     int (*rng_f)(void *), void *rng_d,
+                     unsigned char *output, int *olen );
 
 /**
  * \brief          Import the peer's public value (G^Y)
@@ -109,7 +111,7 @@ void dhm_free( dhm_context *ctx );
  *
  * \return         0 if successful, or 1 if the test failed
  */
-int dhm_self_test( void );
+int dhm_self_test( int verbose );
 
 #ifdef __cplusplus
 }

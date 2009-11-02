@@ -1,7 +1,7 @@
 /*
  *  TCP networking functions
  *
- *  Copyright (C) 2006  Christophe Devine
+ *  Copyright (C) 2006-2007  Christophe Devine
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -59,7 +59,7 @@ static int wsa_init_done = 0;
 #include <stdio.h>
 #include <time.h>
 
-#include "net.h"
+#include "xyssl/net.h"
 
 /*
  * Initiate a TCP connection with host:port
@@ -202,7 +202,7 @@ int net_accept( int bind_fd, int *client_fd,
 {
     struct sockaddr_in client_addr;
 
-#ifdef __socklen_t_defined
+#if defined(__socklen_t_defined)
     socklen_t n = (socklen_t) sizeof( client_addr );
 #else
     int n = (int) sizeof( client_addr );
@@ -234,7 +234,7 @@ int net_set_block( int fd )
     long n = 0;
     return( ioctlsocket( fd, FIONBIO, &n ) );
 #else
-    return( fcntl( fd, fcntl( fd, F_GETFL ) & ~O_NONBLOCK ) );
+    return( fcntl( fd, F_SETFL, fcntl( fd, F_GETFL ) & ~O_NONBLOCK ) );
 #endif
 }
 
@@ -244,7 +244,7 @@ int net_set_nonblock( int fd )
     long n = 1;
     return( ioctlsocket( fd, FIONBIO, &n ) );
 #else
-    return( fcntl( fd, fcntl( fd, F_GETFL ) | O_NONBLOCK ) );
+    return( fcntl( fd, F_SETFL, fcntl( fd, F_GETFL ) | O_NONBLOCK ) );
 #endif
 }
 

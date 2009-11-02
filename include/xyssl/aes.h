@@ -85,7 +85,7 @@ void aes_cbc_decrypt( aes_context *ctx,
  *
  * \return         0 if successful, or 1 if the test failed
  */
-int aes_self_test( void );
+int aes_self_test( int verbose );
 
 #ifdef __cplusplus
 }

@@ -1,7 +1,7 @@
 /*
  *  SSLv3/TLSv1 shared functions
  *
- *  Copyright (C) 2006  Christophe Devine
+ *  Copyright (C) 2006-2007  Christophe Devine
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -34,14 +34,11 @@
 #include <stdlib.h>
 #include <time.h>
 
-#include "x509.h"
-#include "net.h"
-#include "ssl.h"
-#include "md5.h"
-#include "sha1.h"
-#include "arc4.h"
-#include "des.h"
-#include "aes.h"
+#include "xyssl/net.h"
+#include "xyssl/ssl.h"
+#include "xyssl/aes.h"
+#include "xyssl/arc4.h"
+#include "xyssl/des.h"
 
 /*
  * Key material generation
@@ -382,8 +379,8 @@ static void ssl_mac_md5( unsigned char *secret,
 
     memcpy( header, ctr, 8 );
     header[ 8] = type;
-    header[ 9] = ( len >> 8 );
-    header[10] = ( len      );
+    header[ 9] = len >> 8;
+    header[10] = len;
 
     memset( padding, 0x36, 48 );
     md5_starts( &md5 );
@@ -411,8 +408,8 @@ static void ssl_mac_sha1( unsigned char *secret,
 
     memcpy( header, ctr, 8 );
     header[ 8] = type;
-    header[ 9] = ( len >> 8 );
-    header[10] = ( len      );
+    header[ 9] = len >> 8;
+    header[10] = len;
 
     memset( padding, 0x36, 40 );
     sha1_starts( &sha1 );
@@ -545,16 +542,16 @@ static int ssl_decrypt_buf( ssl_context *ssl )
 
         switch( ssl->ivlen )
         {
-            case  8:
 #if !defined(NO_DES)
+            case  8:
                 des3_cbc_decrypt( (des3_context *) ssl->ctx_dec,
                                   ssl->iv_dec, ssl->in_msg,
                                   ssl->in_msg, ssl->in_msglen );
                 break;
 #endif
 
-            case 16:
 #if !defined(NO_AES)
+            case 16:
                  aes_cbc_decrypt( (aes_context *) ssl->ctx_dec,
                                   ssl->iv_dec, ssl->in_msg,
                                   ssl->in_msg, ssl->in_msglen );
@@ -585,8 +582,8 @@ static int ssl_decrypt_buf( ssl_context *ssl )
      */
     ssl->in_msglen -= ( ssl->maclen + padlen );
 
-    ssl->in_hdr[3] = ( ssl->in_msglen >> 8 );
-    ssl->in_hdr[4] = ( ssl->in_msglen      );
+    ssl->in_hdr[3] = ssl->in_msglen >> 8;
+    ssl->in_hdr[4] = ssl->in_msglen;
 
     memcpy( tmp, ssl->in_msg + ssl->in_msglen, 20 );
 
@@ -654,14 +651,14 @@ int ssl_write_record( ssl_context *ssl, int do_crypt )
     ssl->out_hdr[0] = ssl->out_msgtype;
     ssl->out_hdr[1] = ssl->major_ver;
     ssl->out_hdr[2] = ssl->minor_ver;
-    ssl->out_hdr[3] = ( len >> 8 );
-    ssl->out_hdr[4] = ( len      );
+    ssl->out_hdr[3] = len >> 8;
+    ssl->out_hdr[4] = len;
 
     if( ssl->out_msgtype == SSL_MSG_HANDSHAKE )
     {
-        ssl->out_msg[1] = ( (len - 4) >> 16 );
-        ssl->out_msg[2] = ( (len - 4) >>  8 );
-        ssl->out_msg[3] = ( (len - 4)       );
+        ssl->out_msg[1] = ( len - 4 ) >> 16;
+        ssl->out_msg[2] = ( len - 4 ) >>  8;
+        ssl->out_msg[3] = ( len - 4 );
 
          md5_update( &ssl->hs_md5 , ssl->out_msg, len );
         sha1_update( &ssl->hs_sha1, ssl->out_msg, len );
@@ -673,8 +670,8 @@ int ssl_write_record( ssl_context *ssl, int do_crypt )
             return( ret );
 
         len = ssl->out_msglen;
-        ssl->out_hdr[3] = ( len >> 8 );
-        ssl->out_hdr[4] = ( len      );
+        ssl->out_hdr[3] = len >> 8;
+        ssl->out_hdr[4] = len;
     }
 
     ssl->out_left = 5 + ssl->out_msglen;
@@ -688,8 +685,8 @@ int ssl_read_record( ssl_context *ssl, int do_crypt )
 {
     int ret, len;
 
-    if( ssl->in_msgtype == SSL_MSG_HANDSHAKE &&
-        ssl->in_msglen   > ssl->in_hslen )
+    if( ssl->in_hslen != 0 &&
+        ssl->in_hslen < ssl->in_msglen )
     {
         /*
          * Get next Handshake message in the current record
@@ -702,14 +699,17 @@ int ssl_read_record( ssl_context *ssl, int do_crypt )
         if( ssl->in_msglen < 4 || ssl->in_msg[1] != 0 )
             return( ERR_SSL_INVALID_RECORD );
 
-        ssl->in_hslen = 4 + ( ( (int) ssl->in_msg[2] << 8 )
-                            | ( (int) ssl->in_msg[3]      ) );
+        ssl->in_hslen  = 4;
+        ssl->in_hslen += ( (int) ssl->in_msg[2] << 8 )
+                       | ( (int) ssl->in_msg[3]      );
 
         if( ssl->in_msglen < ssl->in_hslen )
             return( ERR_SSL_INVALID_RECORD );
 
         return( 0 );
     }
+
+    ssl->in_hslen = 0;
 
     /*
      * Read the record header and validate it
@@ -754,6 +754,9 @@ int ssl_read_record( ssl_context *ssl, int do_crypt )
             ssl->in_msglen > ssl->minlen + SSL_MAX_CONTENT_LEN )
             return( ERR_SSL_INVALID_RECORD );
 
+        /*
+         * TLS encrypted messages can have up to 256 bytes of padding
+         */
         if( ssl->minor_ver != 0 &&
             ssl->in_msglen > ssl->minlen + SSL_MAX_CONTENT_LEN + 256 )
             return( ERR_SSL_INVALID_RECORD );
@@ -784,11 +787,12 @@ int ssl_read_record( ssl_context *ssl, int do_crypt )
         /*
          * Additional checks to validate the handshake header
          */
-        if( len < 4 || ssl->in_msg[1] != 0 )
+        if( ssl->in_msglen < 4 || ssl->in_msg[1] != 0 )
             return( ERR_SSL_INVALID_RECORD );
 
-        ssl->in_hslen = 4 + ( ( (int) ssl->in_msg[2] << 8 )
-                            | ( (int) ssl->in_msg[3]      ) );
+        ssl->in_hslen  = 4;
+        ssl->in_hslen += ( (int) ssl->in_msg[2] << 8 )
+                       | ( (int) ssl->in_msg[3]      );
 
         if( ssl->in_msglen < ssl->in_hslen )
             return( ERR_SSL_INVALID_RECORD );
@@ -796,8 +800,6 @@ int ssl_read_record( ssl_context *ssl, int do_crypt )
           md5_update( &ssl->hs_md5 , ssl->in_msg, ssl->in_msglen );
          sha1_update( &ssl->hs_sha1, ssl->in_msg, ssl->in_msglen );
     }
-    else
-        ssl->in_hslen = ~0;
 
     if( ssl->in_msgtype == SSL_MSG_ALERT )
     {
@@ -813,6 +815,7 @@ int ssl_read_record( ssl_context *ssl, int do_crypt )
     }
 
     ssl->in_left = 0;
+
     return( 0 );
 }
 
@@ -889,7 +892,7 @@ int ssl_write_certificate( ssl_context *ssl )
         if( i + 3 + n > SSL_MAX_CONTENT_LEN )
             return( ERR_SSL_CERTIFICATE_TOO_LARGE );
 
-        ssl->out_msg[i]     = ( n >> 16 );
+        ssl->out_msg[i    ] = ( n >> 16 );
         ssl->out_msg[i + 1] = ( n >>  8 );
         ssl->out_msg[i + 2] = ( n       );
 
@@ -897,15 +900,16 @@ int ssl_write_certificate( ssl_context *ssl )
         i += n; crt = crt->next;
     }
 
-    ssl->out_msg[4] = ( (i - 7) >> 16 );
-    ssl->out_msg[5] = ( (i - 7) >>  8 );
-    ssl->out_msg[6] = ( (i - 7)       );
+    ssl->out_msg[4] = ( i - 7 ) >> 16;
+    ssl->out_msg[5] = ( i - 7 ) >>  8;
+    ssl->out_msg[6] = ( i - 7 )      ;
 
     ssl->out_msglen  = i;
     ssl->out_msgtype = SSL_MSG_HANDSHAKE;
     ssl->out_msg[0]  = SSL_HS_CERTIFICATE;
 
     ssl->state++;
+
     return( ssl_write_record( ssl, 0 ) );
 }
 
@@ -1286,10 +1290,13 @@ void ssl_set_sidtable( ssl_context *ssl, unsigned char *sidtable )
     ssl->sidtable   = sidtable;
 }
 
-void ssl_set_dhm_vals( ssl_context *ssl, char *dhm_P, char *dhm_G )
+int ssl_set_dhm_vals( ssl_context *ssl, char *dhm_P, char *dhm_G )
 {
-    ssl->dhm_P      = dhm_P;
-    ssl->dhm_G      = dhm_G;
+    if( mpi_read_string( &ssl->dhm_ctx.P, 16, dhm_P ) != 0 ||
+        mpi_read_string( &ssl->dhm_ctx.G, 16, dhm_G ) != 0 )
+        return( 1 );
+
+    return( 0 );
 }
 
 /*
@@ -1386,7 +1393,7 @@ int ssl_read( ssl_context *ssl, unsigned char *buf, int *len )
     if( ( ret = ssl_handshake( ssl ) ) != 0 )
         return( ret );
 
-    while( ssl->in_left == 0 )
+    if( ssl->in_offt == NULL )
     {
         if( ( ret = ssl_read_record( ssl, 1 ) ) != 0 )
             return( ret );
@@ -1394,16 +1401,19 @@ int ssl_read( ssl_context *ssl, unsigned char *buf, int *len )
         if( ssl->in_msgtype != SSL_MSG_APPLICATION_DATA )
             return( ERR_SSL_UNEXPECTED_MESSAGE );
 
-        ssl->in_left = ssl->in_msglen;
+        ssl->in_offt = ssl->in_msg;
     }
 
-    n = ( *len < ssl->in_left )
-        ? *len : ssl->in_left;
+    n = ( *len < ssl->in_msglen )
+        ? *len : ssl->in_msglen;
 
-    memcpy( buf, ssl->in_msg + ssl->in_msglen
-                             - ssl->in_left, n );
-    ssl->in_left -= n;
-    *len = n;
+    memcpy( buf, ssl->in_offt, n );
+    ssl->in_msglen -= ( *len = n );
+
+    if( ssl->in_msglen == 0 )
+        ssl->in_offt = NULL;
+    else
+        ssl->in_offt += n;
 
     return( 0 );
 }
@@ -1427,7 +1437,7 @@ int ssl_write( ssl_context *ssl, unsigned char *buf, int len )
         ssl->out_msgtype = SSL_MSG_APPLICATION_DATA;
         memcpy( ssl->out_msg, buf, n ); buf += n;
 
-        ssl_write_record( ssl, 1 );
+        ret = ssl_write_record( ssl, 1 );
     }
 
     if( ssl->out_uoff >= len )
@@ -1468,14 +1478,14 @@ void ssl_free( ssl_context *ssl )
     {
         memset( ssl->ctx_dec, 0, ssl->ctxlen );
           free( ssl->ctx_dec );
-          ssl->ctx_dec = NULL;
+        ssl->ctx_dec = NULL;
     }
 
     if( ssl->ctx_enc != NULL )
     {
         memset( ssl->ctx_enc, 0, ssl->ctxlen );
           free( ssl->ctx_enc );
-          ssl->ctx_enc = NULL;
+        ssl->ctx_enc = NULL;
     }
 
 #if !defined(NO_DHM)
@@ -1493,13 +1503,13 @@ void ssl_free( ssl_context *ssl )
     {
         memset( ssl->out_ctr, 0, SSL_BUFFER_LEN );
           free( ssl->out_ctr );
-          ssl->out_ctr = NULL;
+        ssl->out_ctr = NULL;
     }
 
     if( ssl->in_ctr != NULL )
     {
         memset( ssl->in_ctr, 0, SSL_BUFFER_LEN );
           free( ssl->in_ctr );
-          ssl->in_ctr = NULL;
+        ssl->in_ctr = NULL;
     }
 }

@@ -1,7 +1,7 @@
 /*
  *  FIPS-180-2 compliant SHA-256 implementation
  *
- *  Copyright (C) 2003-2006  Christophe Devine
+ *  Copyright (C) 2006-2007  Christophe Devine
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -18,7 +18,7 @@
  *  MA  02110-1301  USA
  */
 /*
- *  The SHA-256 standard was published by NIST in 2002.
+ *  The SHA-256 Secure Hash Standard was published by NIST in 2002.
  *
  *  http://csrc.nist.gov/publications/fips/fips180-2/fips180-2.pdf
  */
@@ -30,7 +30,7 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "sha2.h"
+#include "xyssl/sha2.h"
 
 /*
  * 32-bit integer manipulation macros (big endian)
@@ -44,6 +44,7 @@
         | ( (unsigned long) (b)[(i) + 3]       );       \
 }
 #endif
+
 #ifndef PUT_UINT32_BE
 #define PUT_UINT32_BE(n,b,i)                            \
 {                                                       \
@@ -55,21 +56,39 @@
 #endif
 
 /*
- * SHA-2 context setup
+ * SHA-256 context setup
  */
-void sha2_starts( sha2_context *ctx )
+void sha2_starts( sha2_context *ctx, int is224 )
 {
     ctx->total[0] = 0;
     ctx->total[1] = 0;
 
-    ctx->state[0] = 0x6A09E667;
-    ctx->state[1] = 0xBB67AE85;
-    ctx->state[2] = 0x3C6EF372;
-    ctx->state[3] = 0xA54FF53A;
-    ctx->state[4] = 0x510E527F;
-    ctx->state[5] = 0x9B05688C;
-    ctx->state[6] = 0x1F83D9AB;
-    ctx->state[7] = 0x5BE0CD19;
+    if( is224 == 0 )
+    {
+        /* SHA-256 */
+        ctx->state[0] = 0x6A09E667;
+        ctx->state[1] = 0xBB67AE85;
+        ctx->state[2] = 0x3C6EF372;
+        ctx->state[3] = 0xA54FF53A;
+        ctx->state[4] = 0x510E527F;
+        ctx->state[5] = 0x9B05688C;
+        ctx->state[6] = 0x1F83D9AB;
+        ctx->state[7] = 0x5BE0CD19;
+    }
+    else
+    {
+        /* SHA-224 */
+        ctx->state[0] = 0xC1059ED8;
+        ctx->state[1] = 0x367CD507;
+        ctx->state[2] = 0x3070DD17;
+        ctx->state[3] = 0xF70E5939;
+        ctx->state[4] = 0xFFC00B31;
+        ctx->state[5] = 0x68581511;
+        ctx->state[6] = 0x64F98FA7;
+        ctx->state[7] = 0xBEFA4FA4;
+    }
+
+    ctx->is224 = is224;
 }
 
 static void sha2_process( sha2_context *ctx, unsigned char data[64] )
@@ -77,16 +96,16 @@ static void sha2_process( sha2_context *ctx, unsigned char data[64] )
     unsigned long temp1, temp2, W[64];
     unsigned long A, B, C, D, E, F, G, H;
 
-    GET_UINT32_BE( W[0],  data,  0 );
-    GET_UINT32_BE( W[1],  data,  4 );
-    GET_UINT32_BE( W[2],  data,  8 );
-    GET_UINT32_BE( W[3],  data, 12 );
-    GET_UINT32_BE( W[4],  data, 16 );
-    GET_UINT32_BE( W[5],  data, 20 );
-    GET_UINT32_BE( W[6],  data, 24 );
-    GET_UINT32_BE( W[7],  data, 28 );
-    GET_UINT32_BE( W[8],  data, 32 );
-    GET_UINT32_BE( W[9],  data, 36 );
+    GET_UINT32_BE( W[ 0], data,  0 );
+    GET_UINT32_BE( W[ 1], data,  4 );
+    GET_UINT32_BE( W[ 2], data,  8 );
+    GET_UINT32_BE( W[ 3], data, 12 );
+    GET_UINT32_BE( W[ 4], data, 16 );
+    GET_UINT32_BE( W[ 5], data, 20 );
+    GET_UINT32_BE( W[ 6], data, 24 );
+    GET_UINT32_BE( W[ 7], data, 28 );
+    GET_UINT32_BE( W[ 8], data, 32 );
+    GET_UINT32_BE( W[ 9], data, 36 );
     GET_UINT32_BE( W[10], data, 40 );
     GET_UINT32_BE( W[11], data, 44 );
     GET_UINT32_BE( W[12], data, 48 );
@@ -204,7 +223,7 @@ static void sha2_process( sha2_context *ctx, unsigned char data[64] )
 }
 
 /*
- * SHA-2 process buffer
+ * SHA-256 process buffer
  */
 void sha2_update( sha2_context *ctx, unsigned char *input, int ilen )
 {
@@ -256,9 +275,9 @@ static const unsigned char sha2_padding[64] =
 };
 
 /*
- * SHA-2 final digest
+ * SHA-256 final digest
  */
-void sha2_finish( sha2_context *ctx, unsigned char output[32] )
+void sha2_finish( sha2_context *ctx, unsigned char *output )
 {
     unsigned long last, padn;
     unsigned long high, low;
@@ -284,13 +303,30 @@ void sha2_finish( sha2_context *ctx, unsigned char output[32] )
     PUT_UINT32_BE( ctx->state[4], output, 16 );
     PUT_UINT32_BE( ctx->state[5], output, 20 );
     PUT_UINT32_BE( ctx->state[6], output, 24 );
-    PUT_UINT32_BE( ctx->state[7], output, 28 );
+
+    if( ctx->is224 == 0 )
+        PUT_UINT32_BE( ctx->state[7], output, 28 );
 }
 
 /*
- * Output = SHA-2( file contents )
+ * Output = SHA-256( input buffer )
  */
-int sha2_file( char *path, unsigned char output[32] )
+void sha2( unsigned char *input,  int ilen,
+           unsigned char *output, int is224 )
+{
+    sha2_context ctx;
+
+    sha2_starts( &ctx, is224 );
+    sha2_update( &ctx, input, ilen );
+    sha2_finish( &ctx, output );
+
+    memset( &ctx, 0, sizeof( sha2_context ) );
+}
+
+/*
+ * Output = SHA-256( file contents )
+ */
+int sha2_file( char *path, unsigned char *output, int is224 )
 {
     FILE *f;
     size_t n;
@@ -300,73 +336,96 @@ int sha2_file( char *path, unsigned char output[32] )
     if( ( f = fopen( path, "rb" ) ) == NULL )
         return( 1 );
 
-    sha2_starts( &ctx );
+    sha2_starts( &ctx, is224 );
 
     while( ( n = fread( buf, 1, sizeof( buf ), f ) ) > 0 )
         sha2_update( &ctx, buf, (int) n );
 
     sha2_finish( &ctx, output );
 
+    memset( &ctx, 0, sizeof( sha2_context ) );
+
+    if( ferror( f ) != 0 )
+    {
+        fclose( f );
+        return( 2 );
+    }
+
     fclose( f );
     return( 0 );
 }
 
 /*
- * Output = SHA-2( input buffer )
+ * SHA-256 HMAC context setup
  */
-void sha2_csum( unsigned char *input, int ilen,
-                unsigned char output[32] )
-{
-    sha2_context ctx;
-
-    sha2_starts( &ctx );
-    sha2_update( &ctx, input, ilen );
-    sha2_finish( &ctx, output );
-}
-
-/*
- * Output = HMAC-SHA-2( input buffer, hmac key )
- */
-void sha2_hmac( unsigned char *key, int keylen,
-                unsigned char *input, int ilen,
-                unsigned char output[32] )
+void sha2_hmac_starts( sha2_context *ctx,  int is224,
+                       unsigned char *key, int keylen )
 {
     int i;
-    sha2_context ctx;
-    unsigned char k_ipad[64];
-    unsigned char k_opad[64];
-    unsigned char tmpbuf[32];
 
-    memset( k_ipad, 0x36, 64 );
-    memset( k_opad, 0x5C, 64 );
+    memset( ctx->ipad, 0x36, 64 );
+    memset( ctx->opad, 0x5C, 64 );
 
     for( i = 0; i < keylen; i++ )
     {
         if( i >= 64 ) break;
 
-        k_ipad[i] ^= key[i];
-        k_opad[i] ^= key[i];
+        ctx->ipad[i] ^= key[i];
+        ctx->opad[i] ^= key[i];
     }
 
-    sha2_starts( &ctx );
-    sha2_update( &ctx, k_ipad, 64 );
-    sha2_update( &ctx, input, ilen );
-    sha2_finish( &ctx, tmpbuf );
+    sha2_starts( ctx, is224 );
+    sha2_update( ctx, ctx->ipad, 64 );
+}
 
-    sha2_starts( &ctx );
-    sha2_update( &ctx, k_opad, 64 );
-    sha2_update( &ctx, tmpbuf, 32 );
-    sha2_finish( &ctx, output );
+/*
+ * SHA-256 HMAC process buffer
+ */
+void sha2_hmac_update( sha2_context *ctx,
+                       unsigned char *input, int ilen )
+{
+    sha2_update( ctx, input, ilen );
+}
 
-    memset( k_ipad, 0, 64 );
-    memset( k_opad, 0, 64 );
-    memset( tmpbuf, 0, 32 );
+/*
+ * SHA-256 HMAC final digest
+ */
+void sha2_hmac_finish( sha2_context *ctx, unsigned char *output )
+{
+    int is224, hlen;
+    unsigned char tmpbuf[32];
+
+    is224 = ctx->is224;
+    hlen = ( is224 == 0 ) ? 32 : 28;
+
+    sha2_finish( ctx, tmpbuf );
+    sha2_starts( ctx, is224 );
+    sha2_update( ctx, ctx->opad, 64 );
+    sha2_update( ctx, tmpbuf, hlen );
+    sha2_finish( ctx, output );
+
+    memset( tmpbuf, 0, sizeof( tmpbuf ) );
+}
+
+/*
+ * Output = HMAC-SHA-256( hmac key, input buffer )
+ */
+void sha2_hmac( unsigned char *key,  int keylen,
+                unsigned char *input,  int ilen,
+                unsigned char *output, int is224 )
+{
+    sha2_context ctx;
+
+    sha2_hmac_starts( &ctx, is224, key, keylen );
+    sha2_hmac_update( &ctx, input, ilen );
+    sha2_hmac_finish( &ctx, output );
+
     memset( &ctx, 0, sizeof( sha2_context ) );
 }
 
 static const char _sha2_src[] = "_sha2_src";
 
-#ifdef SELF_TEST
+#if defined(SELF_TEST)
 /*
  * FIPS-180-2 test vectors
  */
@@ -377,8 +436,27 @@ static const char sha2_test_str[3][57] =
     { "" }
 };
 
-static const unsigned char sha2_test_sum[3][32] =
+static const unsigned char sha2_test_sum[6][32] =
 {
+    /*
+     * SHA-224 test vectors
+     */
+    { 0x23, 0x09, 0x7D, 0x22, 0x34, 0x05, 0xD8, 0x22,
+      0x86, 0x42, 0xA4, 0x77, 0xBD, 0xA2, 0x55, 0xB3,
+      0x2A, 0xAD, 0xBC, 0xE4, 0xBD, 0xA0, 0xB3, 0xF7,
+      0xE3, 0x6C, 0x9D, 0xA7 },
+    { 0x75, 0x38, 0x8B, 0x16, 0x51, 0x27, 0x76, 0xCC,
+      0x5D, 0xBA, 0x5D, 0xA1, 0xFD, 0x89, 0x01, 0x50,
+      0xB0, 0xC6, 0x45, 0x5C, 0xB4, 0xF5, 0x8B, 0x19,
+      0x52, 0x52, 0x25, 0x25 },
+    { 0x20, 0x79, 0x46, 0x55, 0x98, 0x0C, 0x91, 0xD8,
+      0xBB, 0xB4, 0xC1, 0xEA, 0x97, 0x61, 0x8A, 0x4B,
+      0xF0, 0x3F, 0x42, 0x58, 0x19, 0x48, 0xB2, 0xEE,
+      0x4E, 0xE7, 0xAD, 0x67 },
+
+    /*
+     * SHA-256 test vectors
+     */
     { 0xBA, 0x78, 0x16, 0xBF, 0x8F, 0x01, 0xCF, 0xEA,
       0x41, 0x41, 0x40, 0xDE, 0x5D, 0xAE, 0x22, 0x23,
       0xB0, 0x03, 0x61, 0xA3, 0x96, 0x17, 0x7A, 0x9C,
@@ -396,45 +474,56 @@ static const unsigned char sha2_test_sum[3][32] =
 /*
  * Checkup routine
  */
-int sha2_self_test( void )
+int sha2_self_test( int verbose )
 {
-    int i, j;
+    int i, j, k;
     unsigned char buf[1000];
     unsigned char sha2sum[32];
     sha2_context ctx;
 
-    for( i = 0; i < 3; i++ )
+    memset( buf, 'a', 1000 );
+
+    for( i = 0; i < 6; i++ )
     {
-        printf( "  SHA-256 test #%d: ", i + 1 );
+        j = i % 3;
+        k = i < 3;
 
-        sha2_starts( &ctx );
+        if( verbose != 0 )
+            printf( "  SHA-%d test #%d: ", 256 - k * 32, j + 1 );
 
-        if( i < 2 )
-            sha2_update( &ctx, (unsigned char *) sha2_test_str[i],
-                         strlen( sha2_test_str[i] ) );
+        sha2_starts( &ctx, k );
+
+        if( j < 2 )
+            sha2_update( &ctx,
+                         (unsigned char *) sha2_test_str[j],
+                         strlen( sha2_test_str[j] ) );
         else
         {
-            memset( buf, 'a', 1000 );
             for( j = 0; j < 1000; j++ )
                 sha2_update( &ctx, buf, 1000 );
         }
 
         sha2_finish( &ctx, sha2sum );
 
-        if( memcmp( sha2sum, sha2_test_sum[i], 20 ) != 0 )
+        if( memcmp( sha2sum, sha2_test_sum[i], 32 - k * 4 ) != 0 )
         {
-            printf( "failed\n" );
+            if( verbose != 0 )
+                printf( "failed\n" );
+
             return( 1 );
         }
 
-        printf( "passed\n" );
+        if( verbose != 0 )
+            printf( "passed\n" );
     }
 
-    printf( "\n" );
+    if( verbose != 0 )
+        printf( "\n" );
+
     return( 0 );
 }
 #else
-int sha2_self_test( void )
+int sha2_self_test( int verbose )
 {
     return( 0 );
 }

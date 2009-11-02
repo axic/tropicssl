@@ -1,7 +1,7 @@
 /*
  *  FIPS-46-3 compliant Triple-DES implementation
  *
- *  Copyright (C) 2003-2006  Christophe Devine
+ *  Copyright (C) 2006-2007  Christophe Devine
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -30,7 +30,7 @@
 
 #include <string.h>
 
-#include "des.h"
+#include "xyssl/des.h"
 
 /*
  * 32-bit integer manipulation macros (big endian)
@@ -635,7 +635,7 @@ void des3_cbc_decrypt( des3_context *ctx,
 
 static const char _des_src[] = "_des_src";
 
-#ifdef SELF_TEST
+#if defined(SELF_TEST)
 
 #include <stdio.h>
 
@@ -671,7 +671,7 @@ static const unsigned char DES3_dec_test[3][8] =
 /*
  * Checkup routine
  */
-int des_self_test( void )
+int des_self_test( int verbose )
 {
     int i, j, u, v;
     des_context ctx;
@@ -681,11 +681,12 @@ int des_self_test( void )
     for( i = 0; i < 6; i++ )
     {
         u = i >> 1;
-        v = i & 1;
+        v = i  & 1;
 
-        printf( "  DES%c-EBC-%3d (%s): ",
-                ( u == 0 ) ? ' ' : '3', 64 + u * 64,
-                ( v == 0 ) ? "enc" : "dec" );
+        if( verbose != 0 )
+            printf( "  DES%c-EBC-%3d (%s): ",
+                    ( u == 0 ) ? ' ' : '3', 64 + u * 64,
+                    ( v == 0 ) ? "enc" : "dec" );
 
         memcpy( buf, DES3_init, 8 );
 
@@ -715,18 +716,23 @@ int des_self_test( void )
         if( ( v == 0 && memcmp( buf, DES3_enc_test[u], 8 ) != 0 ) ||
             ( v == 1 && memcmp( buf, DES3_dec_test[u], 8 ) != 0 ) )
         {
-            printf( "failed\n" );
+            if( verbose != 0 )
+                printf( "failed\n" );
+
             return( 1 );
         }
 
-        printf( "passed\n" );
+        if( verbose != 0 )
+            printf( "passed\n" );
     }
 
-    printf( "\n" );
+    if( verbose != 0 )
+        printf( "\n" );
+
     return( 0 );
 }
 #else
-int des_self_test( void )
+int des_self_test( int verbose )
 {
     return( 0 );
 }

@@ -1,7 +1,7 @@
 /*
  *  SSLv3/TLSv1 client-side functions
  *
- *  Copyright (C) 2006  Christophe Devine
+ *  Copyright (C) 2006-2007  Christophe Devine
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -26,11 +26,7 @@
 #include <stdlib.h>
 #include <time.h>
 
-#include "ssl.h"
-#include "rsa.h"
-#include "dhm.h"
-#include "md5.h"
-#include "sha1.h"
+#include "xyssl/ssl.h"
 
 static int ssl_write_client_hello( ssl_context *ssl )
 {
@@ -221,7 +217,7 @@ static int ssl_parse_server_key_exchange( ssl_context *ssl )
     p   = ssl->in_msg + 4;
     end = ssl->in_msg + ssl->in_hslen;
 
-    if( ( ret = dhm_ssl_read_params( &ssl->dhm_ctx, &p, end ) ) != 0 )
+    if( ( ret = dhm_read_params( &ssl->dhm_ctx, &p, end ) ) != 0 )
         return( ERR_SSL_BAD_HS_SERVER_KEY_EXCHANGE | ret );
 
     if( (int)( end - p ) != ssl->peer_cert->rsa.len )
@@ -292,12 +288,17 @@ static int ssl_parse_certificate_request( ssl_context *ssl )
     if( ssl->in_msg[0] == SSL_HS_CERTIFICATE_REQUEST )
     {
         ssl->client_auth++;
-
+        /*
+         * We may want to continue the handshake, even when
+         * no client certificate has been configured.
+         */
+#if 0
         if( ssl->own_cert == NULL )
             return( ERR_SSL_CERTIFICATE_REQUIRED );
 
         if( ssl->own_key  == NULL )
             return( ERR_SSL_PRIVATE_KEY_REQUIRED );
+#endif
     }
 
     return( 0 );

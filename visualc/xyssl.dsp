@@ -32,16 +32,16 @@ RSC=rc.exe
 
 # PROP BASE Use_MFC 0
 # PROP BASE Use_Debug_Libraries 0
-# PROP BASE Output_Dir "xyssl___Win32_Release"
-# PROP BASE Intermediate_Dir "xyssl___Win32_Release"
+# PROP BASE Output_Dir ""
+# PROP BASE Intermediate_Dir "temp"
 # PROP BASE Target_Dir ""
 # PROP Use_MFC 0
 # PROP Use_Debug_Libraries 0
-# PROP Output_Dir "Release__xyssl"
-# PROP Intermediate_Dir "Release__xyssl"
+# PROP Output_Dir ""
+# PROP Intermediate_Dir "temp"
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_MBCS" /D "_LIB" /YX /FD /c
-# ADD CPP /nologo /W3 /GX /O2 /I "..\include\xyssl" /D "NDEBUG" /D "WIN32" /D "_MBCS" /D "_LIB" /D "SELF_TEST" /YX /FD /c
+# ADD CPP /nologo /W3 /GX /O2 /I "../include" /D "NDEBUG" /D "WIN32" /D "_MBCS" /D "_LIB" /D "SELF_TEST" /YX /FD /c
 # ADD BASE RSC /l 0x40c /d "NDEBUG"
 # ADD RSC /l 0x40c /d "NDEBUG"
 BSC32=bscmake.exe
@@ -55,16 +55,16 @@ LIB32=link.exe -lib
 
 # PROP BASE Use_MFC 0
 # PROP BASE Use_Debug_Libraries 1
-# PROP BASE Output_Dir "xyssl___Win32_Debug"
-# PROP BASE Intermediate_Dir "xyssl___Win32_Debug"
+# PROP BASE Output_Dir ""
+# PROP BASE Intermediate_Dir "temp"
 # PROP BASE Target_Dir ""
 # PROP Use_MFC 0
 # PROP Use_Debug_Libraries 1
-# PROP Output_Dir "Debug__xyssl"
-# PROP Intermediate_Dir "Debug__xyssl"
+# PROP Output_Dir ""
+# PROP Intermediate_Dir "temp"
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_MBCS" /D "_LIB" /YX /FD /GZ /c
-# ADD CPP /nologo /W3 /Gm /GX /ZI /Od /I "..\include\xyssl" /D "_DEBUG" /D "WIN32" /D "_MBCS" /D "_LIB" /D "SELF_TEST" /YX /FD /GZ /c
+# ADD CPP /nologo /W3 /Gm /GX /ZI /Od /I "../include" /D "_DEBUG" /D "WIN32" /D "_MBCS" /D "_LIB" /D "SELF_TEST" /YX /FD /GZ /c
 # ADD BASE RSC /l 0x40c /d "_DEBUG"
 # ADD RSC /l 0x40c /d "_DEBUG"
 BSC32=bscmake.exe
@@ -145,6 +145,10 @@ SOURCE=..\library\sha2.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\library\sha4.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\library\ssl_cli.c
 # End Source File
 # Begin Source File
@@ -185,7 +189,7 @@ SOURCE=..\include\xyssl\bignum.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\library\bn_asm.h
+SOURCE=..\include\xyssl\bn_asm.h
 # End Source File
 # Begin Source File
 
@@ -233,7 +237,15 @@ SOURCE=..\include\xyssl\sha2.h
 # End Source File
 # Begin Source File
 
+SOURCE=..\include\xyssl\sha4.h
+# End Source File
+# Begin Source File
+
 SOURCE=..\include\xyssl\ssl.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\include\xyssl\ssl_conf.h
 # End Source File
 # Begin Source File
 

@@ -1,7 +1,7 @@
 /*
  *  X.509 certificate and private key decoding
  *
- *  Copyright (C) 2006  Christophe Devine
+ *  Copyright (C) 2006-2007  Christophe Devine
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -38,15 +38,18 @@
 #include <stdio.h>
 #include <time.h>
 
-#include "x509.h"
-#include "base64.h"
-#include "bignum.h"
-#include "rsa.h"
-#include "des.h"
-#include "md2.h"
-#include "md4.h"
-#include "md5.h"
-#include "sha1.h"
+#include "xyssl/x509.h"
+#include "xyssl/base64.h"
+#include "xyssl/des.h"
+#include "xyssl/sha1.h"
+#include "xyssl/md5.h"
+
+#if !defined(NO_MD4)
+#include "xyssl/md4.h"
+#endif
+#if !defined(NO_MD2)
+#include "xyssl/md2.h"
+#endif
 
 /*
  * ASN.1 DER decoding routines
@@ -157,7 +160,7 @@ static int asn1_get_mpi( unsigned char **p,
     if( ( ret = asn1_get_tag( p, end, &len, ASN1_INTEGER ) ) != 0 )
         return( ret );
 
-    ret = mpi_import( X, *p, len );
+    ret = mpi_read_binary( X, *p, len );
 
     *p += len;
 
@@ -866,7 +869,7 @@ int x509_add_certs( x509_cert *chain, unsigned char *buf, int buflen )
         return( ret );
     }
 
-    crt->rsa.len = ( mpi_size( &crt->rsa.N ) + 7 ) >> 3;
+    crt->rsa.len = ( mpi_msb( &crt->rsa.N ) + 7 ) >> 3;
 
     /*
      *  issuerUniqueID  [1]  IMPLICIT UniqueIdentifier OPTIONAL,
@@ -1223,7 +1226,7 @@ int x509_parse_key( rsa_context *rsa, unsigned char *buf, int buflen,
         return( ret | ERR_X509_KEY_INVALID_FORMAT );
     }
 
-    rsa->len = ( mpi_size( &rsa->N ) + 7 ) >> 3;
+    rsa->len = ( mpi_msb( &rsa->N ) + 7 ) >> 3;
 
     if( p != end )
     {
@@ -1473,13 +1476,13 @@ static void x509_hash( unsigned char *in, int len, int alg,
     switch( alg )
     {
 #if !defined(NO_MD2)
-        case RSA_MD2  :  md2_csum( in, len, out ); break;
+        case RSA_MD2  :  md2( in, len, out ); break;
 #endif
 #if !defined(NO_MD4)
-        case RSA_MD4  :  md4_csum( in, len, out ); break;
+        case RSA_MD4  :  md4( in, len, out ); break;
 #endif
-        case RSA_MD5  :  md5_csum( in, len, out ); break;
-        case RSA_SHA1 : sha1_csum( in, len, out ); break;
+        case RSA_MD5  :  md5( in, len, out ); break;
+        case RSA_SHA1 : sha1( in, len, out ); break;
         default:
             memset( out, '\xFF', len );
             break;
@@ -1541,8 +1544,9 @@ int x509_verify_cert( x509_cert *crt, x509_cert *trust_ca,
         alg_id = crt->sig_oid1.p[8];
 
         x509_hash( crt->tbs.p, crt->tbs.len, alg_id, hash );
-        if(   rsa_pkcs1_verify(   &cur->rsa, alg_id, hash, 0,
-                             crt->sig.p, crt->sig.len ) != 0 )
+
+        if( rsa_pkcs1_verify( &cur->rsa, alg_id, hash, 0,
+                              crt->sig.p, crt->sig.len ) != 0 )
             return( ERR_X509_SIG_VERIFY_FAILED );
 
         pathlen++;
@@ -1640,21 +1644,22 @@ void x509_free_cert( x509_cert *crt )
 
 static const char _x509_read_src[] = "_x509read_src";
 
-#ifdef SELF_TEST
+#if defined(SELF_TEST)
 
-#include "certs.h"
+#include "xyssl/certs.h"
 
 /*
  * Checkup routine
  */
-int x509_self_test( void )
+int x509_self_test( int verbose )
 {
     int ret, flags;
     x509_cert cacert;
     x509_cert clicert;
     rsa_context rsa;
-    
-    printf( "  X.509 certificate load: " );
+
+    if( verbose != 0 )
+        printf( "  X.509 certificate load: " );
 
     memset( &clicert, 0, sizeof( x509_cert ) );
 
@@ -1662,7 +1667,9 @@ int x509_self_test( void )
                           strlen( test_cli_crt ) );
     if( ret != 0 )
     {
-        printf( "failed\n" );
+        if( verbose != 0 )
+            printf( "failed\n" );
+
         return( ret );
     }
 
@@ -1672,11 +1679,14 @@ int x509_self_test( void )
                           strlen( test_ca_crt ) );
     if( ret != 0 )
     {
-        printf( "failed\n" );
+        if( verbose != 0 )
+            printf( "failed\n" );
+
         return( ret );
     }
 
-    printf( "passed\n  X.509 private key load: " );
+    if( verbose != 0 )
+        printf( "passed\n  X.509 private key load: " );
 
     ret = x509_parse_key( &rsa,
         (unsigned char *) test_ca_key, strlen( test_ca_key ),
@@ -1684,27 +1694,35 @@ int x509_self_test( void )
 
     if( ret != 0 )
     {
-        printf( "failed\n" );
+        if( verbose != 0 )
+            printf( "failed\n" );
+
         return( ret );
     }
 
-    printf( "passed\n  X.509 signature verify: ");
+    if( verbose != 0 )
+        printf( "passed\n  X.509 signature verify: ");
+
     ret = x509_verify_cert( &clicert, &cacert, "Joe User", &flags );
     if( ret != 0 )
     {
-        printf( "failed\n" );
+        if( verbose != 0 )
+            printf( "failed\n" );
+
         return( ret );
     }
 
-    printf( "passed\n\n" );
+    if( verbose != 0 )
+        printf( "passed\n\n" );
 
     x509_free_cert( &cacert  );
     x509_free_cert( &clicert );
     rsa_free( &rsa );
+
     return( 0 );
 }
 #else
-int x509_self_test( void )
+int x509_self_test( int verbose )
 {
     return( 0 );
 }

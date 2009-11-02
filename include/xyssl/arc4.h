@@ -42,7 +42,7 @@ void arc4_crypt( arc4_context *ctx, unsigned char *buf, int buflen );
  *
  * \return         0 if successful, or 1 if the test failed
  */
-int arc4_self_test( void );
+int arc4_self_test( int verbose );
 
 #ifdef __cplusplus
 }

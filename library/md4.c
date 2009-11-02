@@ -1,7 +1,7 @@
 /*
  *  RFC 1186/1320 compliant MD4 implementation
  *
- *  Copyright (C) 2003-2006  Christophe Devine
+ *  Copyright (C) 2006-2007  Christophe Devine
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -31,7 +31,7 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "md4.h"
+#include "xyssl/md4.h"
 
 /*
  * 32-bit integer manipulation macros (little endian)
@@ -45,6 +45,7 @@
         | ( (unsigned long) (b)[(i) + 3] << 24 );       \
 }
 #endif
+
 #ifndef PUT_UINT32_LE
 #define PUT_UINT32_LE(n,b,i)                            \
 {                                                       \
@@ -73,16 +74,16 @@ static void md4_process( md4_context *ctx, unsigned char data[64] )
 {
     unsigned long X[16], A, B, C, D;
 
-    GET_UINT32_LE( X[0],  data,  0 );
-    GET_UINT32_LE( X[1],  data,  4 );
-    GET_UINT32_LE( X[2],  data,  8 );
-    GET_UINT32_LE( X[3],  data, 12 );
-    GET_UINT32_LE( X[4],  data, 16 );
-    GET_UINT32_LE( X[5],  data, 20 );
-    GET_UINT32_LE( X[6],  data, 24 );
-    GET_UINT32_LE( X[7],  data, 28 );
-    GET_UINT32_LE( X[8],  data, 32 );
-    GET_UINT32_LE( X[9],  data, 36 );
+    GET_UINT32_LE( X[ 0], data,  0 );
+    GET_UINT32_LE( X[ 1], data,  4 );
+    GET_UINT32_LE( X[ 2], data,  8 );
+    GET_UINT32_LE( X[ 3], data, 12 );
+    GET_UINT32_LE( X[ 4], data, 16 );
+    GET_UINT32_LE( X[ 5], data, 20 );
+    GET_UINT32_LE( X[ 6], data, 24 );
+    GET_UINT32_LE( X[ 7], data, 28 );
+    GET_UINT32_LE( X[ 8], data, 32 );
+    GET_UINT32_LE( X[ 9], data, 36 );
     GET_UINT32_LE( X[10], data, 40 );
     GET_UINT32_LE( X[11], data, 44 );
     GET_UINT32_LE( X[12], data, 48 );
@@ -227,7 +228,7 @@ static const unsigned char md4_padding[64] =
 /*
  * MD4 final digest
  */
-void md4_finish( md4_context *ctx, unsigned char output[16] )
+void md4_finish( md4_context *ctx, unsigned char *output )
 {
     unsigned long last, padn;
     unsigned long high, low;
@@ -253,9 +254,24 @@ void md4_finish( md4_context *ctx, unsigned char output[16] )
 }
 
 /*
+ * Output = MD4( input buffer )
+ */
+void md4( unsigned char *input, int ilen,
+          unsigned char *output )
+{
+    md4_context ctx;
+
+    md4_starts( &ctx );
+    md4_update( &ctx, input, ilen );
+    md4_finish( &ctx, output );
+
+    memset( &ctx, 0, sizeof( md4_context ) );
+}
+
+/*
  * Output = MD4( file contents )
  */
-int md4_file( char *path, unsigned char output[16] )
+int md4_file( char *path, unsigned char *output )
 {
     FILE *f;
     size_t n;
@@ -272,66 +288,85 @@ int md4_file( char *path, unsigned char output[16] )
 
     md4_finish( &ctx, output );
 
+    memset( &ctx, 0, sizeof( md4_context ) );
+
+    if( ferror( f ) != 0 )
+    {
+        fclose( f );
+        return( 2 );
+    }
+
     fclose( f );
     return( 0 );
 }
 
 /*
- * Output = MD4( input buffer )
+ * MD4 HMAC context setup
  */
-void md4_csum( unsigned char *input, int ilen,
-               unsigned char output[16] )
-{
-    md4_context ctx;
-
-    md4_starts( &ctx );
-    md4_update( &ctx, input, ilen );
-    md4_finish( &ctx, output );
-}
-
-/*
- * Output = HMAC-MD4( input buffer, hmac key )
- */
-void md4_hmac( unsigned char *key, int keylen,
-               unsigned char *input, int ilen,
-               unsigned char output[16] )
+void md4_hmac_starts( md4_context *ctx,
+                      unsigned char *key, int keylen )
 {
     int i;
-    md4_context ctx;
-    unsigned char k_ipad[64];
-    unsigned char k_opad[64];
-    unsigned char tmpbuf[16];
 
-    memset( k_ipad, 0x36, 64 );
-    memset( k_opad, 0x5C, 64 );
+    memset( ctx->ipad, 0x36, 64 );
+    memset( ctx->opad, 0x5C, 64 );
 
     for( i = 0; i < keylen; i++ )
     {
         if( i >= 64 ) break;
 
-        k_ipad[i] ^= key[i];
-        k_opad[i] ^= key[i];
+        ctx->ipad[i] ^= key[i];
+        ctx->opad[i] ^= key[i];
     }
 
-    md4_starts( &ctx );
-    md4_update( &ctx, k_ipad, 64 );
-    md4_update( &ctx, input, ilen );
-    md4_finish( &ctx, tmpbuf );
+    md4_starts( ctx );
+    md4_update( ctx, ctx->ipad, 64 );
+}
 
-    md4_starts( &ctx );
-    md4_update( &ctx, k_opad, 64 );
-    md4_update( &ctx, tmpbuf, 16 );
-    md4_finish( &ctx, output );
+/*
+ * MD4 HMAC process buffer
+ */
+void md4_hmac_update( md4_context *ctx,
+                      unsigned char *input, int ilen )
+{
+    md4_update( ctx, input, ilen );
+}
 
-    memset( k_ipad, 0, 64 );
-    memset( k_opad, 0, 64 );
-    memset( tmpbuf, 0, 16 );
+/*
+ * MD4 HMAC final digest
+ */
+void md4_hmac_finish( md4_context *ctx, unsigned char *output )
+{
+    unsigned char tmpbuf[16];
+
+    md4_finish( ctx, tmpbuf );
+    md4_starts( ctx );
+    md4_update( ctx, ctx->opad, 64 );
+    md4_update( ctx, tmpbuf, 16 );
+    md4_finish( ctx, output );
+
+    memset( tmpbuf, 0, sizeof( tmpbuf ) );
+}
+
+/*
+ * Output = HMAC-MD4( hmac key, input buffer )
+ */
+void md4_hmac( unsigned char *key, int keylen,
+               unsigned char *input, int ilen,
+               unsigned char *output )
+{
+    md4_context ctx;
+
+    md4_hmac_starts( &ctx, key, keylen );
+    md4_hmac_update( &ctx, input, ilen );
+    md4_hmac_finish( &ctx, output );
+
     memset( &ctx, 0, sizeof( md4_context ) );
 }
 
 static const char _md4_src[] = "_md4_src";
 
-#ifdef SELF_TEST
+#if defined(SELF_TEST)
 /*
  * RFC 1320 test vectors
  */
@@ -368,32 +403,38 @@ static const unsigned char md4_test_sum[7][16] =
 /*
  * Checkup routine
  */
-int md4_self_test( void )
+int md4_self_test( int verbose )
 {
     int i;
     unsigned char md4sum[16];
 
     for( i = 0; i < 7; i++ )
     {
-        printf( "  MD4 test #%d: ", i + 1 );
+        if( verbose != 0 )
+            printf( "  MD4 test #%d: ", i + 1 );
 
-        md4_csum( (unsigned char *) md4_test_str[i],
-                  strlen( md4_test_str[i] ), md4sum );
+        md4( (unsigned char *) md4_test_str[i],
+             strlen( md4_test_str[i] ), md4sum );
 
         if( memcmp( md4sum, md4_test_sum[i], 16 ) != 0 )
         {
-            printf( "failed\n" );
+            if( verbose != 0 )
+                printf( "failed\n" );
+
             return( 1 );
         }
 
-        printf( "passed\n" );
+        if( verbose != 0 )
+            printf( "passed\n" );
     }
 
-    printf( "\n" );
+    if( verbose != 0 )
+        printf( "\n" );
+
     return( 0 );
 }
 #else
-int md4_self_test( void )
+int md4_self_test( int verbose )
 {
     return( 0 );
 }

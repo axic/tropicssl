@@ -1,7 +1,7 @@
 /*
  *  RFC 1115/1319 compliant MD2 implementation
  *
- *  Copyright (C) 2006  Christophe Devine
+ *  Copyright (C) 2006-2007  Christophe Devine
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -31,7 +31,7 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "md2.h"
+#include "xyssl/md2.h"
 
 static const unsigned char PI_SUBST[256] =
 {
@@ -127,7 +127,7 @@ void md2_update( md2_context *ctx, unsigned char *input, int ilen )
 /*
  * MD2 final digest
  */
-void md2_finish( md2_context *ctx, unsigned char output[16] )
+void md2_finish( md2_context *ctx, unsigned char *output )
 {
     int i;
     unsigned char x;
@@ -148,20 +148,22 @@ void md2_finish( md2_context *ctx, unsigned char output[16] )
 /*
  * Output = MD2( input buffer )
  */
-void md2_csum( unsigned char *input, int ilen,
-               unsigned char output[16] )
+void md2( unsigned char *input, int ilen,
+          unsigned char *output )
 {
     md2_context ctx;
 
     md2_starts( &ctx );
     md2_update( &ctx, input, ilen );
     md2_finish( &ctx, output );
+
+    memset( &ctx, 0, sizeof( md2_context ) );
 }
 
 /*
  * Output = MD2( file contents )
  */
-int md2_file( char *path, unsigned char output[16] )
+int md2_file( char *path, unsigned char *output )
 {
     FILE *f;
     size_t n;
@@ -178,53 +180,85 @@ int md2_file( char *path, unsigned char output[16] )
 
     md2_finish( &ctx, output );
 
+    memset( &ctx, 0, sizeof( md2_context ) );
+
+    if( ferror( f ) != 0 )
+    {
+        fclose( f );
+        return( 2 );
+    }
+
     fclose( f );
     return( 0 );
 }
 
 /*
- * Output = HMAC-MD2( input buffer, hmac key )
+ * MD2 HMAC context setup
  */
-void md2_hmac( unsigned char *key, int keylen,
-               unsigned char *input, int ilen,
-               unsigned char output[16] )
+void md2_hmac_starts( md2_context *ctx,
+                      unsigned char *key, int keylen )
 {
     int i;
-    md2_context ctx;
-    unsigned char k_ipad[64];
-    unsigned char k_opad[64];
-    unsigned char tmpbuf[16];
 
-    memset( k_ipad, 0x36, 64 );
-    memset( k_opad, 0x5C, 64 );
+    memset( ctx->ipad, 0x36, 64 );
+    memset( ctx->opad, 0x5C, 64 );
 
     for( i = 0; i < keylen; i++ )
     {
         if( i >= 64 ) break;
 
-        k_ipad[i] ^= key[i];
-        k_opad[i] ^= key[i];
+        ctx->ipad[i] ^= key[i];
+        ctx->opad[i] ^= key[i];
     }
 
-    md2_starts( &ctx );
-    md2_update( &ctx, k_ipad, 64 );
-    md2_update( &ctx, input, ilen );
-    md2_finish( &ctx, tmpbuf );
+    md2_starts( ctx );
+    md2_update( ctx, ctx->ipad, 64 );
+}
 
-    md2_starts( &ctx );
-    md2_update( &ctx, k_opad, 64 );
-    md2_update( &ctx, tmpbuf, 16 );
-    md2_finish( &ctx, output );
+/*
+ * MD2 HMAC process buffer
+ */
+void md2_hmac_update( md2_context *ctx,
+                      unsigned char *input, int ilen )
+{
+    md2_update( ctx, input, ilen );
+}
 
-    memset( k_ipad, 0, 64 );
-    memset( k_opad, 0, 64 );
-    memset( tmpbuf, 0, 16 );
+/*
+ * MD2 HMAC final digest
+ */
+void md2_hmac_finish( md2_context *ctx, unsigned char *output )
+{
+    unsigned char tmpbuf[16];
+
+    md2_finish( ctx, tmpbuf );
+    md2_starts( ctx );
+    md2_update( ctx, ctx->opad, 64 );
+    md2_update( ctx, tmpbuf, 16 );
+    md2_finish( ctx, output );
+
+    memset( tmpbuf, 0, sizeof( tmpbuf ) );
+}
+
+/*
+ * Output = HMAC-MD2( hmac key, input buffer )
+ */
+void md2_hmac( unsigned char *key, int keylen,
+               unsigned char *input, int ilen,
+               unsigned char *output )
+{
+    md2_context ctx;
+
+    md2_hmac_starts( &ctx, key, keylen );
+    md2_hmac_update( &ctx, input, ilen );
+    md2_hmac_finish( &ctx, output );
+
     memset( &ctx, 0, sizeof( md2_context ) );
 }
 
 static const char _md2_src[] = "_md2_src";
 
-#ifdef SELF_TEST
+#if defined(SELF_TEST)
 /*
  * RFC 1319 test vectors
  */
@@ -261,32 +295,38 @@ static const unsigned char md2_test_sum[7][16] =
 /*
  * Checkup routine
  */
-int md2_self_test( void )
+int md2_self_test( int verbose )
 {
     int i;
     unsigned char md2sum[16];
 
     for( i = 0; i < 7; i++ )
     {
-        printf( "  MD2 test #%d: ", i + 1 );
+        if( verbose != 0 )
+            printf( "  MD2 test #%d: ", i + 1 );
 
-        md2_csum( (unsigned char *) md2_test_str[i],
-                  strlen( md2_test_str[i] ), md2sum );
+        md2( (unsigned char *) md2_test_str[i],
+             strlen( md2_test_str[i] ), md2sum );
 
         if( memcmp( md2sum, md2_test_sum[i], 16 ) != 0 )
         {
-            printf( "failed\n" );
+            if( verbose != 0 )
+                printf( "failed\n" );
+
             return( 1 );
         }
 
-        printf( "passed\n" );
+        if( verbose != 0 )
+            printf( "passed\n" );
     }
 
-    printf( "\n" );
+    if( verbose != 0 )
+        printf( "\n" );
+
     return( 0 );
 }
 #else
-int md2_self_test( void )
+int md2_self_test( int verbose )
 {
     return( 0 );
 }

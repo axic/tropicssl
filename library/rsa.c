@@ -1,7 +1,7 @@
 /*
- *  The RSA PK cryptosystem
+ *  The RSA Public-Key cryptosystem
  *
- *  Copyright (C) 2006  Christophe Devine
+ *  Copyright (C) 2006-2007  Christophe Devine
  *
  *  This library is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU Lesser General Public
@@ -32,7 +32,7 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "rsa.h"
+#include "xyssl/rsa.h"
 
 #if !defined(NO_GENPRIME)
 /*
@@ -89,7 +89,7 @@ int rsa_gen_key( rsa_context *ctx, int nbits, int exponent,
     CHK( mpi_mod_mpi( &ctx->DQ, &ctx->D, &Q1 ) );
     CHK( mpi_inv_mod( &ctx->QP, &ctx->Q, &ctx->P ) );
 
-    ctx->len = ( mpi_size( &ctx->N ) + 7 ) >> 3;
+    ctx->len = ( mpi_msb( &ctx->N ) + 7 ) >> 3;
 
 cleanup:
 
@@ -106,6 +106,104 @@ cleanup:
 #endif
 
 /*
+ * Read the public key from a file
+ */
+int rsa_read_public( rsa_context *ctx, FILE *f )
+{
+    int ret;
+
+    memset( ctx, 0, sizeof( rsa_context ) );
+
+    CHK( mpi_read_file( &ctx->N, 16, f ) );
+    CHK( mpi_read_file( &ctx->E, 16, f ) );
+
+    ctx->len = ( mpi_msb( &ctx->N ) + 7 ) >> 3;
+
+cleanup:
+
+    if( ret != 0 )
+    {
+        rsa_free( ctx );
+        return( ERR_RSA_KEY_RD_FAILED | ret );
+    }
+
+    return( 0 );   
+}
+
+/*
+ * Read the private key from a file
+ */
+int rsa_read_private( rsa_context *ctx, FILE *f )
+{
+    int ret;
+
+    memset( ctx, 0, sizeof( rsa_context ) );
+
+    CHK( mpi_read_file( &ctx->N , 16, f ) );
+    CHK( mpi_read_file( &ctx->E , 16, f ) );
+    CHK( mpi_read_file( &ctx->D , 16, f ) );
+    CHK( mpi_read_file( &ctx->P , 16, f ) );
+    CHK( mpi_read_file( &ctx->Q , 16, f ) );
+    CHK( mpi_read_file( &ctx->DP, 16, f ) );
+    CHK( mpi_read_file( &ctx->DQ, 16, f ) );
+    CHK( mpi_read_file( &ctx->QP, 16, f ) );
+
+    ctx->len = ( mpi_msb( &ctx->N ) + 7 ) >> 3;
+
+cleanup:
+
+    if( ret != 0 )
+    {
+        rsa_free( ctx );
+        return( ERR_RSA_KEY_RD_FAILED | ret );
+    }
+
+    return( 0 );   
+}
+
+/*
+ * Write the public key into a file
+ */
+int rsa_write_public( rsa_context *ctx, FILE *f )
+{
+    int ret;
+
+    CHK( mpi_write_file( "N = ", &ctx->N, 16, f ) );
+    CHK( mpi_write_file( "E = ", &ctx->E, 16, f ) );
+
+cleanup:
+
+    if( ret != 0 )
+        return( ERR_RSA_KEY_WR_FAILED | ret );
+
+    return( 0 );   
+}
+
+/*
+ * Write the private key into a file
+ */
+int rsa_write_private( rsa_context *ctx, FILE *f )
+{
+    int ret;
+
+    CHK( mpi_write_file( "N = " , &ctx->N , 16, f ) );
+    CHK( mpi_write_file( "E = " , &ctx->E , 16, f ) );
+    CHK( mpi_write_file( "D = " , &ctx->D , 16, f ) );
+    CHK( mpi_write_file( "P = " , &ctx->P , 16, f ) );
+    CHK( mpi_write_file( "Q = " , &ctx->Q , 16, f ) );
+    CHK( mpi_write_file( "DP = ", &ctx->DP, 16, f ) );
+    CHK( mpi_write_file( "DQ = ", &ctx->DQ, 16, f ) );
+    CHK( mpi_write_file( "QP = ", &ctx->QP, 16, f ) );
+
+cleanup:
+
+    if( ret != 0 )
+        return( ERR_RSA_KEY_WR_FAILED | ret );
+
+    return( 0 );   
+}
+
+/*
  * Perform an RSA public key operation
  */
 int rsa_public( rsa_context   *ctx,
@@ -120,7 +218,7 @@ int rsa_public( rsa_context   *ctx,
 
     mpi_init( &T, NULL );
 
-    CHK( mpi_import( &T, input, ilen ) );
+    CHK( mpi_read_binary( &T, input, ilen ) );
 
     if( mpi_cmp_mpi( &T, &ctx->N ) >= 0 )
     {
@@ -129,7 +227,7 @@ int rsa_public( rsa_context   *ctx,
     }
 
     CHK( mpi_exp_mod( &T, &T, &ctx->E, &ctx->N, &ctx->RN ) );
-    CHK( mpi_export( &T, output, &olen ) );
+    CHK( mpi_write_binary( &T, output, &olen ) );
 
 cleanup:
 
@@ -156,7 +254,7 @@ int rsa_private( rsa_context   *ctx,
 
     mpi_init( &T, &T1, &T2, NULL );
 
-    CHK( mpi_import( &T, input, ilen ) );
+    CHK( mpi_read_binary( &T, input, ilen ) );
 
     if( mpi_cmp_mpi( &T, &ctx->N ) >= 0 )
     {
@@ -190,7 +288,7 @@ int rsa_private( rsa_context   *ctx,
     CHK( mpi_add_mpi( &T, &T2, &T1 ) );
 #endif
 
-    CHK( mpi_export( &T, output, &olen ) );
+    CHK( mpi_write_binary( &T, output, &olen ) );
 
 cleanup:
 
@@ -211,12 +309,12 @@ int rsa_check_pubkey( rsa_context *ctx )
         ( ctx->E.p[0] & 1 ) == 0 )
         return( ERR_RSA_KEY_CHK_FAILED );
 
-    if( mpi_size( &ctx->N ) < 128 ||
-        mpi_size( &ctx->N ) > 4096 )
+    if( mpi_msb( &ctx->N ) < 128 ||
+        mpi_msb( &ctx->N ) > 4096 )
         return( ERR_RSA_KEY_CHK_FAILED );
 
-    if( mpi_size( &ctx->E ) < 2 ||
-        mpi_size( &ctx->E ) > 64 )
+    if( mpi_msb( &ctx->E ) < 2 ||
+        mpi_msb( &ctx->E ) > 64 )
         return( ERR_RSA_KEY_CHK_FAILED );
 
     return( 0 );
@@ -476,131 +574,114 @@ void rsa_free( rsa_context *ctx )
               &ctx->RP, &ctx->RQ, NULL );
 }
 
-#ifdef SELF_TEST
+#if defined(SELF_TEST)
 
-#include "md5.h"
+#include "xyssl/sha1.h"
 
-#define PTLEN   24
-#define CTLEN  128
+#define PT_LEN  24
+#define RSA_PT  "\xAA\xBB\xCC\x03\x02\x01\x00\xFF\xFF\xFF\xFF\xFF" \
+                "\x11\x22\x33\x0A\x0B\x0C\xCC\xDD\xDD\xDD\xDD\xDD"
 
 /*
  * Checkup routine
  */
-int rsa_self_test( void )
+int rsa_self_test( int verbose )
 {
     int len;
     rsa_context rsa;
-    unsigned char md5sum[16];
-    unsigned char rsa_plaintext[PTLEN];
-    unsigned char rsa_decrypted[PTLEN];
-    unsigned char rsa_ciphertext[CTLEN];
+    unsigned char sha1sum[20];
+    unsigned char rsa_plaintext[PT_LEN];
+    unsigned char rsa_decrypted[PT_LEN];
+    unsigned char rsa_ciphertext[KEY_LEN];
 
-    memset( &rsa, 0, sizeof( rsa ) );
+    memset( &rsa, 0, sizeof( rsa_context ) );
 
-    rsa.len = 128;
+    rsa.len = KEY_LEN;
+    mpi_read_string( &rsa.N , 16, RSA_N  );
+    mpi_read_string( &rsa.E , 16, RSA_E  );
+    mpi_read_string( &rsa.D , 16, RSA_D  );
+    mpi_read_string( &rsa.P , 16, RSA_P  );
+    mpi_read_string( &rsa.Q , 16, RSA_Q  );
+    mpi_read_string( &rsa.DP, 16, RSA_DP );
+    mpi_read_string( &rsa.DQ, 16, RSA_DQ );
+    mpi_read_string( &rsa.QP, 16, RSA_QP );
 
-    mpi_read( &rsa.N , "9292758453063D803DD603D5E777D788" \
-                       "8ED1D5BF35786190FA2F23EBC0848AEA" \
-                       "DDA92CA6C3D80B32C4D109BE0F36D6AE" \
-                       "7130B9CED7ACDF54CFC7555AC14EEBAB" \
-                       "93A89813FBF3C4F8066D2D800F7C38A8" \
-                       "1AE31942917403FF4946B0A83D3D3E05" \
-                       "EE57C6F5F5606FB5D4BC6CD34EE0801A" \
-                       "5E94BB77B07507233A0BC7BAC8F90F79", 16 );
-
-    mpi_read( &rsa.E , "10001", 16 );
-    mpi_read( &rsa.D , "24BF6185468786FDD303083D25E64EFC" \
-                       "66CA472BC44D253102F8B4A9D3BFA750" \
-                       "91386C0077937FE33FA3252D28855837" \
-                       "AE1B484A8A9A45F7EE8C0C634F99E8CD" \
-                       "DF79C5CE07EE72C7F123142198164234" \
-                       "CABB724CF78B8173B9F880FC86322407" \
-                       "AF1FEDFDDE2BEB674CA15F3E81A1521E" \
-                       "071513A1E85B5DFA031F21ECAE91A34D", 16 );
-
-    mpi_read( &rsa.P , "C36D0EB7FCD285223CFB5AABA5BDA3D8" \
-                       "2C01CAD19EA484A87EA4377637E75500" \
-                       "FCB2005C5C7DD6EC4AC023CDA285D796" \
-                       "C3D9E75E1EFC42488BB4F1D13AC30A57", 16 );
-    mpi_read( &rsa.Q , "C000DF51A7C77AE8D7C7370C1FF55B69" \
-                       "E211C2B9E5DB1ED0BF61D0D9899620F4" \
-                       "910E4168387E3C30AA1E00C339A79508" \
-                       "8452DD96A9A5EA5D9DCA68DA636032AF", 16 );
-
-    mpi_read( &rsa.DP, "C1ACF567564274FB07A0BBAD5D26E298" \
-                       "3C94D22288ACD763FD8E5600ED4A702D" \
-                       "F84198A5F06C2E72236AE490C93F07F8" \
-                       "3CC559CD27BC2D1CA488811730BB5725", 16 );
-    mpi_read( &rsa.DQ, "4959CBF6F8FEF750AEE6977C155579C7" \
-                       "D8AAEA56749EA28623272E4F7D0592AF" \
-                       "7C1F1313CAC9471B5C523BFE592F517B" \
-                       "407A1BD76C164B93DA2D32A383E58357", 16 );
-    mpi_read( &rsa.QP, "9AE7FBC99546432DF71896FC239EADAE" \
-                       "F38D18D2B2F0E2DD275AA977E2BF4411" \
-                       "F5A3B2A5D33605AEBBCCBA7FEB9F2D2F" \
-                       "A74206CEC169D74BF5A8C50D6F48EA08", 16 );
-
-    printf( "  RSA key validation: " );
+    if( verbose != 0 )
+        printf( "  RSA key validation: " );
 
     if( rsa_check_pubkey(  &rsa ) != 0 ||
         rsa_check_privkey( &rsa ) != 0 )
     {
-        printf( "failed\n" );
+        if( verbose != 0 )
+            printf( "failed\n" );
+
         return( 1 );
     }
 
-    printf( "passed\n  PKCS#1 encryption : " );
+    if( verbose != 0 )
+        printf( "passed\n  PKCS#1 encryption : " );
 
-    memcpy( rsa_plaintext,
-        "\xAA\xBB\xCC\x03\x02\x01\x00\xFF\xFF\xFF\xFF\xFF" \
-        "\x11\x22\x33\x0A\x0B\x0C\xCC\xDD\xDD\xDD\xDD\xDD", PTLEN );
+    memcpy( rsa_plaintext, RSA_PT, PT_LEN );
 
-    if( rsa_pkcs1_encrypt( &rsa, rsa_plaintext,  PTLEN,
-                                 rsa_ciphertext, CTLEN ) != 0 )
+    if( rsa_pkcs1_encrypt( &rsa, rsa_plaintext,  PT_LEN,
+                                 rsa_ciphertext, KEY_LEN ) != 0 )
     {
-        printf( "failed\n" );
+        if( verbose != 0 )
+            printf( "failed\n" );
+
         return( 1 );
     }
 
-    printf( "passed\n  PKCS#1 decryption : " );
+    if( verbose != 0 )
+        printf( "passed\n  PKCS#1 decryption : " );
 
     len = sizeof( rsa_decrypted );
 
-    if( rsa_pkcs1_decrypt( &rsa, rsa_ciphertext, CTLEN,
+    if( rsa_pkcs1_decrypt( &rsa, rsa_ciphertext, KEY_LEN,
                                  rsa_decrypted,  &len ) != 0 ||
         memcmp( rsa_decrypted, rsa_plaintext, len ) != 0 )
     {
-        printf( "failed\n" );
+        if( verbose != 0 )
+            printf( "failed\n" );
+
         return( 1 );
     }
 
-    printf( "passed\n  PKCS#1 data sign  : " );
+    if( verbose != 0 )
+        printf( "passed\n  PKCS#1 data sign  : " );
 
-    md5_csum( rsa_plaintext, PTLEN, md5sum );
+    sha1( rsa_plaintext, PT_LEN, sha1sum );
 
-    if( rsa_pkcs1_sign( &rsa, RSA_MD5, md5sum, 16,
-                        rsa_ciphertext, CTLEN ) != 0 )
+    if( rsa_pkcs1_sign( &rsa, RSA_SHA1, sha1sum, 20,
+                        rsa_ciphertext, KEY_LEN ) != 0 )
     {
-        printf( "failed\n" );
+        if( verbose != 0 )
+            printf( "failed\n" );
+
         return( 1 );
     }
 
-    printf( "passed\n  PKCS#1 sig. verify: " );
+    if( verbose != 0 )
+        printf( "passed\n  PKCS#1 sig. verify: " );
 
-    if( rsa_pkcs1_verify( &rsa, RSA_MD5, md5sum, 16,
-                          rsa_ciphertext, CTLEN ) != 0 )
+    if( rsa_pkcs1_verify( &rsa, RSA_SHA1, sha1sum, 20,
+                          rsa_ciphertext, KEY_LEN ) != 0 )
     {
-        printf( "failed\n" );
+        if( verbose != 0 )
+            printf( "failed\n" );
+
         return( 1 );
     }
 
-    printf( "passed\n\n" );
+    if( verbose != 0 )
+        printf( "passed\n\n" );
 
     rsa_free( &rsa );
+
     return( 0 );
 }
 #else
-int rsa_self_test( void )
+int rsa_self_test( int verbose )
 {
     return( 0 );
 }
