@@ -1,38 +1,39 @@
-/* 
- * Copyright (c) 2006-2007, Christophe Devine
- * All rights reserved.
- * 
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer
- *       in the documentation and/or other materials provided with the
- *       distribution.
- *     * Neither the name of the XySSL nor the names of its contributors
- *       may be used to endorse or promote products derived from this
- *       software without specific prior written permission.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
- * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
- * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
- * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/*
+ *  SSLv3/TLSv1 client-side functions
+ *
+ *  Copyright (C) 2006-2007  Christophe Devine
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
+ *  
+ *    * Redistributions of source code must retain the above copyright
+ *      notice, this list of conditions and the following disclaimer.
+ *    * Redistributions in binary form must reproduce the above copyright
+ *      notice, this list of conditions and the following disclaimer in the
+ *      documentation and/or other materials provided with the distribution.
+ *    * Neither the name of XySSL nor the names of its contributors may be
+ *      used to endorse or promote products derived from this software
+ *      without specific prior written permission.
+ *  
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ *  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ *  TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ *  PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ *  LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ *  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include "xyssl/config.h"
 
 #if defined(XYSSL_SSL_CLI_C)
 
+#include "xyssl/debug.h"
 #include "xyssl/ssl.h"
 
 #include <string.h>
@@ -129,6 +130,35 @@ static int ssl_write_client_hello( ssl_context *ssl )
     *p++ = 1;
     *p++ = SSL_COMPRESS_NULL;
 
+    if ( ssl->hostname != NULL ) {
+        SSL_DEBUG_MSG( 3, ( "client hello, server name extension: %s", ssl->hostname ) );
+
+        // Extensions length
+        *p++ = (unsigned char)( ( ( ssl->hostname_len + 9 ) >>  8 ) & 0xff );
+        *p++ = (unsigned char)( ( ( ssl->hostname_len + 9 )       ) & 0xff );
+
+        // Extension type
+        *p++ = (unsigned char)( ( TLS_EXT_SERVERNAME >>  8 ) & 0xff );
+        *p++ = (unsigned char)( ( TLS_EXT_SERVERNAME       ) & 0xff );
+        // Extension length
+        *p++ = (unsigned char)( ( ( ssl->hostname_len + 5 ) >>  8 ) & 0xff );
+        *p++ = (unsigned char)( ( ( ssl->hostname_len + 5 )       ) & 0xff );
+
+        // Server name list length
+        *p++ = (unsigned char)( ( ( ssl->hostname_len + 3 ) >>  8 ) & 0xff );
+        *p++ = (unsigned char)( ( ( ssl->hostname_len + 3 )       ) & 0xff );
+
+        // Name type
+        *p++ = (unsigned char)( ( TLS_EXT_SERVERNAME_HOSTNAME ) & 0xff );
+        // Hostname length
+        *p++ = (unsigned char)( ( ( ssl->hostname_len ) >>  8 ) & 0xff );
+        *p++ = (unsigned char)( ( ( ssl->hostname_len )       ) & 0xff );
+        // Hostname
+        memcpy( p, ssl->hostname, ssl->hostname_len );
+        p += ssl->hostname_len;
+
+    }
+
     ssl->out_msglen  = p - buf;
     ssl->out_msgtype = SSL_MSG_HANDSHAKE;
     ssl->out_msg[0]  = SSL_HS_CLIENT_HELLO;
@@ -150,6 +180,7 @@ static int ssl_parse_server_hello( ssl_context *ssl )
 {
     time_t t;
     int ret, i, n;
+    int ext_len;
     unsigned char *buf;
 
     SSL_DEBUG_MSG( 2, ( "=> parse server hello" ) );
@@ -212,8 +243,20 @@ static int ssl_parse_server_hello( ssl_context *ssl )
      *    39  . 38+n  session id
      *   39+n . 40+n  chosen cipher
      *   41+n . 41+n  chosen compression alg.
+     *   42+n . 43+n  extensions length
+     *   44+n . 44+n+m extensions
      */
-    if( n < 0 || n > 32 || ssl->in_hslen != 42 + n )
+    if( n < 0 || n > 32 || ssl->in_hslen > 42 + n )
+    {
+        ext_len = ( ( buf[42 + n] <<  8 )
+                  | ( buf[43 + n]       ) ) + 2;
+    }
+    else
+    {
+        ext_len = 0;
+    }
+
+    if( n < 0 || n > 32 || ssl->in_hslen != 42 + n + ext_len )
     {
         SSL_DEBUG_MSG( 1, ( "bad server hello message" ) );
         return( XYSSL_ERR_SSL_BAD_HS_SERVER_HELLO );
@@ -269,6 +312,8 @@ static int ssl_parse_server_hello( ssl_context *ssl )
         SSL_DEBUG_MSG( 1, ( "bad server hello message" ) );
         return( XYSSL_ERR_SSL_BAD_HS_SERVER_HELLO );
     }
+
+    // TODO: Process extensions
 
     SSL_DEBUG_MSG( 2, ( "<= parse server hello" ) );
 

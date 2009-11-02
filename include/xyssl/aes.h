@@ -4,8 +4,8 @@
 #ifndef XYSSL_AES_H
 #define XYSSL_AES_H
 
-#define AES_ENCRYPT     0
-#define AES_DECRYPT     1
+#define AES_ENCRYPT     1
+#define AES_DECRYPT     0
 
 /**
  * \brief          AES context structure

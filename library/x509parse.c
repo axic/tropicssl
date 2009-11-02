@@ -1,32 +1,32 @@
-/* 
- * Copyright (c) 2006-2007, Christophe Devine
- * All rights reserved.
- * 
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer
- *       in the documentation and/or other materials provided with the
- *       distribution.
- *     * Neither the name of the XySSL nor the names of its contributors
- *       may be used to endorse or promote products derived from this
- *       software without specific prior written permission.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
- * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
- * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
- * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/*
+ *  X.509 certificate and private key decoding
+ *
+ *  Copyright (C) 2006-2007  Christophe Devine
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
+ *  
+ *    * Redistributions of source code must retain the above copyright
+ *      notice, this list of conditions and the following disclaimer.
+ *    * Redistributions in binary form must reproduce the above copyright
+ *      notice, this list of conditions and the following disclaimer in the
+ *      documentation and/or other materials provided with the distribution.
+ *    * Neither the name of XySSL nor the names of its contributors may be
+ *      used to endorse or promote products derived from this software
+ *      without specific prior written permission.
+ *  
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ *  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ *  TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ *  PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ *  LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ *  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
  *  The ITU-T X.509 standard defines a certificat format for PKI.
@@ -619,7 +619,16 @@ static int x509_get_ext( unsigned char **p,
             continue;
 
         if( ( ret = asn1_get_bool( p, end2, &is_cacert ) ) != 0 )
-            return( XYSSL_ERR_X509_CERT_INVALID_EXTENSIONS | ret );
+        {
+            if( ret == XYSSL_ERR_ASN1_UNEXPECTED_TAG )
+                ret = asn1_get_int( p, end2, &is_cacert );
+
+            if( ret != 0 )
+                return( XYSSL_ERR_X509_CERT_INVALID_EXTENSIONS | ret );
+
+            if( is_cacert != 0 )
+                is_cacert  = 1;
+        }
 
         if( *p == end2 )
             continue;
@@ -701,7 +710,11 @@ int x509parse_crt( x509_cert *chain, unsigned char *buf, int buflen )
         s2 += 25;
         if( *s2 == '\r' ) s2++;
         if( *s2 == '\n' ) s2++;
-            else return( XYSSL_ERR_X509_CERT_INVALID_PEM );
+        else
+        {
+            free( p );
+            return( XYSSL_ERR_X509_CERT_INVALID_PEM );
+        }
 
         buflen -= s2 - buf;
         buf = s2;
@@ -1397,15 +1410,11 @@ int x509parse_dn_gets( char *buf, char *end, x509_name *dn )
 char *x509parse_cert_info( char *prefix, x509_cert *crt )
 {
     int i, n;
-    char *buf, *p, *end;
-
-    if( ( buf = (char *) malloc( 4096 ) ) == NULL )
-        return( NULL );
-
-    memset( buf, 0, 4096 );
+    char *p, *end;
+    static char buf[512];
 
     p = buf;
-    end = buf + 4096 - 1;
+    end = buf + sizeof( buf ) - 1;
 
     p += snprintf( p, end - p, "%scert. version : %d\n",
                                prefix, crt->version );
@@ -1415,7 +1424,7 @@ char *x509parse_cert_info( char *prefix, x509_cert *crt )
     n = ( crt->serial.len <= 32 )
         ? crt->serial.len  : 32;
 
-    for( i = 1; i < n; i++ )
+    for( i = 0; i < n; i++ )
         p += snprintf( p, end - p, "%02X%s",
                 crt->serial.p[i], ( i < n - 1 ) ? ":" : "" );
 
@@ -1506,6 +1515,7 @@ int x509parse_verify( x509_cert *crt,
                       x509_cert *trust_ca,
                       char *cn, int *flags )
 {
+    int cn_len;
     int hash_id;
     int pathlen;
     x509_cert *cur;
@@ -1517,11 +1527,13 @@ int x509parse_verify( x509_cert *crt,
     if( cn != NULL )
     {
         name = &crt->subject;
+        cn_len = strlen( cn );
 
         while( name != NULL )
         {
-            if( memcmp( name->oid.p, "\x55\x04\x03", 3 ) == 0 &&
-                memcmp( name->val.p, cn, strlen( cn )  ) == 0 )
+            if( memcmp( name->oid.p, OID_CN,  3 ) == 0 &&
+                memcmp( name->val.p, cn, cn_len ) == 0 &&
+                name->val.len == cn_len )
                 break;
 
             name = name->next;
@@ -1596,6 +1608,8 @@ int x509parse_verify( x509_cert *crt,
             *flags &= ~BADCERT_NOT_TRUSTED;
             break;
         }
+
+        trust_ca = trust_ca->next;
     }
 
     if( *flags != 0 )
@@ -1626,6 +1640,7 @@ void x509_free( x509_cert *crt )
         {
             name_prv = name_cur;
             name_cur = name_cur->next;
+            memset( name_prv, 0, sizeof( x509_name ) );
             free( name_prv );
         }
 
@@ -1634,11 +1649,15 @@ void x509_free( x509_cert *crt )
         {
             name_prv = name_cur;
             name_cur = name_cur->next;
+            memset( name_prv, 0, sizeof( x509_name ) );
             free( name_prv );
         }
 
         if( cert_cur->raw.p != NULL )
+        {
+            memset( cert_cur->raw.p, 0, cert_cur->raw.len );
             free( cert_cur->raw.p );
+        }
 
         cert_cur = cert_cur->next;
     }
@@ -1650,6 +1669,7 @@ void x509_free( x509_cert *crt )
         cert_prv = cert_cur;
         cert_cur = cert_cur->next;
 
+        memset( cert_prv, 0, sizeof( x509_cert ) );
         if( cert_prv != crt )
             free( cert_prv );
     }

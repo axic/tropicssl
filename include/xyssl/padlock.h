@@ -37,11 +37,13 @@ int padlock_supports( int feature );
  * \param mode     AES_ENCRYPT or AES_DECRYPT
  * \param input    16-byte input block
  * \param output   16-byte output block
+ *
+ * \return         0 if success, 1 if operation failed
  */
-void padlock_xcryptecb( aes_context *ctx,
-                        int mode,
-                        unsigned char input[16],
-                        unsigned char output[16] );
+int padlock_xcryptecb( aes_context *ctx,
+                       int mode,
+                       unsigned char input[16],
+                       unsigned char output[16] );
 
 /**
  * \brief          PadLock AES-CBC buffer en(de)cryption
@@ -52,13 +54,15 @@ void padlock_xcryptecb( aes_context *ctx,
  * \param iv       initialization vector (updated after use)
  * \param input    buffer holding the input data
  * \param output   buffer holding the output data
+ *
+ * \return         0 if success, 1 if operation failed
  */
-void padlock_xcryptcbc( aes_context *ctx,
-                        int mode,
-                        int length,
-                        unsigned char iv[16],
-                        unsigned char *input,
-                        unsigned char *output );
+int padlock_xcryptcbc( aes_context *ctx,
+                       int mode,
+                       int length,
+                       unsigned char iv[16],
+                       unsigned char *input,
+                       unsigned char *output );
 
 #ifdef __cplusplus
 }

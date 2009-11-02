@@ -1,32 +1,32 @@
-/* 
- * Copyright (c) 2006-2007, Christophe Devine
- * All rights reserved.
- * 
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer
- *       in the documentation and/or other materials provided with the
- *       distribution.
- *     * Neither the name of the XySSL nor the names of its contributors
- *       may be used to endorse or promote products derived from this
- *       software without specific prior written permission.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
- * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
- * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
- * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/*
+ *  SSL/TLS stress testing program
+ *
+ *  Copyright (C) 2006-2007  Christophe Devine
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
+ *  
+ *    * Redistributions of source code must retain the above copyright
+ *      notice, this list of conditions and the following disclaimer.
+ *    * Redistributions in binary form must reproduce the above copyright
+ *      notice, this list of conditions and the following disclaimer in the
+ *      documentation and/or other materials provided with the distribution.
+ *    * Neither the name of XySSL nor the names of its contributors may be
+ *      used to endorse or promote products derived from this software
+ *      without specific prior written permission.
+ *  
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ *  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ *  TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ *  PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ *  LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ *  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #ifndef _CRT_SECURE_NO_DEPRECATE
@@ -59,7 +59,6 @@
 #define DFL_SERVER_NAME         "localhost"
 #define DFL_SERVER_PORT         4433
 #define DFL_COMMAND             COMMAND_READ
-#define DFL_DATA_PATTERN        0xFE
 #define DFL_BUFFER_SIZE         1024
 #define DFL_MAX_BYTES           0
 #define DFL_DEBUG_LEVEL         0
@@ -91,7 +90,6 @@ struct options
     char *server_name;          /* hostname of the server (client only) */
     int server_port;            /* port on which the ssl service runs   */
     int command;                /* what to do: read or write operation  */
-    int data_pattern;           /* hexadecimal value to fill the buffer */
     int buffer_size;            /* size of the send/receive buffer      */
     int max_bytes;              /* max. # of bytes before a reconnect   */
     int debug_level;            /* level of debugging                   */
@@ -100,18 +98,55 @@ struct options
     int session_reuse;          /* flag to reuse the keying material    */
     int session_lifetime;       /* if reached, session data is expired  */
     int force_cipher[2];        /* protocol/cipher to use, or all       */
-    unsigned char *buf;
 };
+
+/*
+ * Although this PRNG has good statistical properties (eg. passes
+ * DIEHARD), it is not cryptographically secure.
+ */
+unsigned long int lcppm5( unsigned long int *state )
+{
+    unsigned long int u, v;
+
+    u = v = state[4] ^ 1;
+    state[u & 3] ^= u;
+    u ^= (v << 12) ^ (v >> 12);
+    u ^= v * state[0]; v >>= 8;
+    u ^= v * state[1]; v >>= 8;
+    u ^= v * state[2]; v >>= 8;
+    u ^= v * state[3];
+    u &= 0xFFFFFFFF;
+    state[4] = u;
+
+    return( u );
+}
+
+void my_debug( void *ctx, int level, char *str )
+{
+    if( level < ((struct options *) ctx)->debug_level )
+        fprintf( stderr, "%s", str );
+}
 
 /*
  * perform a single SSL connection
  */
 static int ssl_test( struct options *opt )
 {
-    int ret, len;
+    int ret, i;
     int client_fd;
+    int bytes_to_read;
+    int bytes_to_write;
+    int offset_to_read;
+    int offset_to_write;
+
     long int nb_read;
-    long int nb_write;
+    long int nb_written;
+
+    unsigned long read_state[5];
+    unsigned long write_state[5];
+
+    unsigned char *read_buf;
+    unsigned char *write_buf;
 
     struct hr_time t;
     havege_state hs;
@@ -121,11 +156,12 @@ static int ssl_test( struct options *opt )
     rsa_context rsa;
 
     ret = 1;
-    nb_read  = 0;
-    nb_write = 0;
 
     havege_init( &hs );
     get_timer( &t, 1 );
+
+    memset( read_state, 0, sizeof( read_state ) );
+    memset( write_state, 0, sizeof( write_state ) );
 
     memset( &srvcert, 0, sizeof( x509_cert ) );
     memset( &rsa, 0, sizeof( rsa_context ) );
@@ -202,10 +238,10 @@ static int ssl_test( struct options *opt )
         ssl_set_own_cert( &ssl, &srvcert, &rsa );
     }
 
-    ssl_set_debuglvl( &ssl, opt->debug_level );
     ssl_set_authmode( &ssl, SSL_VERIFY_NONE );
 
     ssl_set_rng( &ssl, havege_rand, &hs );
+    ssl_set_dbg( &ssl, my_debug, opt );
     ssl_set_bio( &ssl, net_recv, &client_fd,
                        net_send, &client_fd );
 
@@ -219,17 +255,42 @@ static int ssl_test( struct options *opt )
     if( opt->iomode == IOMODE_NONBLOCK )
         net_set_nonblock( client_fd );
 
+     read_buf = (unsigned char *) malloc( opt->buffer_size );
+    write_buf = (unsigned char *) malloc( opt->buffer_size );
+
+    if( read_buf == NULL || write_buf == NULL )
+    {
+        printf( "  ! malloc(%d bytes) failed\n\n", opt->buffer_size );
+        goto exit;
+    }
+
+    nb_read = bytes_to_read = 0;
+    nb_written = bytes_to_write = 0;
+
     while( 1 )
     {
         if( opt->command & COMMAND_WRITE )
         {
-            memset( opt->buf, opt->data_pattern, opt->buffer_size );
+            if( bytes_to_write == 0 )
+            {
+                while( bytes_to_write == 0 )
+                    bytes_to_write = rand() % opt->buffer_size;
 
-            len = rand() % opt->buffer_size;
-            ret = ssl_write( &ssl, opt->buf, len );
+                for( i = 0; i < bytes_to_write; i++ )
+                    write_buf[i] = (unsigned char) lcppm5( write_state );
+
+                offset_to_write = 0;
+            }
+
+            ret = ssl_write( &ssl, write_buf + offset_to_write,
+                             bytes_to_write );
 
             if( ret >= 0 )
-                nb_write += len;
+            {
+                nb_written += ret;
+                bytes_to_write  -= ret;
+                offset_to_write += ret;
+            }
 
             if( ret == XYSSL_ERR_SSL_PEER_CLOSE_NOTIFY ||
                 ret == XYSSL_ERR_NET_CONN_RESET )
@@ -238,41 +299,53 @@ static int ssl_test( struct options *opt )
                 goto exit;
             }
 
-            if( ret < 0 )
+            if( ret < 0 && ret != XYSSL_ERR_NET_TRY_AGAIN )
             {
-                if( ret == XYSSL_ERR_NET_TRY_AGAIN )
-                    m_sleep( 10 );
-                else
-                {
-                    printf( "  ! ssl_write returned %d\n\n", ret );
-                    break;
-                }
+                printf( "  ! ssl_write returned %d\n\n", ret );
+                break;
             }
         }
 
         if( opt->command & COMMAND_READ )
         {
-            len = opt->buffer_size;
-            ret = ssl_read( &ssl, opt->buf, len );
+            if( bytes_to_read == 0 )
+            {
+                bytes_to_read = rand() % opt->buffer_size;
+                offset_to_read = 0;
+            }
+
+            ret = ssl_read( &ssl, read_buf + offset_to_read,
+                            bytes_to_read );
 
             if( ret >= 0 )
-                nb_read += ret;
+            {
+                for( i = 0; i < ret; i++ )
+                {
+                    if( read_buf[offset_to_read + i] !=
+                        (unsigned char) lcppm5( read_state ) )
+                    {
+                        ret = 1;
+                        printf( "  ! plaintext mismatch\n\n" );
+                        goto exit;
+                    }
+                }
 
-            if( ret == XYSSL_ERR_SSL_PEER_CLOSE_NOTIFY )
+                nb_read += ret;
+                bytes_to_read -= ret;
+                offset_to_read += ret;
+            }
+
+            if( ret == XYSSL_ERR_SSL_PEER_CLOSE_NOTIFY ||
+                ret == XYSSL_ERR_NET_CONN_RESET )
             {
                 ret = 0;
                 goto exit;
             }
 
-            if( ret < 0 )
+            if( ret < 0 && ret != XYSSL_ERR_NET_TRY_AGAIN )
             {
-                if( ret == XYSSL_ERR_NET_TRY_AGAIN )
-                    m_sleep( 10 );
-                else
-                {
-                    printf( "  ! ssl_read returned %d\n\n", ret );
-                    break;
-                }
+                printf( "  ! ssl_read returned %d\n\n", ret );
+                break;
             }
         }
 
@@ -280,7 +353,7 @@ static int ssl_test( struct options *opt )
 
         if( opt->max_bytes != 0 &&
             ( opt->max_bytes <= nb_read ||
-              opt->max_bytes <= nb_write ) )
+              opt->max_bytes <= nb_written ) )
             break;
 
         if( opt->conn_timeout != 0 &&
@@ -289,6 +362,14 @@ static int ssl_test( struct options *opt )
     }
 
 exit:
+
+    fflush( stdout );
+
+    if( read_buf != NULL )
+        free( read_buf );
+
+    if( write_buf != NULL )
+        free( write_buf );
 
     ssl_close_notify( &ssl );
     x509_free( &srvcert );
@@ -307,7 +388,6 @@ exit:
     "    server_name=%%s              default: localhost\n"      \
     "    server_port=%%d              default: 4433\n"           \
     "    command=read/write/both     default: read\n"            \
-    "    data_pattern=%%x (hex)       default: FE\n"             \
     "    buffer_size=%%d (bytes)      default: 1024\n"           \
     "    max_bytes=%%d (bytes)        default: 0 (no limit)\n"   \
     "    debug_level=%%d              default: 0 (disabled)\n"   \
@@ -319,7 +399,8 @@ exit:
     " acceptable cipher names:\n"                                \
     "    SSL_RSA_RC4_128_MD5         SSL_RSA_RC4_128_SHA\n"      \
     "    SSL_RSA_DES_168_SHA         SSL_EDH_RSA_DES_168_SHA\n"  \
-    "    SSL_RSA_AES_256_SHA         SSL_EDH_RSA_AES_256_SHA\n\n"
+    "    SSL_RSA_AES_128_SHA         SSL_EDH_RSA_AES_256_SHA\n"  \
+    "    SSL_RSA_AES_256_SHA\n\n"
 
 int main( int argc, char *argv[] )
 {
@@ -341,7 +422,6 @@ int main( int argc, char *argv[] )
     opt.server_name             = DFL_SERVER_NAME;
     opt.server_port             = DFL_SERVER_PORT;
     opt.command                 = DFL_COMMAND;
-    opt.data_pattern            = DFL_DATA_PATTERN;
     opt.buffer_size             = DFL_BUFFER_SIZE;
     opt.max_bytes               = DFL_MAX_BYTES;
     opt.debug_level             = DFL_DEBUG_LEVEL;
@@ -412,15 +492,6 @@ int main( int argc, char *argv[] )
             else goto usage;
         }
 
-        if( strcmp( p, "data_pattern" ) == 0 )
-        {
-            if( sscanf( q, "%x", &opt.data_pattern ) != 1 )
-                goto usage;
-
-            if( opt.data_pattern < 0 || opt.data_pattern > 255 )
-                goto usage;
-        }
-
         if( strcmp( p, "buffer_size" ) == 0 )
         {
             opt.buffer_size = atoi( q );
@@ -470,6 +541,9 @@ int main( int argc, char *argv[] )
             if( strcmp( q, "ssl_edh_rsa_des_168_sha" ) == 0 )
                 opt.force_cipher[0] = SSL_EDH_RSA_DES_168_SHA;
 
+            if( strcmp( q, "ssl_rsa_aes_128_sha" ) == 0 )
+                opt.force_cipher[0] = SSL_RSA_AES_128_SHA;
+
             if( strcmp( q, "ssl_rsa_aes_256_sha" ) == 0 )
                 opt.force_cipher[0] = SSL_RSA_AES_256_SHA;
 
@@ -495,13 +569,6 @@ int main( int argc, char *argv[] )
             goto usage;
     }
 
-    opt.buf = (unsigned char *) malloc( opt.buffer_size );
-    if( opt.buf == NULL )
-    {
-        printf( "  ! malloc(%d bytes) failed\n\n", opt.buffer_size );
-        goto exit;
-    }
-
     nb_conn = 0;
 
     do {
@@ -512,8 +579,6 @@ int main( int argc, char *argv[] )
             break;
     }
     while( ret == 0 );
-
-    free( opt.buf );
 
 exit:
 

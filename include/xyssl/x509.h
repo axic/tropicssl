@@ -79,8 +79,11 @@
 #define X509_OUTPUT_DER              0x01
 #define X509_OUTPUT_PEM              0x02
 #define PEM_LINE_LENGTH                72
+#define X509_ISSUER                  0x01
+#define X509_SUBJECT                 0x02
 
 #define OID_X520                "\x55\x04"
+#define OID_CN                  "\x55\x04\x03"
 #define OID_PKCS1               "\x2A\x86\x48\x86\xF7\x0D\x01\x01"
 #define OID_PKCS1_RSA           "\x2A\x86\x48\x86\xF7\x0D\x01\x01\x01"
 #define OID_PKCS1_RSA_SHA       "\x2A\x86\x48\x86\xF7\x0D\x01\x01\x05"
@@ -239,8 +242,8 @@ int x509parse_keyfile( rsa_context *rsa, char *path, char *password );
 int x509parse_dn_gets( char *buf, char *end, x509_name *dn );
 
 /**
- * \brief          Return an informational string about the
- *                 certificate, or NULL if memory allocation failed
+ * \brief          Returns an informational string about the
+ *                 certificate.
  */
 char *x509parse_cert_info( char *prefix, x509_cert *crt );
 
@@ -284,91 +287,6 @@ void x509_free( x509_cert *crt );
  * \return         0 if successful, or 1 if the test failed
  */
 int x509_self_test( int verbose );
-
-/**
- * \brief          Write a certificate info file
- *
- * \param chain    points to the raw certificate data
- * \param path     filename to write the certificate to
- * \param format   X509_OUTPUT_DER or X509_OUTPUT_PEM
- *
- * \return         0 if successful, or a specific X509 error code
- */
-int x509write_crtfile( x509_raw *crt,
-                       unsigned char *path,
-                       int out_flag );
-
-/*
- * \brief          Write a private RSA key into a file
- *
- * \param rsa      points to an RSA key
- * \param path     filename to write the key to
- * \param format   X509_OUTPUT_DER or X509_OUTPUT_PEM
- *
- * \return         0 if successful, or a specific X509 error code
- */
-int x509write_keyfile( rsa_context *rsa,
-                       unsigned char *path,
-                       int out_flag );
-
-/**
- * \brief          Add a public key to certificate
- *
- * \param chain    points to the raw certificate data
- * \param pubkey   points to an RSA key
- *
- * \return         0 if successful, or a specific X509 error code
- */
-int x509write_add_pubkey( x509_raw *crt, rsa_context *pubkey );
-
-/**
- * \brief          Create x509 subject field to raw certificate
- *
- * \param chain    points to the raw certificate data
- * \param names    a string that can hold:
- *                     CN='CommonName'
- *                 --   O='Organization'
- *                 --  OU='OrgUnit'
- *                 --  ST='State'
- *                 --   L='Locality'
- *                 --   R='Email'
- *
- * \return         0 if successful, or a specific X509 error code
- */
-int x509write_create_subject( x509_raw *crt, unsigned char *names );
-
-/**
- * \brief          Create x509 validity time in UTC
- *
- * \param chain    points to the raw certificate data
- * \param before   valid not before in format YYYY-MM-DD hh:mm:ss
- * \param after    valid not after  in format YYYY-MM-DD hh:mm:ss
- *
- * \return         0 if successful, or a specific X509 error code
- */
-int x509write_create_validity( x509_raw *crt,
-                               unsigned char *before,
-                               unsigned char *after );
-
-/**
- * \brief          Create a self-signed certificate
- *
- * \param chain    points to the raw certificate data
- * \param rsa      a private key to sign the certificate
- *
- * \return         0 if successful, or a specific X509 error code
- */
-int x509write_create_selfsign( x509_raw *crt, rsa_context *raw );
-
-/**
- * \brief          Unallocate all raw certificate data
- */
-void x509write_free_raw( x509_raw *crt );
-
-/**
- * \brief          Allocate all raw certificate data
- */
-void x509write_init_raw( x509_raw *crt );
 
 #ifdef __cplusplus
 }

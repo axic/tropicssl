@@ -1,4 +1,52 @@
 
+= Version 0.9 released on 2008-03-16
+
+    * Fixed padlock.c compilation on older versions of gcc (bug reported
+      by David Barrett)
+    * Added support for ciphersuite: SSL_RSA_AES_128_SHA
+    * Added an option to enable/disable the BN assembly code
+    * Fixed a bug in ssl_write() that caused the same payload to be sent
+      twice in non-blocking mode when send() returns EAGAIN
+    * Fixes ssl_parse_client_hello (bug reported by Greg Robson):
+      session id and challenge were incorrectly swapped in the SSLv2
+      ClientHello.
+    * Before freeing a certificate, properly zero out all cert. data
+    * Preliminary openssl wrapper contributed by David Barrett
+    * Added user-defined callback debug function (Krystian Kolodziej)
+    * Fixed a memory leak in x509parse_crt(), reported by Greg Robson-Garth
+    * Some x509write.c fixes by Pascal Vizeli; thanks to Matthew Page
+      who reported several bugs
+    * Fixed x509_get_ext() to accept some rare certificates (like
+      www.openssl.org:443) which have an INTEGER instead of a BOOLEAN for
+      Extension::BasicConstraints::cA.
+    * Added support on the client side for the TLS "hostname" extension;
+      patch contributed by David Patino
+    * Make x509parse_verify() return BADCERT_CN_MISMATCH when an empty
+      string is passed as the CN (bug reported by spoofy)
+    * Correctly handle the case in padlock_xcryptcbc() when input or
+      output data is non-aligned by falling back to software implementation,
+      as VIA Nehemiah cannot handle non-aligned buffers
+    * Fixed the "mode" parameter so that encryption/decryption are not
+      swapped on PadLock
+    * Updated rsa_check_privkey to verify that (D * E) = 1 mod (P-1)*(Q-1)
+    * Disabled obsolete hash functions by default (MD2, MD4); updated
+      selftest and benchmark to not test ciphers that have been disabled
+    * Updated x509parse_cert_info to correctly display byte 0 of the serial
+      number, also setup the correct server port in the ssl client examples
+    * Fixes a critical denial-of-service with x.509 certificate verification:
+      peer may cause xyssl to loop indefinitely by sending a cert. for which
+      the PKCS#1 RSA signature check fails (bug reported by Benoit)
+    * Fixed HMAC-SHA-384 and HMAC-SHA-512 (thanks to Josh Sinykin)
+    * Added test vectors for: AES-CBC, AES-CFB, DES-CBC and 3DES-CBC,
+      HMAC-MD5, HMAC-SHA1, HMAC-SHA-256, HMAC-SHA-384, and HMAC-SHA-512
+    * Modified ssl_parse_client_key_exchange() to protect against
+      Daniel Bleichenbacher attack on PKCS#1 v1.5 padding, as well as
+      the Klima-Pokorny-Rosa extension of Bleichenbacher's attack
+    * Enabled support for large files by default in aescrypt2
+    * Fixed assembly PPC compilation errors on Mac OS X, thanks to
+      David Barrett and Dusan Semen
+    * Updated rsa_gen_key() so that ctx->N is always nbits in size
+
 = Version 0.8 released on 2007-10-20
 
     * Modified the HMAC functions to handle keys larger

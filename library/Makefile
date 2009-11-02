@@ -1,7 +1,7 @@
 
 # Also see "include/xyssl/config.h"
 
-CFLAGS	= -I../include
+CFLAGS	= -I../include -D_FILE_OFFSET_BITS=64
 OFLAGS	= -O
 
 # MicroBlaze specific options:
@@ -37,6 +37,8 @@ shared: libxyssl.$(DLEXT)
 libxyssl.a: $(OBJS)
 	echo "  AR    $@"
 	ar r $@ $(OBJS)
+	echo "  RL    $@"
+	ranlib $@
 
 libxyssl.so: libxyssl.a
 	echo "  LD    $@"

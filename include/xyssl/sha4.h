@@ -21,8 +21,8 @@ typedef struct
     unsigned int64 state[8];    /*!< intermediate digest state  */
     unsigned char buffer[128];  /*!< data block being processed */
 
-    unsigned char ipad[64];     /*!< HMAC: inner padding        */
-    unsigned char opad[64];     /*!< HMAC: outer padding        */
+    unsigned char ipad[128];    /*!< HMAC: inner padding        */
+    unsigned char opad[128];    /*!< HMAC: outer padding        */
     int is384;                  /*!< 0 => SHA-512, else SHA-384 */
 }
 sha4_context;

@@ -17,9 +17,9 @@ private_key             = test-ca.key
 database                = index
 serial                  = serial
 
-new_certs_dir           = .
-default_crl_days        = 30
-default_days            = 365
+new_certs_dir           = newcerts
+default_crl_days        = 60
+default_days            = 730
 default_md              = sha1
 policy                  = my_policy
 x509_extensions         = v3_usr
@@ -58,4 +58,3 @@ authorityKeyIdentifier  = keyid:always,issuer:always
 basicConstraints        = CA:FALSE
 subjectKeyIdentifier    = hash
 authorityKeyIdentifier  = keyid,issuer
-

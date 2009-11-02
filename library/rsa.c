@@ -1,32 +1,32 @@
-/* 
- * Copyright (c) 2006-2007, Christophe Devine
- * All rights reserved.
- * 
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer
- *       in the documentation and/or other materials provided with the
- *       distribution.
- *     * Neither the name of the XySSL nor the names of its contributors
- *       may be used to endorse or promote products derived from this
- *       software without specific prior written permission.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
- * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
- * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
- * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/*
+ *  The RSA public-key cryptosystem
+ *
+ *  Copyright (C) 2006-2007  Christophe Devine
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
+ *  
+ *    * Redistributions of source code must retain the above copyright
+ *      notice, this list of conditions and the following disclaimer.
+ *    * Redistributions in binary form must reproduce the above copyright
+ *      notice, this list of conditions and the following disclaimer in the
+ *      documentation and/or other materials provided with the distribution.
+ *    * Neither the name of XySSL nor the names of its contributors may be
+ *      used to endorse or promote products derived from this software
+ *      without specific prior written permission.
+ *  
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ *  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ *  TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ *  PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ *  LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ *  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
  *  RSA was designed by Ron Rivest, Adi Shamir and Len Adleman.
@@ -84,14 +84,12 @@ int rsa_gen_key( rsa_context *ctx, int nbits, int exponent )
      */
     MPI_CHK( mpi_lset( &ctx->E, exponent ) );
 
-    nbits >>= 1;
-
     do
     {
-        MPI_CHK( mpi_gen_prime( &ctx->P, nbits, 0, 
+        MPI_CHK( mpi_gen_prime( &ctx->P, ( nbits + 1 ) >> 1, 0, 
                                 ctx->f_rng, ctx->p_rng ) );
 
-        MPI_CHK( mpi_gen_prime( &ctx->Q, nbits, 0,
+        MPI_CHK( mpi_gen_prime( &ctx->Q, ( nbits + 1 ) >> 1, 0,
                                 ctx->f_rng, ctx->p_rng ) );
 
         if( mpi_cmp_mpi( &ctx->P, &ctx->Q ) < 0 )
@@ -101,6 +99,9 @@ int rsa_gen_key( rsa_context *ctx, int nbits, int exponent )
             continue;
 
         MPI_CHK( mpi_mul_mpi( &ctx->N, &ctx->P, &ctx->Q ) );
+        if( mpi_msb( &ctx->N ) != nbits )
+            continue;
+
         MPI_CHK( mpi_sub_int( &P1, &ctx->P, 1 ) );
         MPI_CHK( mpi_sub_int( &Q1, &ctx->Q, 1 ) );
         MPI_CHK( mpi_mul_mpi( &H, &P1, &Q1 ) );
@@ -162,29 +163,32 @@ int rsa_check_pubkey( rsa_context *ctx )
 int rsa_check_privkey( rsa_context *ctx )
 {
     int ret;
-    mpi TN, P1, Q1, H, G;
+    mpi PQ, DE, P1, Q1, H, I, G;
 
     if( ( ret = rsa_check_pubkey( ctx ) ) != 0 )
         return( ret );
 
-    mpi_init( &TN, &P1, &Q1, &H, &G, NULL );
+    mpi_init( &PQ, &DE, &P1, &Q1, &H, &I, &G, NULL );
 
-    MPI_CHK( mpi_mul_mpi( &TN, &ctx->P, &ctx->Q ) );
+    MPI_CHK( mpi_mul_mpi( &PQ, &ctx->P, &ctx->Q ) );
+    MPI_CHK( mpi_mul_mpi( &DE, &ctx->D, &ctx->E ) );
     MPI_CHK( mpi_sub_int( &P1, &ctx->P, 1 ) );
     MPI_CHK( mpi_sub_int( &Q1, &ctx->Q, 1 ) );
     MPI_CHK( mpi_mul_mpi( &H, &P1, &Q1 ) );
+    MPI_CHK( mpi_mod_mpi( &I, &DE, &H  ) );
     MPI_CHK( mpi_gcd( &G, &ctx->E, &H  ) );
 
-    if( mpi_cmp_mpi( &TN, &ctx->N ) == 0 &&
+    if( mpi_cmp_mpi( &PQ, &ctx->N ) == 0 &&
+        mpi_cmp_int( &I, 1 ) == 0 &&
         mpi_cmp_int( &G, 1 ) == 0 )
     {
-        mpi_free( &TN, &P1, &Q1, &H, &G, NULL );
+        mpi_free( &G, &I, &H, &Q1, &P1, &DE, &PQ, NULL );
         return( 0 );
     }
 
 cleanup:
 
-    mpi_free( &TN, &P1, &Q1, &H, &G, NULL );
+    mpi_free( &G, &I, &H, &Q1, &P1, &DE, &PQ, NULL );
     return( XYSSL_ERR_RSA_KEY_CHECK_FAILED | ret );
 }
 

@@ -18,6 +18,10 @@
 #ifndef XYSSL_BN_MUL_H
 #define XYSSL_BN_MUL_H
 
+#include "xyssl/config.h"
+
+#if defined(XYSSL_HAVE_ASM)
+
 #if defined(__GNUC__)
 #if defined(__i386__)
 
@@ -214,6 +218,38 @@
 #if defined(__powerpc__)   || defined(__ppc__)
 #if defined(__powerpc64__) || defined(__ppc64__)
 
+#if defined(__MACH__) && defined(__APPLE__)
+
+#define MULADDC_INIT                            \
+    asm( "ld     r3, %0         " :: "m" (s));  \
+    asm( "ld     r4, %0         " :: "m" (d));  \
+    asm( "ld     r5, %0         " :: "m" (c));  \
+    asm( "ld     r6, %0         " :: "m" (b));  \
+    asm( "addi   r3, r3, -8     " );            \
+    asm( "addi   r4, r4, -8     " );            \
+    asm( "addic  r5, r5,  0     " );
+
+#define MULADDC_CORE                            \
+    asm( "ldu    r7, 8(r3)      " );            \
+    asm( "mulld  r8, r7, r6     " );            \
+    asm( "mulhdu r9, r7, r6     " );            \
+    asm( "adde   r8, r8, r5     " );            \
+    asm( "ld     r7, 8(r4)      " );            \
+    asm( "addze  r5, r9         " );            \
+    asm( "addc   r8, r8, r7     " );            \
+    asm( "stdu   r8, 8(r4)      " );
+
+#define MULADDC_STOP                            \
+    asm( "addze  r5, r5         " );            \
+    asm( "addi   r4, r4, 8      " );            \
+    asm( "addi   r3, r3, 8      " );            \
+    asm( "std    r5, %0         " : "=m" (c));  \
+    asm( "std    r4, %0         " : "=m" (d));  \
+    asm( "std    r3, %0         " : "=m" (s) :: \
+    "r3", "r4", "r5", "r6", "r7", "r8", "r9" );
+
+#else
+
 #define MULADDC_INIT                            \
     asm( "ld     %%r3, %0       " :: "m" (s));  \
     asm( "ld     %%r4, %0       " :: "m" (d));  \
@@ -240,6 +276,40 @@
     asm( "std    %%r5, %0       " : "=m" (c));  \
     asm( "std    %%r4, %0       " : "=m" (d));  \
     asm( "std    %%r3, %0       " : "=m" (s) :: \
+    "r3", "r4", "r5", "r6", "r7", "r8", "r9" );
+
+#endif
+
+#else /* PPC32 */
+
+#if defined(__MACH__) && defined(__APPLE__)
+
+#define MULADDC_INIT                            \
+    asm( "lwz    r3, %0         " :: "m" (s));  \
+    asm( "lwz    r4, %0         " :: "m" (d));  \
+    asm( "lwz    r5, %0         " :: "m" (c));  \
+    asm( "lwz    r6, %0         " :: "m" (b));  \
+    asm( "addi   r3, r3, -4     " );            \
+    asm( "addi   r4, r4, -4     " );            \
+    asm( "addic  r5, r5,  0     " );
+
+#define MULADDC_CORE                            \
+    asm( "lwzu   r7, 4(r3)      " );            \
+    asm( "mullw  r8, r7, r6     " );            \
+    asm( "mulhwu r9, r7, r6     " );            \
+    asm( "adde   r8, r8, r5     " );            \
+    asm( "lwz    r7, 4(r4)      " );            \
+    asm( "addze  r5, r9         " );            \
+    asm( "addc   r8, r8, r7     " );            \
+    asm( "stwu   r8, 4(r4)      " );
+
+#define MULADDC_STOP                            \
+    asm( "addze  r5, r5         " );            \
+    asm( "addi   r4, r4, 4      " );            \
+    asm( "addi   r3, r3, 4      " );            \
+    asm( "stw    r5, %0         " : "=m" (c));  \
+    asm( "stw    r4, %0         " : "=m" (d));  \
+    asm( "stw    r3, %0         " : "=m" (s) :: \
     "r3", "r4", "r5", "r6", "r7", "r8", "r9" );
 
 #else
@@ -271,6 +341,8 @@
     asm( "stw    %%r4, %0       " : "=m" (d));  \
     asm( "stw    %%r3, %0       " : "=m" (s) :: \
     "r3", "r4", "r5", "r6", "r7", "r8", "r9" );
+
+#endif
 
 #endif /* PPC32 */
 #endif /* PPC64 */
@@ -557,6 +629,8 @@
 
 #endif /* SSE2 */
 #endif /* MSVC */
+
+#endif /* XYSSL_HAVE_ASM */
 
 #if !defined(MULADDC_CORE)
 #if defined(XYSSL_HAVE_LONGLONG)

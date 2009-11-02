@@ -4,8 +4,6 @@
 #ifndef XYSSL_TIMING_H
 #define XYSSL_TIMING_H
 
-extern int alarmed;
-
 /**
  * \brief          timer structure
  */
@@ -17,6 +15,8 @@ struct hr_time
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+extern int alarmed;
 
 /**
  * \brief          Return the CPU cycle counter value

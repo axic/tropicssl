@@ -6,7 +6,6 @@
 
 #include <time.h>
 
-#include "xyssl/debug.h"
 #include "xyssl/net.h"
 #include "xyssl/dhm.h"
 #include "xyssl/rsa.h"
@@ -73,10 +72,9 @@
 #define SSL_RSA_RC4_128_SHA              5
 #define SSL_RSA_DES_168_SHA             10
 #define SSL_EDH_RSA_DES_168_SHA         22
+#define SSL_RSA_AES_128_SHA             47
 #define SSL_RSA_AES_256_SHA             53
 #define SSL_EDH_RSA_AES_256_SHA         57
-
-extern int ssl_default_ciphers[];
 
 /*
  * Message, alert and handshake types
@@ -101,6 +99,12 @@ extern int ssl_default_ciphers[];
 #define SSL_HS_CERTIFICATE_VERIFY      15
 #define SSL_HS_CLIENT_KEY_EXCHANGE     16
 #define SSL_HS_FINISHED                20
+
+/*
+ * TLS extensions
+ */
+#define TLS_EXT_SERVERNAME              0
+#define TLS_EXT_SERVERNAME_HOSTNAME     0
 
 /*
  * SSL state machine
@@ -148,7 +152,6 @@ struct _ssl_context
      * Miscellaneous
      */
     int state;                  /*!< SSL handshake: current state     */
-    int debuglvl;               /*!< debug level (0 = disabled)       */
 
     int major_ver;              /*!< equal to  SSL_MAJOR_VERSION_3    */
     int minor_ver;              /*!< either 0 (SSL3) or 1 (TLS1.0)    */
@@ -157,11 +160,15 @@ struct _ssl_context
     int max_minor_ver;          /*!< max. minor version from client   */
 
     /*
-     * BIO layer
+     * Callbacks (RNG, debug, I/O)
      */
+    int  (*f_rng)(void *);
+    void (*f_dbg)(void *, int, char *);
     int (*f_recv)(void *, unsigned char *, int);
     int (*f_send)(void *, unsigned char *, int);
 
+    void *p_rng;                /*!< context for the RNG function     */
+    void *p_dbg;                /*!< context for the debug function   */
     void *p_recv;               /*!< context for reading operations   */
     void *p_send;               /*!< context for writing operations   */
 
@@ -221,9 +228,6 @@ struct _ssl_context
      md5_context fin_md5;               /*!<  Finished MD5 checksum   */
     sha1_context fin_sha1;              /*!<  Finished SHA-1 checksum */
 
-    int (*f_rng)(void *);               /*!<  RNG function            */
-    void *p_rng;                        /*!<  RNG parameter           */
-
     int do_crypt;                       /*!<  en(de)cryption flag     */
     int *ciphers;                       /*!<  allowed ciphersuites    */
     int pmslen;                         /*!<  premaster length        */
@@ -243,11 +247,19 @@ struct _ssl_context
 
     unsigned long ctx_enc[128];         /*!<  encryption context      */
     unsigned long ctx_dec[128];         /*!<  decryption context      */
+
+    /*
+     * TLS extensions
+     */
+    unsigned char *hostname;
+    unsigned long  hostname_len;
 };
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+extern int ssl_default_ciphers[];
 
 /**
  * \brief          Initialize an SSL context
@@ -257,14 +269,6 @@ extern "C" {
  * \return         0 if successful, or 1 if memory allocation failed
  */
 int ssl_init( ssl_context *ssl );
-
-/**
- * \brief          Set the debug level (default: 0 = disabled)
- *
- * \param ssl      SSL context
- * \param debuglvl from 0 (none) to 4 (dump everything)
- */
-void ssl_set_debuglvl( ssl_context *ssl, int debuglvl );
 
 /**
  * \brief          Set the current endpoint type
@@ -300,7 +304,20 @@ void ssl_set_authmode( ssl_context *ssl, int authmode );
  * \param f_rng    RNG function
  * \param p_rng    RNG parameter
  */
-void ssl_set_rng( ssl_context *ssl, int (*f_rng)(void *), void *p_rng );
+void ssl_set_rng( ssl_context *ssl,
+                  int (*f_rng)(void *),
+                  void *p_rng );
+
+/**
+ * \brief          Set the debug callback
+ *
+ * \param ssl      SSL context
+ * \param f_dbg    debug function
+ * \param p_dbg    debug parameter
+ */
+void ssl_set_dbg( ssl_context *ssl,
+                  void (*f_dbg)(void *, int, char *),
+                  void  *p_dbg );
 
 /**
  * \brief          Set the underlying BIO read and write callbacks
@@ -312,8 +329,8 @@ void ssl_set_rng( ssl_context *ssl, int (*f_rng)(void *), void *p_rng );
  * \param p_send   write parameter
  */
 void ssl_set_bio( ssl_context *ssl,
-            int (*f_recv)(void *, unsigned char *, int), void *p_recv,
-            int (*f_send)(void *, unsigned char *, int), void *p_send );
+        int (*f_recv)(void *, unsigned char *, int), void *p_recv,
+        int (*f_send)(void *, unsigned char *, int), void *p_send );
 
 /**
  * \brief          Set the session callbacks (server-side only)
@@ -380,6 +397,17 @@ void ssl_set_own_cert( ssl_context *ssl, x509_cert *own_cert,
 int ssl_set_dh_param( ssl_context *ssl, char *dhm_P, char *dhm_G );
 
 /**
+ * \brief          Set hostname for ServerName TLS Extension
+ *                 
+ *
+ * \param ssl      SSL context
+ * \param hostname the server hostname
+ *
+ * \return         0 if successful
+ */
+int ssl_set_hostname( ssl_context *ssl, char *hostname );
+
+/**
  * \brief          Return the number of data bytes available to read
  *
  * \param ssl      SSL context
@@ -427,9 +455,8 @@ int ssl_handshake( ssl_context *ssl );
  * \param buf      buffer that will hold the data
  * \param len      how many bytes must be read
  *
- * \return         This function returns the number of bytes read
- *                 or a negative error code; XYSSL_ERR_NET_TRY_AGAIN
- *                 indicates the socket is blocking.
+ * \return         This function returns the number of bytes read,
+ *                 or a negative error code.
  */
 int ssl_read( ssl_context *ssl, unsigned char *buf, int len );
 
@@ -440,9 +467,12 @@ int ssl_read( ssl_context *ssl, unsigned char *buf, int len );
  * \param buf      buffer holding the data
  * \param len      how many bytes must be written
  *
- * \return         This function returns the number of bytes written
- *                 or a negative error code; XYSSL_ERR_NET_TRY_AGAIN
- *                 indicates the socket is blocking.
+ * \return         This function returns the number of bytes written,
+ *                 or a negative error code.
+ *
+ * \note           When this function returns XYSSL_ERR_NET_TRY_AGAIN,
+ *                 it must be called later with the *same* arguments,
+ *                 until it returns a positive value.
  */
 int ssl_write( ssl_context *ssl, unsigned char *buf, int len );
 
@@ -463,21 +493,22 @@ int ssl_handshake_client( ssl_context *ssl );
 int ssl_handshake_server( ssl_context *ssl );
 
 int ssl_derive_keys( ssl_context *ssl );
+void ssl_calc_verify( ssl_context *ssl, unsigned char hash[36] );
+
 int ssl_read_record( ssl_context *ssl );
-int ssl_write_record( ssl_context *ssl );
 int ssl_fetch_input( ssl_context *ssl, int nb_want );
+
+int ssl_write_record( ssl_context *ssl );
 int ssl_flush_output( ssl_context *ssl );
 
-int ssl_write_certificate( ssl_context *ssl );
 int ssl_parse_certificate( ssl_context *ssl );
+int ssl_write_certificate( ssl_context *ssl );
 
-int ssl_write_change_cipher_spec( ssl_context *ssl );
 int ssl_parse_change_cipher_spec( ssl_context *ssl );
+int ssl_write_change_cipher_spec( ssl_context *ssl );
 
-int ssl_write_finished( ssl_context *ssl );
 int ssl_parse_finished( ssl_context *ssl );
-
-void ssl_calc_verify( ssl_context *ssl, unsigned char hash[36] );
+int ssl_write_finished( ssl_context *ssl );
 
 #ifdef __cplusplus
 }

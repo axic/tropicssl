@@ -1,32 +1,32 @@
-/* 
- * Copyright (c) 2006-2007, Christophe Devine
- * All rights reserved.
- * 
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer
- *       in the documentation and/or other materials provided with the
- *       distribution.
- *     * Neither the name of the XySSL nor the names of its contributors
- *       may be used to endorse or promote products derived from this
- *       software without specific prior written permission.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
- * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
- * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
- * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/*
+ *  FIPS-197 compliant AES implementation
+ *
+ *  Copyright (C) 2006-2007  Christophe Devine
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
+ *  
+ *    * Redistributions of source code must retain the above copyright
+ *      notice, this list of conditions and the following disclaimer.
+ *    * Redistributions in binary form must reproduce the above copyright
+ *      notice, this list of conditions and the following disclaimer in the
+ *      documentation and/or other materials provided with the distribution.
+ *    * Neither the name of XySSL nor the names of its contributors may be
+ *      used to endorse or promote products derived from this software
+ *      without specific prior written permission.
+ *  
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ *  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ *  TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ *  PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ *  LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ *  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
  *  The AES block cipher was designed by Vincent Rijmen and Joan Daemen.
@@ -579,7 +579,7 @@ void aes_setkey_dec( aes_context *ctx, unsigned char *key, int keysize )
     *RK++ = *SK++;
     *RK++ = *SK++;
 
-    for( i = ctx->nr, SK -= 8; i > 1; i--, SK -= 8 )
+    for( i = ctx->nr - 1, SK -= 8; i > 0; i--, SK -= 8 )
     {
         for( j = 0; j < 4; j++, SK++ )
         {
@@ -658,8 +658,8 @@ void aes_crypt_ecb( aes_context *ctx,
 #if defined(XYSSL_PADLOCK_C) && defined(XYSSL_HAVE_X86)
     if( padlock_supports( PADLOCK_ACE ) )
     {
-        padlock_xcryptecb( ctx, mode, input, output );
-        return;
+        if( padlock_xcryptecb( ctx, mode, input, output ) == 0 )
+            return;
     }
 #endif
 
@@ -670,39 +670,9 @@ void aes_crypt_ecb( aes_context *ctx,
     GET_ULONG_LE( X2, input,  8 ); X2 ^= *RK++;
     GET_ULONG_LE( X3, input, 12 ); X3 ^= *RK++;
 
-    if( mode == AES_ENCRYPT )
+    if( mode == AES_DECRYPT )
     {
-        for( i = (ctx->nr >> 1); i > 1; i-- )
-        {
-            AES_FROUND( Y0, Y1, Y2, Y3, X0, X1, X2, X3 );
-            AES_FROUND( X0, X1, X2, X3, Y0, Y1, Y2, Y3 );
-        }
-
-        AES_FROUND( Y0, Y1, Y2, Y3, X0, X1, X2, X3 );
-
-        X0 = *RK++ ^ ( FSb[ ( Y0       ) & 0xFF ]       ) ^
-                     ( FSb[ ( Y1 >>  8 ) & 0xFF ] <<  8 ) ^
-                     ( FSb[ ( Y2 >> 16 ) & 0xFF ] << 16 ) ^
-                     ( FSb[ ( Y3 >> 24 ) & 0xFF ] << 24 );
-
-        X1 = *RK++ ^ ( FSb[ ( Y1       ) & 0xFF ]       ) ^
-                     ( FSb[ ( Y2 >>  8 ) & 0xFF ] <<  8 ) ^
-                     ( FSb[ ( Y3 >> 16 ) & 0xFF ] << 16 ) ^
-                     ( FSb[ ( Y0 >> 24 ) & 0xFF ] << 24 );
-
-        X2 = *RK++ ^ ( FSb[ ( Y2       ) & 0xFF ]       ) ^
-                     ( FSb[ ( Y3 >>  8 ) & 0xFF ] <<  8 ) ^
-                     ( FSb[ ( Y0 >> 16 ) & 0xFF ] << 16 ) ^
-                     ( FSb[ ( Y1 >> 24 ) & 0xFF ] << 24 );
-
-        X3 = *RK++ ^ ( FSb[ ( Y3       ) & 0xFF ]       ) ^
-                     ( FSb[ ( Y0 >>  8 ) & 0xFF ] <<  8 ) ^
-                     ( FSb[ ( Y1 >> 16 ) & 0xFF ] << 16 ) ^
-                     ( FSb[ ( Y2 >> 24 ) & 0xFF ] << 24 );
-    }
-    else /* AES_DECRYPT */
-    {
-        for( i = (ctx->nr >> 1); i > 1; i-- )
+        for( i = (ctx->nr >> 1) - 1; i > 0; i-- )
         {
             AES_RROUND( Y0, Y1, Y2, Y3, X0, X1, X2, X3 );
             AES_RROUND( X0, X1, X2, X3, Y0, Y1, Y2, Y3 );
@@ -730,6 +700,36 @@ void aes_crypt_ecb( aes_context *ctx,
                      ( RSb[ ( Y1 >> 16 ) & 0xFF ] << 16 ) ^
                      ( RSb[ ( Y0 >> 24 ) & 0xFF ] << 24 );
     }
+    else /* AES_ENCRYPT */
+    {
+        for( i = (ctx->nr >> 1) - 1; i > 0; i-- )
+        {
+            AES_FROUND( Y0, Y1, Y2, Y3, X0, X1, X2, X3 );
+            AES_FROUND( X0, X1, X2, X3, Y0, Y1, Y2, Y3 );
+        }
+
+        AES_FROUND( Y0, Y1, Y2, Y3, X0, X1, X2, X3 );
+
+        X0 = *RK++ ^ ( FSb[ ( Y0       ) & 0xFF ]       ) ^
+                     ( FSb[ ( Y1 >>  8 ) & 0xFF ] <<  8 ) ^
+                     ( FSb[ ( Y2 >> 16 ) & 0xFF ] << 16 ) ^
+                     ( FSb[ ( Y3 >> 24 ) & 0xFF ] << 24 );
+
+        X1 = *RK++ ^ ( FSb[ ( Y1       ) & 0xFF ]       ) ^
+                     ( FSb[ ( Y2 >>  8 ) & 0xFF ] <<  8 ) ^
+                     ( FSb[ ( Y3 >> 16 ) & 0xFF ] << 16 ) ^
+                     ( FSb[ ( Y0 >> 24 ) & 0xFF ] << 24 );
+
+        X2 = *RK++ ^ ( FSb[ ( Y2       ) & 0xFF ]       ) ^
+                     ( FSb[ ( Y3 >>  8 ) & 0xFF ] <<  8 ) ^
+                     ( FSb[ ( Y0 >> 16 ) & 0xFF ] << 16 ) ^
+                     ( FSb[ ( Y1 >> 24 ) & 0xFF ] << 24 );
+
+        X3 = *RK++ ^ ( FSb[ ( Y3       ) & 0xFF ]       ) ^
+                     ( FSb[ ( Y0 >>  8 ) & 0xFF ] <<  8 ) ^
+                     ( FSb[ ( Y1 >> 16 ) & 0xFF ] << 16 ) ^
+                     ( FSb[ ( Y2 >> 24 ) & 0xFF ] << 24 );
+    }
 
     PUT_ULONG_LE( X0, output,  0 );
     PUT_ULONG_LE( X1, output,  4 );
@@ -753,27 +753,12 @@ void aes_crypt_cbc( aes_context *ctx,
 #if defined(XYSSL_PADLOCK_C) && defined(XYSSL_HAVE_X86)
     if( padlock_supports( PADLOCK_ACE ) )
     {
-        padlock_xcryptcbc( ctx, mode, length, iv, input, output );
-        return;
+        if( padlock_xcryptcbc( ctx, mode, length, iv, input, output ) == 0 )
+            return;
     }
 #endif
 
-    if( mode == AES_ENCRYPT )
-    {
-        while( length > 0 )
-        {
-            for( i = 0; i < 16; i++ )
-                output[i] = (unsigned char)( input[i] ^ iv[i] );
-
-            aes_crypt_ecb( ctx, mode, output, output );
-            memcpy( iv, output, 16 );
-
-            input  += 16;
-            output += 16;
-            length -= 16;
-        }
-    }
-    else
+    if( mode == AES_DECRYPT )
     {
         while( length > 0 )
         {
@@ -784,6 +769,21 @@ void aes_crypt_cbc( aes_context *ctx,
                 output[i] = (unsigned char)( output[i] ^ iv[i] );
 
             memcpy( iv, temp, 16 );
+
+            input  += 16;
+            output += 16;
+            length -= 16;
+        }
+    }
+    else
+    {
+        while( length > 0 )
+        {
+            for( i = 0; i < 16; i++ )
+                output[i] = (unsigned char)( input[i] ^ iv[i] );
+
+            aes_crypt_ecb( ctx, mode, output, output );
+            memcpy( iv, output, 16 );
 
             input  += 16;
             output += 16;
@@ -805,14 +805,16 @@ void aes_crypt_cfb( aes_context *ctx,
 {
     int c, n = *iv_off;
 
-    if( mode == AES_ENCRYPT )
+    if( mode == AES_DECRYPT )
     {
         while( length-- )
         {
             if( n == 0 )
-                aes_crypt_ecb( ctx, mode, iv, iv );
+                aes_crypt_ecb( ctx, AES_ENCRYPT, iv, iv );
 
-            iv[n] = *output++ = (unsigned char)( iv[n] ^ *input++ );
+            c = *input++;
+            *output++ = (unsigned char)( c ^ iv[n] );
+            iv[n] = (unsigned char) c;
 
             n = (n + 1) & 0x0F;
         }
@@ -822,11 +824,9 @@ void aes_crypt_cfb( aes_context *ctx,
         while( length-- )
         {
             if( n == 0 )
-                aes_crypt_ecb( ctx, mode, iv, iv );
+                aes_crypt_ecb( ctx, AES_ENCRYPT, iv, iv );
 
-            c = *input++;
-            *output++ = (unsigned char)( c ^ iv[n] );
-            iv[n] = (unsigned char) c;
+            iv[n] = *output++ = (unsigned char)( iv[n] ^ *input++ );
 
             n = (n + 1) & 0x0F;
         }
@@ -840,19 +840,11 @@ void aes_crypt_cfb( aes_context *ctx,
 #include <stdio.h>
 
 /*
- * AES-ECB test vectors (source: NIST, rijndael-vals.zip)
+ * AES test vectors from:
+ *
+ * http://csrc.nist.gov/archive/aes/rijndael/rijndael-vals.zip
  */
-static const unsigned char aes_enc_test[3][16] =
-{
-    { 0xC3, 0x4C, 0x05, 0x2C, 0xC0, 0xDA, 0x8D, 0x73,
-      0x45, 0x1A, 0xFE, 0x5F, 0x03, 0xBE, 0x29, 0x7F },
-    { 0xF3, 0xF6, 0x75, 0x2A, 0xE8, 0xD7, 0x83, 0x11,
-      0x38, 0xF0, 0x41, 0x56, 0x06, 0x31, 0xB1, 0x14 },
-    { 0x8B, 0x79, 0xEE, 0xCC, 0x93, 0xA0, 0xEE, 0x5D,
-      0xFF, 0x30, 0xB4, 0xEA, 0x21, 0x63, 0x6D, 0xA4 }
-};
-    
-static const unsigned char aes_dec_test[3][16] =
+static const unsigned char aes_test_ecb_dec[3][16] =
 {
     { 0x44, 0x41, 0x6A, 0xC2, 0xD1, 0xF5, 0x3C, 0x58,
       0x33, 0x03, 0x91, 0x7E, 0x6B, 0xE9, 0xEB, 0xE0 },
@@ -862,15 +854,76 @@ static const unsigned char aes_dec_test[3][16] =
       0x1F, 0x6F, 0x56, 0x58, 0x5D, 0x8A, 0x4A, 0xDE }
 };
 
+static const unsigned char aes_test_ecb_enc[3][16] =
+{
+    { 0xC3, 0x4C, 0x05, 0x2C, 0xC0, 0xDA, 0x8D, 0x73,
+      0x45, 0x1A, 0xFE, 0x5F, 0x03, 0xBE, 0x29, 0x7F },
+    { 0xF3, 0xF6, 0x75, 0x2A, 0xE8, 0xD7, 0x83, 0x11,
+      0x38, 0xF0, 0x41, 0x56, 0x06, 0x31, 0xB1, 0x14 },
+    { 0x8B, 0x79, 0xEE, 0xCC, 0x93, 0xA0, 0xEE, 0x5D,
+      0xFF, 0x30, 0xB4, 0xEA, 0x21, 0x63, 0x6D, 0xA4 }
+};
+
+static const unsigned char aes_test_cbc_dec[3][16] =
+{
+    { 0xFA, 0xCA, 0x37, 0xE0, 0xB0, 0xC8, 0x53, 0x73,
+      0xDF, 0x70, 0x6E, 0x73, 0xF7, 0xC9, 0xAF, 0x86 },
+    { 0x5D, 0xF6, 0x78, 0xDD, 0x17, 0xBA, 0x4E, 0x75,
+      0xB6, 0x17, 0x68, 0xC6, 0xAD, 0xEF, 0x7C, 0x7B },
+    { 0x48, 0x04, 0xE1, 0x81, 0x8F, 0xE6, 0x29, 0x75,
+      0x19, 0xA3, 0xE8, 0x8C, 0x57, 0x31, 0x04, 0x13 }
+};
+
+static const unsigned char aes_test_cbc_enc[3][16] =
+{
+    { 0x8A, 0x05, 0xFC, 0x5E, 0x09, 0x5A, 0xF4, 0x84,
+      0x8A, 0x08, 0xD3, 0x28, 0xD3, 0x68, 0x8E, 0x3D },
+    { 0x7B, 0xD9, 0x66, 0xD5, 0x3A, 0xD8, 0xC1, 0xBB,
+      0x85, 0xD2, 0xAD, 0xFA, 0xE8, 0x7B, 0xB1, 0x04 },
+    { 0xFE, 0x3C, 0x53, 0x65, 0x3E, 0x2F, 0x45, 0xB5,
+      0x6F, 0xCD, 0x88, 0xB2, 0xCC, 0x89, 0x8F, 0xF0 }
+};
+
+/*
+ * AES-CFB test vectors (generated on 2008-02-12)
+ */
+static const unsigned char aes_test_cfb_dec[3][16] =
+{
+    { 0xBA, 0x75, 0x0C, 0xC9, 0x77, 0xF8, 0xD4, 0xE1,
+      0x3E, 0x0F, 0xB5, 0x46, 0x2E, 0xA6, 0x33, 0xF6 },
+    { 0xDB, 0x40, 0x4A, 0x98, 0x7B, 0xAA, 0xA3, 0xF3,
+      0x92, 0x35, 0xAD, 0x58, 0x09, 0x9B, 0xFF, 0x6E },
+    { 0xA8, 0x17, 0x41, 0x0E, 0x76, 0x71, 0x60, 0xE5,
+      0xFD, 0x37, 0xC5, 0x43, 0xCC, 0xC8, 0xD6, 0xDA }
+};
+
+static const unsigned char aes_test_cfb_enc[3][16] =
+{
+    { 0x45, 0x62, 0xC5, 0xA1, 0xF9, 0x10, 0x8F, 0xE0,
+      0x87, 0x24, 0x25, 0x68, 0xB5, 0x12, 0xF3, 0x8B },
+    { 0xB8, 0xD4, 0xD5, 0x09, 0xF5, 0xEE, 0x08, 0x38,
+      0x48, 0x9B, 0x9D, 0xAD, 0x11, 0xB4, 0x2E, 0xD2 },
+    { 0xE9, 0x10, 0x80, 0xDA, 0xEE, 0x2D, 0x81, 0xD9,
+      0x41, 0x78, 0x91, 0xD5, 0x98, 0x78, 0xE1, 0xFA }
+};
+
 /*
  * Checkup routine
  */
 int aes_self_test( int verbose )
 {
-    int i, j, u, v;
+    int i, j, u, v, offset;
+    unsigned char key[32];
+    unsigned char buf[16];
+    unsigned char prv[16];
+    unsigned char iv[16];
     aes_context ctx;
-    unsigned char buf[32];
 
+    memset( key, 0, 32 );
+
+    /*
+     * ECB mode
+     */
     for( i = 0; i < 6; i++ )
     {
         u = i >> 1;
@@ -878,18 +931,18 @@ int aes_self_test( int verbose )
 
         if( verbose != 0 )
             printf( "  AES-ECB-%3d (%s): ", 128 + u * 64,
-                    ( v == AES_ENCRYPT ) ? "enc" : "dec" );
+                    ( v == AES_DECRYPT ) ? "dec" : "enc" );
 
-        memset( buf, 0, 32 );
+        memset( buf, 0, 16 );
 
-        if( v == AES_ENCRYPT )
+        if( v == AES_DECRYPT )
         {
-            aes_setkey_enc( &ctx, buf, 128 + u * 64 );
+            aes_setkey_dec( &ctx, key, 128 + u * 64 );
 
             for( j = 0; j < 10000; j++ )
                 aes_crypt_ecb( &ctx, v, buf, buf );
 
-            if( memcmp( buf, aes_enc_test[u], 16 ) != 0 )
+            if( memcmp( buf, aes_test_ecb_dec[u], 16 ) != 0 )
             {
                 if( verbose != 0 )
                     printf( "failed\n" );
@@ -897,15 +950,14 @@ int aes_self_test( int verbose )
                 return( 1 );
             }
         }
-
-        if( v == AES_DECRYPT )
+        else
         {
-            aes_setkey_dec( &ctx, buf, 128 + u * 64 );
+            aes_setkey_enc( &ctx, key, 128 + u * 64 );
 
             for( j = 0; j < 10000; j++ )
                 aes_crypt_ecb( &ctx, v, buf, buf );
 
-            if( memcmp( buf, aes_dec_test[u], 16 ) != 0 )
+            if( memcmp( buf, aes_test_ecb_enc[u], 16 ) != 0 )
             {
                 if( verbose != 0 )
                     printf( "failed\n" );
@@ -917,6 +969,123 @@ int aes_self_test( int verbose )
         if( verbose != 0 )
             printf( "passed\n" );
     }
+
+    if( verbose != 0 )
+        printf( "\n" );
+
+    /*
+     * CBC mode
+     */
+    for( i = 0; i < 6; i++ )
+    {
+        u = i >> 1;
+        v = i  & 1;
+
+        if( verbose != 0 )
+            printf( "  AES-CBC-%3d (%s): ", 128 + u * 64,
+                    ( v == AES_DECRYPT ) ? "dec" : "enc" );
+
+        memset( iv , 0, 16 );
+        memset( prv, 0, 16 );
+        memset( buf, 0, 16 );
+
+        if( v == AES_DECRYPT )
+        {
+            aes_setkey_dec( &ctx, key, 128 + u * 64 );
+
+            for( j = 0; j < 10000; j++ )
+                aes_crypt_cbc( &ctx, v, 16, iv, buf, buf );
+
+            if( memcmp( buf, aes_test_cbc_dec[u], 16 ) != 0 )
+            {
+                if( verbose != 0 )
+                    printf( "failed\n" );
+
+                return( 1 );
+            }
+        }
+        else
+        {
+            aes_setkey_enc( &ctx, key, 128 + u * 64 );
+
+            for( j = 0; j < 10000; j++ )
+            {
+                unsigned char tmp[16];
+
+                aes_crypt_cbc( &ctx, v, 16, iv, buf, buf );
+
+                memcpy( tmp, prv, 16 );
+                memcpy( prv, buf, 16 );
+                memcpy( buf, tmp, 16 );
+            }
+
+            if( memcmp( prv, aes_test_cbc_enc[u], 16 ) != 0 )
+            {
+                if( verbose != 0 )
+                    printf( "failed\n" );
+
+                return( 1 );
+            }
+        }
+
+        if( verbose != 0 )
+            printf( "passed\n" );
+    }
+
+    if( verbose != 0 )
+        printf( "\n" );
+
+    /*
+     * CFB mode
+     */
+    for( i = 0; i < 6; i++ )
+    {
+        u = i >> 1;
+        v = i  & 1;
+
+        if( verbose != 0 )
+            printf( "  AES-CFB-%3d (%s): ", 128 + u * 64,
+                    ( v == AES_DECRYPT ) ? "dec" : "enc" );
+
+        memset( iv , 0, 16 );
+        memset( buf, 0, 16 );
+        offset = 0;
+
+        if( v == AES_DECRYPT )
+        {
+            aes_setkey_dec( &ctx, key, 128 + u * 64 );
+
+            for( j = 0; j < 10000; j++ )
+                aes_crypt_cfb( &ctx, v, 16, &offset, iv, buf, buf );
+
+            if( memcmp( buf, aes_test_cfb_dec[u], 16 ) != 0 )
+            {
+                if( verbose != 0 )
+                    printf( "failed\n" );
+
+                return( 1 );
+            }
+        }
+        else
+        {
+            aes_setkey_enc( &ctx, key, 128 + u * 64 );
+
+            for( j = 0; j < 10000; j++ )
+                aes_crypt_cfb( &ctx, v, 16, &offset, iv, buf, buf );
+
+            if( memcmp( buf, aes_test_cfb_enc[u], 16 ) != 0 )
+            {
+                if( verbose != 0 )
+                    printf( "failed\n" );
+
+                return( 1 );
+            }
+        }
+
+        if( verbose != 0 )
+            printf( "passed\n" );
+    }
+
 
     if( verbose != 0 )
         printf( "\n" );

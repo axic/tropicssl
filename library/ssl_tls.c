@@ -1,32 +1,32 @@
-/* 
- * Copyright (c) 2006-2007, Christophe Devine
- * All rights reserved.
- * 
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer
- *       in the documentation and/or other materials provided with the
- *       distribution.
- *     * Neither the name of the XySSL nor the names of its contributors
- *       may be used to endorse or promote products derived from this
- *       software without specific prior written permission.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
- * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
- * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
- * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/*
+ *  SSLv3/TLSv1 shared functions
+ *
+ *  Copyright (C) 2006-2007  Christophe Devine
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
+ *  
+ *    * Redistributions of source code must retain the above copyright
+ *      notice, this list of conditions and the following disclaimer.
+ *    * Redistributions in binary form must reproduce the above copyright
+ *      notice, this list of conditions and the following disclaimer in the
+ *      documentation and/or other materials provided with the distribution.
+ *    * Neither the name of XySSL nor the names of its contributors may be
+ *      used to endorse or promote products derived from this software
+ *      without specific prior written permission.
+ *  
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ *  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ *  TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ *  PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ *  LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ *  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
  *  The SSL 3.0 specification was drafted by Netscape in 1996,
@@ -44,6 +44,7 @@
 #include "xyssl/aes.h"
 #include "xyssl/arc4.h"
 #include "xyssl/des.h"
+#include "xyssl/debug.h"
 #include "xyssl/ssl.h"
 
 #include <string.h>
@@ -251,6 +252,11 @@ int ssl_derive_keys( ssl_context *ssl )
 #endif
 
 #if defined(XYSSL_AES_C)
+        case SSL_RSA_AES_128_SHA:
+            ssl->keylen = 16; ssl->minlen = 32;
+            ssl->ivlen  = 16; ssl->maclen = 20;
+            break;
+
         case SSL_RSA_AES_256_SHA:
         case SSL_EDH_RSA_AES_256_SHA:
             ssl->keylen = 32; ssl->minlen = 32;
@@ -314,6 +320,11 @@ int ssl_derive_keys( ssl_context *ssl )
 #endif
 
 #if defined(XYSSL_AES_C)
+        case SSL_RSA_AES_128_SHA:
+            aes_setkey_enc( (aes_context *) ssl->ctx_enc, key1, 128 );
+            aes_setkey_dec( (aes_context *) ssl->ctx_dec, key2, 128 );
+            break;
+
         case SSL_RSA_AES_256_SHA:
         case SSL_EDH_RSA_AES_256_SHA:
             aes_setkey_enc( (aes_context *) ssl->ctx_enc, key1, 256 );
@@ -1569,6 +1580,9 @@ int ssl_init( ssl_context *ssl )
     memset( ssl-> in_ctr, 0, SSL_BUFFER_LEN );
     memset( ssl->out_ctr, 0, SSL_BUFFER_LEN );
 
+    ssl->hostname = NULL;
+    ssl->hostname_len = 0;
+
      md5_starts( &ssl->fin_md5  );
     sha1_starts( &ssl->fin_sha1 );
 
@@ -1578,11 +1592,6 @@ int ssl_init( ssl_context *ssl )
 /*
  * SSL set accessors
  */
-void ssl_set_debuglvl( ssl_context *ssl, int debuglvl )
-{
-    ssl->debuglvl   = debuglvl;
-}
-
 void ssl_set_endpoint( ssl_context *ssl, int endpoint )
 {
     ssl->endpoint   = endpoint;
@@ -1593,10 +1602,20 @@ void ssl_set_authmode( ssl_context *ssl, int authmode )
     ssl->authmode   = authmode;
 }
 
-void ssl_set_rng( ssl_context *ssl, int (*f_rng)(void *), void *p_rng )
+void ssl_set_rng( ssl_context *ssl,
+                  int (*f_rng)(void *),
+                  void *p_rng )
 {
     ssl->f_rng      = f_rng;
     ssl->p_rng      = p_rng;
+}
+
+void ssl_set_dbg( ssl_context *ssl,
+                  void (*f_dbg)(void *, int, char *),
+                  void  *p_dbg )
+{
+    ssl->f_dbg      = f_dbg;
+    ssl->p_dbg      = p_dbg;
 }
 
 void ssl_set_bio( ssl_context *ssl,
@@ -1605,7 +1624,6 @@ void ssl_set_bio( ssl_context *ssl,
 {
     ssl->f_recv     = f_recv;
     ssl->f_send     = f_send;
-
     ssl->p_recv     = p_recv;
     ssl->p_send     = p_send;
 }
@@ -1664,6 +1682,20 @@ int ssl_set_dh_param( ssl_context *ssl, char *dhm_P, char *dhm_G )
     return( 0 );
 }
 
+int ssl_set_hostname( ssl_context *ssl, char *hostname )
+{
+    if( hostname == NULL )
+        return( XYSSL_ERR_SSL_BAD_INPUT_DATA );
+
+    ssl->hostname_len = strlen( hostname );
+    ssl->hostname = (unsigned char *) malloc( ssl->hostname_len );
+
+    memcpy( ssl->hostname, (unsigned char *) hostname,
+            ssl->hostname_len );
+
+    return( 0 );
+}
+
 /*
  * SSL get accessors
  */
@@ -1698,6 +1730,9 @@ char *ssl_get_cipher( ssl_context *ssl )
 #endif
 
 #if defined(XYSSL_AES_C)
+        case SSL_RSA_AES_128_SHA:
+            return( "SSL_RSA_AES_128_SHA" );
+
         case SSL_RSA_AES_256_SHA:
             return( "SSL_RSA_AES_256_SHA" );
 
@@ -1724,6 +1759,7 @@ int ssl_default_ciphers[] =
 #endif
 
 #if defined(XYSSL_AES_C)
+    SSL_RSA_AES_128_SHA,
     SSL_RSA_AES_256_SHA,
 #endif
 #if defined(XYSSL_DES_C)
@@ -1844,23 +1880,28 @@ int ssl_write( ssl_context *ssl, unsigned char *buf, int len )
         }
     }
 
-    if( ( ret = ssl_flush_output( ssl ) ) != 0 )
-    {
-        SSL_DEBUG_RET( 1, "ssl_flush_output", ret );
-        return( ret );
-    }
-
     n = ( len < SSL_MAX_CONTENT_LEN )
         ? len : SSL_MAX_CONTENT_LEN;
 
-    ssl->out_msglen  = n;
-    ssl->out_msgtype = SSL_MSG_APPLICATION_DATA;
-    memcpy( ssl->out_msg, buf, n );
-
-    if( ( ret = ssl_write_record( ssl ) ) != 0 )
+    if( ssl->out_left != 0 )
     {
-        SSL_DEBUG_RET( 1, "ssl_write_record", ret );
-        return( ret );
+        if( ( ret = ssl_flush_output( ssl ) ) != 0 )
+        {
+            SSL_DEBUG_RET( 1, "ssl_flush_output", ret );
+            return( ret );
+        }
+    }
+    else
+    {
+        ssl->out_msglen  = n;
+        ssl->out_msgtype = SSL_MSG_APPLICATION_DATA;
+        memcpy( ssl->out_msg, buf, n );
+
+        if( ( ret = ssl_write_record( ssl ) ) != 0 )
+        {
+            SSL_DEBUG_RET( 1, "ssl_write_record", ret );
+            return( ret );
+        }
     }
 
     SSL_DEBUG_MSG( 2, ( "<= write" ) );
@@ -1931,6 +1972,13 @@ void ssl_free( ssl_context *ssl )
 #if defined(XYSSL_DHM_C)
     dhm_free( &ssl->dhm_ctx );
 #endif
+
+    if ( ssl->hostname != NULL)
+    {
+        memset( ssl->hostname, 0, ssl->hostname_len );
+        free( ssl->hostname );
+        ssl->hostname_len = 0;
+    }
 
     memset( ssl, 0, sizeof( ssl_context ) );
 

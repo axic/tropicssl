@@ -4,8 +4,8 @@
 #ifndef XYSSL_DES_H
 #define XYSSL_DES_H
 
-#define DES_ENCRYPT     0
-#define DES_DECRYPT     1
+#define DES_ENCRYPT     1
+#define DES_DECRYPT     0
 
 /**
  * \brief          DES context structure

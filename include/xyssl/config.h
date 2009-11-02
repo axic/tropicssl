@@ -31,6 +31,11 @@
  */
 
 /*
+ * Uncomment to enable the use of assembly code.
+ */
+#define XYSSL_HAVE_ASM
+
+/*
  * Uncomment if the CPU supports SSE2 (IA-32 specific).
  *
 #define XYSSL_HAVE_SSE2
@@ -62,6 +67,7 @@
  * Caller:  library/ssl_tls.c
  *
  * This module enables the following ciphersuites:
+ *      SSL_RSA_AES_128_SHA
  *      SSL_RSA_AES_256_SHA
  *      SSL_EDH_RSA_AES_256_SHA
  */
@@ -147,17 +153,19 @@
  * Module:  library/md2.c
  * Caller:  library/x509parse.c
  *
- * This module enables support for MD2-signed X.509 certificates.
- */
+ * Uncomment to enable support for (rare) MD2-signed X.509 certs.
+ *
 #define XYSSL_MD2_C
+ */
 
 /*
  * Module:  library/md4.c
  * Caller:  library/x509parse.c
  *
- * This module enables support for MD4-signed X.509 certificates.
- */
+ * Uncomment to enable support for (rare) MD4-signed X.509 certs.
+ *
 #define XYSSL_MD4_C
+ */
 
 /*
  * Module:  library/md5.c
@@ -191,7 +199,7 @@
  *          library/ssl_tls.c
  *          library/x509.c
  *
- * This module is required for SSL/TLS and X.509.
+ * This module is required for SSL/TLS and MD5-signed certificates.
  */
 #define XYSSL_RSA_C
 
@@ -202,7 +210,7 @@
  *          library/ssl_tls.c
  *          library/x509parse.c
  *
- * This module is required for SSL/TLS and X.509.
+ * This module is required for SSL/TLS and SHA1-signed certificates.
  */
 #define XYSSL_SHA1_C
 

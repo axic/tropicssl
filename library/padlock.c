@@ -1,32 +1,32 @@
-/* 
- * Copyright (c) 2006-2007, Christophe Devine
- * All rights reserved.
- * 
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer
- *       in the documentation and/or other materials provided with the
- *       distribution.
- *     * Neither the name of the XySSL nor the names of its contributors
- *       may be used to endorse or promote products derived from this
- *       software without specific prior written permission.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
- * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
- * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
- * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/*
+ *  VIA PadLock support functions
+ *
+ *  Copyright (C) 2006-2007  Christophe Devine
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
+ *  
+ *    * Redistributions of source code must retain the above copyright
+ *      notice, this list of conditions and the following disclaimer.
+ *    * Redistributions in binary form must reproduce the above copyright
+ *      notice, this list of conditions and the following disclaimer in the
+ *      documentation and/or other materials provided with the distribution.
+ *    * Neither the name of XySSL nor the names of its contributors may be
+ *      used to endorse or promote products derived from this software
+ *      without specific prior written permission.
+ *  
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ *  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ *  TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ *  PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ *  LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ *  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
  *  This implementation is based on the VIA PadLock Programming Guide:
@@ -80,10 +80,10 @@ int padlock_supports( int feature )
 /*
  * PadLock AES-ECB block en(de)cryption
  */
-void padlock_xcryptecb( aes_context *ctx,
-                        int mode,
-                        unsigned char input[16],
-                        unsigned char output[16] )
+int padlock_xcryptecb( aes_context *ctx,
+                       int mode,
+                       unsigned char input[16],
+                       unsigned char output[16] )
 {
     int ebx;
     unsigned long *rk;
@@ -96,7 +96,7 @@ void padlock_xcryptecb( aes_context *ctx,
     memcpy( blk, input, 16 );
 
      ctrl = blk + 4;
-    *ctrl = 0x80 | ctx->nr | ( ( ctx->nr + mode - 10 ) << 9 );
+    *ctrl = 0x80 | ctx->nr | ( ( ctx->nr + ( mode^1 ) - 10 ) << 9 );
 
     asm( "pushfl; popfl         \n"     \
          "movl    %%ebx, %0     \n"     \
@@ -105,24 +105,26 @@ void padlock_xcryptecb( aes_context *ctx,
          "movl    %3, %%ebx     \n"     \
          "movl    %4, %%esi     \n"     \
          "movl    %4, %%edi     \n"     \
-         "repz    xcryptecb     \n"     \
+         ".byte  0xf3,0x0f,0xa7,0xc8\n" \
          "movl    %1, %%ebx     \n"
          : "=m" (ebx)
          :  "m" (ebx), "m" (ctrl), "m" (rk), "m" (blk)
          : "ecx", "edx", "esi", "edi" );
 
     memcpy( output, blk, 16 );
+
+    return( 0 );
 }
 
 /*
  * PadLock AES-CBC buffer en(de)cryption
  */
-void padlock_xcryptcbc( aes_context *ctx,
-                        int mode,
-                        int length,
-                        unsigned char iv[16],
-                        unsigned char *input,
-                        unsigned char *output )
+int padlock_xcryptcbc( aes_context *ctx,
+                       int mode,
+                       int length,
+                       unsigned char iv[16],
+                       unsigned char *input,
+                       unsigned char *output )
 {
     int ebx, count;
     unsigned long *rk;
@@ -130,17 +132,16 @@ void padlock_xcryptcbc( aes_context *ctx,
     unsigned long *ctrl;
     unsigned char buf[256];
 
+    if( ( (long) input  & 15 ) != 0 ||
+        ( (long) output & 15 ) != 0 )
+        return( 1 );
+
     rk = ctx->rk;
     iw = PADLOCK_ALIGN16( buf );
     memcpy( iw, iv, 16 );
 
      ctrl = iw + 4;
-    *ctrl = 0x80 | ctx->nr | ( ( ctx->nr + mode - 10 ) << 9 );
-
-    if( ( (long) input  & 15 ) != 0 ||
-        ( (long) output & 15 ) != 0 )
-        /* data is not aligned */
-        *ctrl |= 0x20;
+    *ctrl = 0x80 | ctx->nr | ( ( ctx->nr + (mode^1) - 10 ) << 9 );
 
     count = (length + 15) >> 4;
 
@@ -152,7 +153,7 @@ void padlock_xcryptcbc( aes_context *ctx,
          "movl    %5, %%esi     \n"     \
          "movl    %6, %%edi     \n"     \
          "movl    %7, %%eax     \n"     \
-         "repz    xcryptcbc     \n"     \
+         ".byte  0xf3,0x0f,0xa7,0xd0\n" \
          "movl    %1, %%ebx     \n"
          : "=m" (ebx)
          :  "m" (ebx), "m" (count), "m" (ctrl),
@@ -160,6 +161,8 @@ void padlock_xcryptcbc( aes_context *ctx,
          : "eax", "ecx", "edx", "esi", "edi" );
 
     memcpy( iv, iw, 16 );
+
+    return( 0 );
 }
 
 #endif

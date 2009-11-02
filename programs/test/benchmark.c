@@ -1,32 +1,32 @@
-/* 
- * Copyright (c) 2006-2007, Christophe Devine
- * All rights reserved.
- * 
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer
- *       in the documentation and/or other materials provided with the
- *       distribution.
- *     * Neither the name of the XySSL nor the names of its contributors
- *       may be used to endorse or promote products derived from this
- *       software without specific prior written permission.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
- * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
- * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
- * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/*
+ *  Benchmark demonstration program
+ *
+ *  Copyright (C) 2006-2007  Christophe Devine
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
+ *  
+ *    * Redistributions of source code must retain the above copyright
+ *      notice, this list of conditions and the following disclaimer.
+ *    * Redistributions in binary form must reproduce the above copyright
+ *      notice, this list of conditions and the following disclaimer in the
+ *      documentation and/or other materials provided with the distribution.
+ *    * Neither the name of XySSL nor the names of its contributors may be
+ *      used to endorse or promote products derived from this software
+ *      without specific prior written permission.
+ *  
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ *  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ *  TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ *  PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ *  LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ *  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #ifndef _CRT_SECURE_NO_DEPRECATE
@@ -36,6 +36,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+
+#include "xyssl/config.h"
 
 #include "xyssl/md4.h"
 #include "xyssl/md5.h"
@@ -64,19 +66,25 @@ int main( void )
     int keysize;
     unsigned long i, j, tsc;
     unsigned char tmp[32];
+#if defined(XYSSL_ARC4_C)
     arc4_context arc4;
+#endif
+#if defined(XYSSL_DES_C)
     des3_context des3;
     des_context des;
+#endif
+#if defined(XYSSL_AES_C)
     aes_context aes;
+#endif
+#if defined(XYSSL_RSA_C)
     rsa_context rsa;
+#endif
 
     memset( buf, 0xAA, sizeof( buf ) );
 
     printf( "\n" );
 
-    /*
-     * MD4 timing
-     */ 
+#if defined(XYSSL_MD4_C)
     printf( "  MD4       :  " );
     fflush( stdout );
 
@@ -90,10 +98,9 @@ int main( void )
 
     printf( "%9lu Kb/s,  %9lu cycles/byte\n", i * BUFSIZE / 1024,
                     ( hardclock() - tsc ) / ( j * BUFSIZE ) );
+#endif
 
-    /*
-     * MD5 timing
-     */ 
+#if defined(XYSSL_MD5_C)
     printf( "  MD5       :  " );
     fflush( stdout );
 
@@ -107,10 +114,9 @@ int main( void )
 
     printf( "%9lu Kb/s,  %9lu cycles/byte\n", i * BUFSIZE / 1024,
                     ( hardclock() - tsc ) / ( j * BUFSIZE ) );
+#endif
 
-    /*
-     * SHA-1 timing
-     */ 
+#if defined(XYSSL_SHA1_C)
     printf( "  SHA-1     :  " );
     fflush( stdout );
 
@@ -124,10 +130,9 @@ int main( void )
 
     printf( "%9lu Kb/s,  %9lu cycles/byte\n", i * BUFSIZE / 1024,
                     ( hardclock() - tsc ) / ( j * BUFSIZE ) );
+#endif
 
-    /*
-     * SHA-256 timing
-     */ 
+#if defined(XYSSL_SHA2_C)
     printf( "  SHA-256   :  " );
     fflush( stdout );
 
@@ -141,10 +146,9 @@ int main( void )
 
     printf( "%9lu Kb/s,  %9lu cycles/byte\n", i * BUFSIZE / 1024,
                     ( hardclock() - tsc ) / ( j * BUFSIZE ) );
+#endif
 
-    /*
-     * ARC4 timing
-     */ 
+#if defined(XYSSL_ARC4_C)
     printf( "  ARC4      :  " );
     fflush( stdout );
 
@@ -160,10 +164,9 @@ int main( void )
 
     printf( "%9lu Kb/s,  %9lu cycles/byte\n", i * BUFSIZE / 1024,
                     ( hardclock() - tsc ) / ( j * BUFSIZE ) );
+#endif
 
-    /*
-     * Triple-DES timing
-     */ 
+#if defined(XYSSL_DES_C)
     printf( "  3DES      :  " );
     fflush( stdout );
 
@@ -180,9 +183,6 @@ int main( void )
     printf( "%9lu Kb/s,  %9lu cycles/byte\n", i * BUFSIZE / 1024,
                     ( hardclock() - tsc ) / ( j * BUFSIZE ) );
 
-    /*
-     * DES timing
-     */ 
     printf( "  DES       :  " );
     fflush( stdout );
 
@@ -198,10 +198,9 @@ int main( void )
 
     printf( "%9lu Kb/s,  %9lu cycles/byte\n", i * BUFSIZE / 1024,
                     ( hardclock() - tsc ) / ( j * BUFSIZE ) );
+#endif
 
-    /*
-     * AES timings
-     */ 
+#if defined(XYSSL_AES_C)
     for( keysize = 128; keysize <= 256; keysize += 64 )
     {
         printf( "  AES-%d   :  ", keysize );
@@ -223,10 +222,9 @@ int main( void )
         printf( "%9lu Kb/s,  %9lu cycles/byte\n", i * BUFSIZE / 1024,
                         ( hardclock() - tsc ) / ( j * BUFSIZE ) );
     }
+#endif
 
-    /*
-     * RSA-1024 timing
-     */ 
+#if defined(XYSSL_RSA_C)
     rsa_init( &rsa, RSA_PKCS_V15, 0, myrand, NULL );
     rsa_gen_key( &rsa, 1024, 65537 );
 
@@ -255,6 +253,7 @@ int main( void )
     printf( "%9lu private/s\n\n", i / 3 );
 
     rsa_free( &rsa );
+#endif
 
 #ifdef WIN32
     printf( "  Press Enter to exit this program.\n" );

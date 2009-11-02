@@ -1,38 +1,39 @@
-/* 
- * Copyright (c) 2006-2007, Christophe Devine
- * All rights reserved.
- * 
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer
- *       in the documentation and/or other materials provided with the
- *       distribution.
- *     * Neither the name of the XySSL nor the names of its contributors
- *       may be used to endorse or promote products derived from this
- *       software without specific prior written permission.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
- * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
- * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
- * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/*
+ *  SSLv3/TLSv1 server-side functions
+ *
+ *  Copyright (C) 2006-2007  Christophe Devine
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
+ *  
+ *    * Redistributions of source code must retain the above copyright
+ *      notice, this list of conditions and the following disclaimer.
+ *    * Redistributions in binary form must reproduce the above copyright
+ *      notice, this list of conditions and the following disclaimer in the
+ *      documentation and/or other materials provided with the distribution.
+ *    * Neither the name of XySSL nor the names of its contributors may be
+ *      used to endorse or promote products derived from this software
+ *      without specific prior written permission.
+ *  
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ *  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ *  TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ *  PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ *  LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ *  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include "xyssl/config.h"
 
 #if defined(XYSSL_SSL_SRV_C)
 
+#include "xyssl/debug.h"
 #include "xyssl/ssl.h"
 
 #include <string.h>
@@ -164,13 +165,13 @@ static int ssl_parse_client_hello( ssl_context *ssl )
                        buf + 6 + ciph_len + sess_len,  chal_len );
 
         p = buf + 6 + ciph_len;
-        memset( ssl->randbytes, 0, 64 );
-        memcpy( ssl->randbytes + 32 - chal_len, p, chal_len );
-
-        p += sess_len;
         ssl->session->length = sess_len;
         memset( ssl->session->id, 0, sizeof( ssl->session->id ) );
         memcpy( ssl->session->id, p, ssl->session->length );
+
+        p += sess_len;
+        memset( ssl->randbytes, 0, 64 );
+        memcpy( ssl->randbytes + 32 - chal_len, p, chal_len );
 
         for( i = 0; ssl->ciphers[i] != 0; i++ )
         {
@@ -733,18 +734,23 @@ static int ssl_parse_client_key_exchange( ssl_context *ssl )
 
         ret = rsa_pkcs1_decrypt( ssl->rsa_key, RSA_PRIVATE, &ssl->pmslen,
                                  ssl->in_msg + i, ssl->premaster );
-        if( ret != 0 )
-        {
-            SSL_DEBUG_RET( 1, "rsa_pkcs1_decrypt", ret );
-            return( XYSSL_ERR_SSL_BAD_HS_CLIENT_KEY_EXCHANGE | ret );
-        }
 
-        if( ssl->pmslen != 48 ||
+        if( ret != 0 || ssl->pmslen != 48 ||
             ssl->premaster[0] != ssl->max_major_ver ||
             ssl->premaster[1] != ssl->max_minor_ver )
         {
             SSL_DEBUG_MSG( 1, ( "bad client key exchange message" ) );
-            return( XYSSL_ERR_SSL_BAD_HS_CLIENT_KEY_EXCHANGE );
+
+            /*
+             * Protection against Bleichenbacher's attack:
+             * invalid PKCS#1 v1.5 padding must not cause
+             * the connection to end immediately; instead,
+             * send a bad_record_mac later in the handshake.
+             */
+            ssl->pmslen = 48;
+
+            for( i = 0; i < ssl->pmslen; i++ )
+                ssl->premaster[i] = (unsigned char) ssl->f_rng( ssl->p_rng );
         }
     }
 

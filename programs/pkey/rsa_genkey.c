@@ -1,32 +1,32 @@
-/* 
- * Copyright (c) 2006-2007, Christophe Devine
- * All rights reserved.
- * 
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 
- *     * Redistributions of source code must retain the above copyright
- *       notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer
- *       in the documentation and/or other materials provided with the
- *       distribution.
- *     * Neither the name of the XySSL nor the names of its contributors
- *       may be used to endorse or promote products derived from this
- *       software without specific prior written permission.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
- * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
- * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
- * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+/*
+ *  Example RSA key generation program
+ *
+ *  Copyright (C) 2006-2007  Christophe Devine
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
+ *  
+ *    * Redistributions of source code must retain the above copyright
+ *      notice, this list of conditions and the following disclaimer.
+ *    * Redistributions in binary form must reproduce the above copyright
+ *      notice, this list of conditions and the following disclaimer in the
+ *      documentation and/or other materials provided with the distribution.
+ *    * Neither the name of XySSL nor the names of its contributors may be
+ *      used to endorse or promote products derived from this software
+ *      without specific prior written permission.
+ *  
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ *  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ *  TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ *  PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ *  LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ *  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #ifndef _CRT_SECURE_NO_DEPRECATE
@@ -37,6 +37,7 @@
 
 #include "xyssl/havege.h"
 #include "xyssl/bignum.h"
+#include "xyssl/x509.h"
 #include "xyssl/rsa.h"
 
 #define KEY_SIZE 1024
@@ -49,7 +50,7 @@ int main( void )
     havege_state hs;
     FILE *fpub  = NULL;
     FILE *fpriv = NULL;
-/*  x509_raw cert; */
+    x509_raw cert;
 
     printf( "\n  . Seeding the random number generator..." );
     fflush( stdout );
@@ -109,15 +110,15 @@ int main( void )
 /*
     printf( " ok\n  . Generating the certificate..." );
 
-    x509_init_raw( &cert );
-    x509_add_pubkey( &cert, &rsa );
-    x509_create_subject( &cert,  "CN='localhost'" );
-    x509_create_validity( &cert, "2007-09-06 17:00:32",
-                                 "2010-09-06 17:00:32" );
-    x509_create_selfsign( &cert, &rsa );
-    x509_write_crtfile( &cert, "cert.der", X509_OUTPUT_DER );
-    x509_write_crtfile( &cert, "cert.pem", X509_OUTPUT_PEM );
-    x509_free_raw( &cert );
+    x509write_init_raw( &cert );
+    x509write_add_pubkey( &cert, &rsa );
+    x509write_add_subject( &cert, "CN='localhost'" );
+    x509write_add_validity( &cert, "2007-09-06 17:00:32",
+                                   "2010-09-06 17:00:32" );
+    x509write_create_selfsign( &cert, &rsa );
+    x509write_crtfile( &cert, "cert.der", X509_OUTPUT_DER );
+    x509write_crtfile( &cert, "cert.pem", X509_OUTPUT_PEM );
+    x509write_free_raw( &cert );
 */
     printf( " ok\n\n" );
 
