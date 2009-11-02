@@ -197,6 +197,9 @@ static int ssl_parse_server_key_exchange( ssl_context *ssl )
         return( 0 );
     }
 
+#if defined(NO_DHM)
+    return( ERR_SSL_FEATURE_UNAVAILABLE );
+#else
     if( ( ret = ssl_read_record( ssl, 0 ) ) != 0 )
         return( ret );
 
@@ -254,11 +257,12 @@ static int ssl_parse_server_key_exchange( ssl_context *ssl )
 
     n = ssl->peer_cert->rsa.len;
     if( ( ret = rsa_pkcs1_verify( &ssl->peer_cert->rsa,
-                            RSA_NONE, hash, 36, p, n ) ) != 0 )
+                            RSA_RAW, hash, 36, p, n ) ) != 0 )
         return( ret );
 
     ssl->state++;
     return( 0 );
+#endif
 }
 
 static int ssl_parse_certificate_request( ssl_context *ssl )
@@ -327,6 +331,9 @@ static int ssl_write_client_key_exchange( ssl_context *ssl )
     if( ssl->cipher == SSL3_EDH_RSA_DES_168_SHA ||
         ssl->cipher == TLS1_EDH_RSA_AES_256_SHA )
     {
+#if defined(NO_DHM)
+        return( ERR_SSL_FEATURE_UNAVAILABLE );
+#else
         /*
          * DHM key exchange -- send G^X mod P
          */
@@ -348,6 +355,7 @@ static int ssl_write_client_key_exchange( ssl_context *ssl )
                                       ssl->premaster,
                                      &ssl->pmslen ) ) != 0 )
             return( ret );
+#endif
     }
     else
     {
@@ -409,7 +417,7 @@ static int ssl_write_certificate_verify( ssl_context *ssl )
     ssl->out_msg[4] = ( n >> 8 );
     ssl->out_msg[5] = ( n      );
 
-    if( ( ret = rsa_pkcs1_sign( ssl->own_key, RSA_NONE, hash, 36,
+    if( ( ret = rsa_pkcs1_sign( ssl->own_key, RSA_RAW, hash, 36,
                                 ssl->out_msg + 6, n ) ) != 0 )
         return( ret );
 
@@ -420,6 +428,8 @@ static int ssl_write_certificate_verify( ssl_context *ssl )
     ssl->state++;
     return( ssl_write_record( ssl, 0 ) );
 }
+
+static const char _ssl_cli_src[] = "_ssl_cli_src";
 
 /*
  * SSL handshake -- client side

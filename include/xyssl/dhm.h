@@ -8,13 +8,14 @@
 extern "C" {
 #endif
 
-#define ERR_DHM_READ_PARAMS_FAILED              0x0380
-#define ERR_DHM_MAKE_PARAMS_FAILED              0x0390
-#define ERR_DHM_READ_PUBLIC_FAILED              0x03A0
-#define ERR_DHM_MAKE_PUBLIC_FAILED              0x03B0
-#define ERR_DHM_CALC_SECRET_FAILED              0x03C0
-
 #include "bignum.h"
+
+#define ERR_DHM_BAD_INPUT_DATA                  0x0380
+#define ERR_DHM_READ_PARAMS_FAILED              0x0390
+#define ERR_DHM_MAKE_PARAMS_FAILED              0x03A0
+#define ERR_DHM_READ_PUBLIC_FAILED              0x03B0
+#define ERR_DHM_MAKE_PUBLIC_FAILED              0x03C0
+#define ERR_DHM_CALC_SECRET_FAILED              0x03D0
 
 typedef struct
 {
@@ -25,7 +26,7 @@ typedef struct
     mpi GX;     /*!<  self = G^X mod P  */
     mpi GY;     /*!<  peer = G^Y mod P  */
     mpi K;      /*!<  key = GY^X mod P  */
-    mpi RP;     /*!<  recalc R*R mod P  */
+    mpi RP;     /*!<  cached R^2 mod P  */
 }
 dhm_context;
 

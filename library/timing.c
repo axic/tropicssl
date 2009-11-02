@@ -24,7 +24,7 @@
 
 #include "timing.h"
 
-#ifdef WIN32
+#if defined(WIN32)
 
 #include <windows.h>
 #include <winbase.h>
@@ -59,8 +59,7 @@ unsigned long hardclock( void )
 }
 
 #else
-#if defined(__GNUC__)
-#if defined(__i386__) && defined(HAVE_RDTSC)
+#if defined(__GNUC__) && defined(__i386__) && defined(HAVE_RDTSC)
 
 unsigned long hardclock( void )
 {
@@ -70,7 +69,7 @@ unsigned long hardclock( void )
 }
 
 #else
-#if defined(__amd64__) || defined(__x86_64__)
+#if defined(__GNUC__) && (defined(__amd64__) || defined(__x86_64__))
 
 unsigned long hardclock( void )
 {
@@ -80,38 +79,7 @@ unsigned long hardclock( void )
 }
 
 #else
-#if defined(__sparc__)
-
-unsigned long hardclock( void )
-{
-    unsigned long tick;
-    asm( ".byte 0x83, 0x41, 0x00, 0x00" );
-    asm( "mov   %%g1, %0" : "=r" (tick) );
-    return( tick );
-}
-
-#else
-#if defined(__alpha__)
-
-unsigned long hardclock( void )
-{
-    unsigned long cc;
-    asm( "rpcc %0" : "=r" (cc) );
-    return( cc & 0xFFFFFFFF );
-}
-
-#else
-#if defined(__ia64__)
-
-unsigned long hardclock( void )
-{
-    unsigned long itc;
-    asm( "mov %0 = ar.itc" : "=r" (itc) );
-    return( itc );
-}
-
-#else
-#if defined(__powerpc__) || defined(__ppc__)
+#if defined(__GNUC__) && (defined(__powerpc__) || defined(__ppc__))
 
 unsigned long hardclock( void )
 {
@@ -128,12 +96,36 @@ unsigned long hardclock( void )
     return( tbl );
 }
 
-#endif /* PPC32 */
-#endif /* IA64  */
-#endif /* Alpha */
-#endif /* SPARC */
-#endif /* AMD64 */
-#endif /* i386  */
+#else
+#if defined(__GNUC__) && defined(__sparc__)
+
+unsigned long hardclock( void )
+{
+    unsigned long tick;
+    asm( ".byte 0x83, 0x41, 0x00, 0x00" );
+    asm( "mov   %%g1, %0" : "=r" (tick) );
+    return( tick );
+}
+
+#else
+#if defined(__GNUC__) && defined(__alpha__)
+
+unsigned long hardclock( void )
+{
+    unsigned long cc;
+    asm( "rpcc %0" : "=r" (cc) );
+    return( cc & 0xFFFFFFFF );
+}
+
+#else
+#if defined(__GNUC__) && defined(__ia64__)
+
+unsigned long hardclock( void )
+{
+    unsigned long itc;
+    asm( "mov %0 = ar.itc" : "=r" (itc) );
+    return( itc );
+}
 
 #else
 
@@ -155,12 +147,19 @@ unsigned long hardclock( void )
           + ( tv_cur.tv_usec - tv_init.tv_usec ) );
 }
 
-#endif /* GNUC */
-#endif /* MSVC */
+#endif /* generic */
+#endif /* IA-64   */
+#endif /* Alpha   */
+#endif /* SPARC8  */
+#endif /* PowerPC */
+#endif /* AMD64   */
+#endif /* i586+   */
+
+static const char _timing_src[] = "_timing_src";
 
 int alarmed = 0;
 
-#ifdef WIN32
+#if defined(WIN32)
 
 unsigned long set_timer( struct hr_time *val, int reset )
 {

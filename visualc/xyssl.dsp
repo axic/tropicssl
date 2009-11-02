@@ -161,7 +161,7 @@ SOURCE=..\library\timing.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\library\x509_read.c
+SOURCE=..\library\x509read.c
 # End Source File
 # End Group
 # Begin Group "Header Files"

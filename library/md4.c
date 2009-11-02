@@ -329,6 +329,8 @@ void md4_hmac( unsigned char *key, int keylen,
     memset( &ctx, 0, sizeof( md4_context ) );
 }
 
+static const char _md4_src[] = "_md4_src";
+
 #ifdef SELF_TEST
 /*
  * RFC 1320 test vectors

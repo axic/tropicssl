@@ -21,7 +21,7 @@ Package=<4>
     Project_Dep_Name hello
     End Project Dependency
     Begin Project Dependency
-    Project_Dep_Name rsa_demo
+    Project_Dep_Name mpi_demo
     End Project Dependency
     Begin Project Dependency
     Project_Dep_Name selftest
@@ -84,7 +84,7 @@ Package=<4>
 
 ###############################################################################
 
-Project: "rsa_demo"=".\rsa_demo.dsp" - Package Owner=<4>
+Project: "mpi_demo"=".\mpi_demo.dsp" - Package Owner=<4>
 
 Package=<5>
 {{{

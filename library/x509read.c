@@ -39,14 +39,14 @@
 #include <time.h>
 
 #include "x509.h"
+#include "base64.h"
+#include "bignum.h"
 #include "rsa.h"
+#include "des.h"
 #include "md2.h"
 #include "md4.h"
 #include "md5.h"
 #include "sha1.h"
-#include "des.h"
-#include "bignum.h"
-#include "base64.h"
 
 /*
  * ASN.1 DER decoding routines
@@ -1000,6 +1000,7 @@ int x509_read_crtfile( x509_cert *chain, char *path )
     return( ret );
 }
 
+#if !defined(NO_DES)
 /*
  * Read a 16-byte hex string and convert it to binary
  */
@@ -1062,6 +1063,7 @@ static void x509_des3_decrypt( unsigned char des3_iv[8],
     memset( md5sum, 0, 16 );
     memset( des3_key, 0, 24 );
 }
+#endif
 
 /*
  * Parse a private RSA key
@@ -1094,6 +1096,7 @@ int x509_parse_key( rsa_context *rsa, unsigned char *buf, int buflen,
 
         if( memcmp( s1, "Proc-Type: 4,ENCRYPTED", 22 ) == 0 )
         {
+#if !defined(NO_DES)
             enc++;
 
             s1 += 22;
@@ -1112,6 +1115,9 @@ int x509_parse_key( rsa_context *rsa, unsigned char *buf, int buflen,
             if( *s1 == '\r' ) s1++;
             if( *s1 == '\n' ) s1++;
                 else return( ERR_X509_KEY_INVALID_PEM );
+#else
+            return( ERR_X509_FEATURE_UNAVAILABLE );
+#endif
         }
 
         len = 0;
@@ -1131,6 +1137,7 @@ int x509_parse_key( rsa_context *rsa, unsigned char *buf, int buflen,
 
         buflen = len;
 
+#if !defined(NO_DES)
         if( enc != 0 )
         {
             if( pwd == NULL )
@@ -1148,6 +1155,7 @@ int x509_parse_key( rsa_context *rsa, unsigned char *buf, int buflen,
                 return( ERR_X509_KEY_PASSWORD_MISMATCH );
             }
         }
+#endif
     }
 
     memset( rsa, 0, sizeof( rsa_context ) );
@@ -1464,11 +1472,16 @@ static void x509_hash( unsigned char *in, int len, int alg,
 {
     switch( alg )
     {
+#if !defined(NO_MD2)
         case RSA_MD2  :  md2_csum( in, len, out ); break;
+#endif
+#if !defined(NO_MD4)
         case RSA_MD4  :  md4_csum( in, len, out ); break;
+#endif
         case RSA_MD5  :  md5_csum( in, len, out ); break;
         case RSA_SHA1 : sha1_csum( in, len, out ); break;
         default:
+            memset( out, '\xFF', len );
             break;
     }
 }
@@ -1624,6 +1637,8 @@ void x509_free_cert( x509_cert *crt )
     }
     while( cert_cur != NULL );
 }
+
+static const char _x509_read_src[] = "_x509read_src";
 
 #ifdef SELF_TEST
 

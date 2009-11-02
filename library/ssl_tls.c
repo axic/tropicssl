@@ -209,6 +209,7 @@ int ssl_derive_keys( ssl_context *ssl )
      */
     switch( ssl->cipher )
     {
+#if !defined(NO_ARC4)
         case SSL3_RSA_RC4_128_MD5:
             ssl->keylen = 16;
             ssl->ivlen  =  0;
@@ -224,7 +225,9 @@ int ssl_derive_keys( ssl_context *ssl )
             ssl->minlen = 20;
             ssl->ctxlen = sizeof( arc4_context );
             break;
+#endif
 
+#if !defined(NO_DES)
         case SSL3_RSA_DES_168_SHA:
         case SSL3_EDH_RSA_DES_168_SHA:
             ssl->keylen = 24;
@@ -233,7 +236,9 @@ int ssl_derive_keys( ssl_context *ssl )
             ssl->minlen = 24;
             ssl->ctxlen = sizeof( des3_context );
             break;
+#endif
 
+#if !defined(NO_AES)
         case TLS1_RSA_AES_256_SHA:
         case TLS1_EDH_RSA_AES_256_SHA:
             ssl->keylen = 32;
@@ -242,9 +247,10 @@ int ssl_derive_keys( ssl_context *ssl )
             ssl->minlen = 32;
             ssl->ctxlen = sizeof( aes_context );
             break;
+#endif
 
         default:
-            return( ERR_SSL_UNKNOWN_CIPHER );
+            return( ERR_SSL_FEATURE_UNAVAILABLE );
     }
 
     /*
@@ -259,26 +265,32 @@ int ssl_derive_keys( ssl_context *ssl )
 
     switch( ssl->cipher )
     {
+#if !defined(NO_ARC4)
         case SSL3_RSA_RC4_128_MD5:
         case SSL3_RSA_RC4_128_SHA:
             arc4_setup( (arc4_context *) ctx1, key1, ssl->keylen );
             arc4_setup( (arc4_context *) ctx2, key2, ssl->keylen );
             break;
+#endif
 
+#if !defined(NO_DES)
         case SSL3_RSA_DES_168_SHA:
         case SSL3_EDH_RSA_DES_168_SHA:
             des3_set_3keys( (des3_context *) ctx1, key1 );
             des3_set_3keys( (des3_context *) ctx2, key2 );
             break;
+#endif
 
+#if !defined(NO_AES)
         case TLS1_RSA_AES_256_SHA:
         case TLS1_EDH_RSA_AES_256_SHA:
             aes_set_key( (aes_context *) ctx1, key1, 256 );
             aes_set_key( (aes_context *) ctx2, key2, 256 );
             break;
+#endif
 
         default:
-            return( ERR_SSL_UNKNOWN_CIPHER );
+            return( ERR_SSL_FEATURE_UNAVAILABLE );
     }
 
     if( ssl->endpoint == SSL_IS_CLIENT )
@@ -459,9 +471,13 @@ static int ssl_encrypt_buf( ssl_context *ssl )
 
     if( ssl->ivlen == 0 )
     {
+#if !defined(NO_ARC4)
         padlen = 0;
         arc4_crypt( (arc4_context *) ssl->ctx_enc,
                     ssl->out_msg, ssl->out_msglen );
+#else
+        return( ERR_SSL_FEATURE_UNAVAILABLE );
+#endif
     }
     else
     {
@@ -474,15 +490,28 @@ static int ssl_encrypt_buf( ssl_context *ssl )
 
         ssl->out_msglen += padlen + 1;
 
-        if( ssl->ivlen ==  8 )
-            des3_cbc_encrypt( (des3_context *) ssl->ctx_enc,
-                              ssl->iv_enc,  ssl->out_msg,
-                              ssl->out_msg, ssl->out_msglen );
+        switch( ssl->ivlen )
+        {
+            case  8:
+#if !defined(NO_DES)
+                des3_cbc_encrypt( (des3_context *) ssl->ctx_enc,
+                                  ssl->iv_enc,  ssl->out_msg,
+                                  ssl->out_msg, ssl->out_msglen );
+                break;
+#endif
 
-        if( ssl->ivlen == 16 )
-            aes_cbc_encrypt( (aes_context *) ssl->ctx_enc,
-                             ssl->iv_enc,  ssl->out_msg,
-                             ssl->out_msg, ssl->out_msglen );
+            case 16:
+#if !defined(NO_AES)
+                aes_cbc_encrypt( (aes_context *) ssl->ctx_enc,
+                                 ssl->iv_enc,  ssl->out_msg,
+                                 ssl->out_msg, ssl->out_msglen );
+                break;
+#endif
+
+            default:
+                return( ERR_SSL_FEATURE_UNAVAILABLE );
+        }
+
     }
 
     return( 0 );
@@ -498,9 +527,13 @@ static int ssl_decrypt_buf( ssl_context *ssl )
 
     if( ssl->ivlen == 0 )
     {
+#if !defined(NO_ARC4)
         padlen = 0;
         arc4_crypt( (arc4_context *) ssl->ctx_dec,
                     ssl->in_msg, ssl->in_msglen );
+#else
+        return( ERR_SSL_FEATURE_UNAVAILABLE );
+#endif
     }
     else
     {
@@ -510,15 +543,27 @@ static int ssl_decrypt_buf( ssl_context *ssl )
         if( ssl->in_msglen % ssl->ivlen != 0 )
             return( ERR_SSL_INVALID_MAC );
 
-        if( ssl->ivlen ==  8 )
-            des3_cbc_decrypt( (des3_context *) ssl->ctx_dec,
-                              ssl->iv_dec, ssl->in_msg,
-                              ssl->in_msg, ssl->in_msglen );
+        switch( ssl->ivlen )
+        {
+            case  8:
+#if !defined(NO_DES)
+                des3_cbc_decrypt( (des3_context *) ssl->ctx_dec,
+                                  ssl->iv_dec, ssl->in_msg,
+                                  ssl->in_msg, ssl->in_msglen );
+                break;
+#endif
 
-        if( ssl->ivlen == 16 )
-             aes_cbc_decrypt( (aes_context *) ssl->ctx_dec,
-                              ssl->iv_dec, ssl->in_msg,
-                              ssl->in_msg, ssl->in_msglen );
+            case 16:
+#if !defined(NO_AES)
+                 aes_cbc_decrypt( (aes_context *) ssl->ctx_dec,
+                                  ssl->iv_dec, ssl->in_msg,
+                                  ssl->in_msg, ssl->in_msglen );
+                 break;
+#endif
+
+            default:
+                return( ERR_SSL_FEATURE_UNAVAILABLE );
+        }
 
         padlen = 1 + ssl->in_msg[ssl->in_msglen - 1];
 
@@ -715,7 +760,7 @@ int ssl_read_record( ssl_context *ssl, int do_crypt )
     }
 
     /*
-     * Read and decrypt the message contents
+     * Read and optionally decrypt the message contents
      */
     len = ssl->in_msglen - ( ssl->in_left - 5 );
     ret = net_recv( ssl->read_fd, ssl->in_hdr
@@ -731,16 +776,6 @@ int ssl_read_record( ssl_context *ssl, int do_crypt )
             return( ret );
 
         if( ssl->in_msglen > SSL_MAX_CONTENT_LEN )
-            return( ERR_SSL_INVALID_RECORD );
-    }
-
-    if( ssl->in_hdr[2] != ssl->minor_ver )
-    {
-        /*
-         * Only in ServerHello can the minor version vary
-         */
-        if( ssl->in_msgtype != SSL_MSG_HANDSHAKE ||
-            ssl->in_msg[0]  != SSL_HS_SERVER_HELLO )
             return( ERR_SSL_INVALID_RECORD );
     }
 
@@ -1269,23 +1304,29 @@ char *ssl_get_cipher_name( ssl_context *ssl )
 {
     switch( ssl->cipher )
     {
+#if !defined(NO_ARC4)
         case SSL3_RSA_RC4_128_MD5:
             return( "SSL3_RSA_RC4_128_MD5" );
 
         case SSL3_RSA_RC4_128_SHA:
             return( "SSL3_RSA_RC4_128_SHA" );
+#endif
 
+#if !defined(NO_DES)
         case SSL3_RSA_DES_168_SHA:
             return( "SSL3_RSA_DES_168_SHA" );
 
         case SSL3_EDH_RSA_DES_168_SHA:
             return( "SSL3_EDH_RSA_DES_168_SHA" );
+#endif
 
+#if !defined(NO_AES)
         case TLS1_RSA_AES_256_SHA:
             return( "TLS1_RSA_AES_256_SHA" );
 
         case TLS1_EDH_RSA_AES_256_SHA:
             return( "TLS1_EDH_RSA_AES_256_SHA" );
+#endif
 
         default:
             break;
@@ -1296,12 +1337,24 @@ char *ssl_get_cipher_name( ssl_context *ssl )
 
 int ssl_default_ciphers[] =
 {
+#if !defined(NO_DHM)
+#if !defined(NO_AES)
     TLS1_EDH_RSA_AES_256_SHA,
+#endif
+#if !defined(NO_DES)
     SSL3_EDH_RSA_DES_168_SHA,
+#endif
+#endif
+#if !defined(NO_AES)
     TLS1_RSA_AES_256_SHA,
+#endif
+#if !defined(NO_DES)
     SSL3_RSA_DES_168_SHA,
+#endif
+#if !defined(NO_ARC4)
     SSL3_RSA_RC4_128_SHA,
     SSL3_RSA_RC4_128_MD5,
+#endif
     0
 };
 
@@ -1310,9 +1363,17 @@ int ssl_default_ciphers[] =
  */
 int ssl_handshake( ssl_context *ssl )
 {
-    return( ( ssl->endpoint == SSL_IS_CLIENT )
-            ? ssl_client_start( ssl )
-            : ssl_server_start( ssl ) );
+#if !defined(NO_SSL_CLI)
+    if( ssl->endpoint == SSL_IS_CLIENT )
+        return( ssl_client_start( ssl ) );
+#endif
+
+#if !defined(NO_SSL_SRV)
+    if( ssl->endpoint == SSL_IS_SERVER )
+        return( ssl_server_start( ssl ) );
+#endif
+
+    return( ERR_SSL_FEATURE_UNAVAILABLE );
 }
 
 /*
@@ -1396,6 +1457,8 @@ int ssl_close_notify( ssl_context *ssl )
     return( ret );
 }
 
+static const char _ssl_tls_src[] = "_ssl_tls_src";
+
 /*
  * Free an SSL context
  */
@@ -1415,7 +1478,9 @@ void ssl_free( ssl_context *ssl )
           ssl->ctx_enc = NULL;
     }
 
+#if !defined(NO_DHM)
     dhm_free( &ssl->dhm_ctx );
+#endif
 
     if( ssl->peer_cert != NULL )
     {

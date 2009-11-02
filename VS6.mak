@@ -14,7 +14,7 @@ LIB_OBJ=library/aes.obj           library/arc4.obj          \
         library/timing.obj        library/x509_read.obj
 
 PRG_OBJ=programs/benchmark.exe    programs/hello.exe        \
-        programs/filecrypt.exe    programs/rsa_demo.exe     \
+        programs/filecrypt.exe    programs/mpi_demo.exe     \
         programs/selftest.exe     programs/ssl_client1.exe  \
         programs/ssl_client2.exe  programs/ssl_server.exe
 
@@ -30,3 +30,4 @@ prg:  $(PRG_OBJ) ; @echo.
 .c.obj: ; @$(CC) $(CFLAGS) /I"include/xyssl/"  /c $<
 
 .c.exe: ; @$(CC) $(CFLAGS) /I"include" $(LDFLAGS) $<
+

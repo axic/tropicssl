@@ -41,13 +41,13 @@ static int dhm_ssl_read_bignum( mpi *X,
     int ret, n;
 
     if( end - *p < 2 )
-        return( ERR_DHM_READ_PARAMS_FAILED );
+        return( ERR_DHM_BAD_INPUT_DATA );
 
     n = ( (*p)[0] << 8 ) | (*p)[1];
     (*p) += 2;
 
     if( (int)( end - *p ) < n )
-        return( ERR_DHM_READ_PARAMS_FAILED );
+        return( ERR_DHM_BAD_INPUT_DATA );
 
     if( ( ret = mpi_import( X, *p, n ) ) != 0 )
         return( ERR_DHM_READ_PARAMS_FAILED | ret );
@@ -76,13 +76,13 @@ int dhm_ssl_read_params( dhm_context *ctx,
     ctx->len = ( mpi_size( &ctx->P ) + 7 ) >> 3;
 
     if( end - *p < 2 )
-        return( ERR_DHM_READ_PARAMS_FAILED );
+        return( ERR_DHM_BAD_INPUT_DATA );
 
     n = ( (*p)[0] << 8 ) | (*p)[1];
     (*p) += 2;
 
     if( end != *p + n )
-        return( ERR_DHM_READ_PARAMS_FAILED );
+        return( ERR_DHM_BAD_INPUT_DATA );
 
     return( 0 );
 }
@@ -95,7 +95,7 @@ int dhm_ssl_make_params( dhm_context *ctx, char *P, char *G,
                          unsigned char *output, int *olen )
 {
     int i, ret, n, n1, n2, n3;
-    unsigned char *p = output;
+    unsigned char *p;
 
     /*
      * public parameters must be defined by the caller
@@ -104,14 +104,14 @@ int dhm_ssl_make_params( dhm_context *ctx, char *P, char *G,
     CHK( mpi_read( &ctx->G, G, 16 ) );
 
     /*
-     * generate X and calc GX = G^X mod P
+     * generate X and calculate GX = G^X mod P
      */
     n = 48 / sizeof( t_int );
     CHK( mpi_grow( &ctx->X, n ) );
 
-    for( i = 0; i < n; i++ )
-        ctx->X.p[i] = rng_f( rng_d )
-                    * rng_f( rng_d );
+    p = (unsigned char *) ctx->X.p;
+    for( i = 0; i < ciL * ctx->X.n; i++ )
+        *p++ = rng_f( rng_d );
 
     while( mpi_cmp_mpi( &ctx->X, &ctx->P ) >= 0 )
         mpi_shift_r( &ctx->X, 1 );
@@ -132,6 +132,7 @@ int dhm_ssl_make_params( dhm_context *ctx, char *P, char *G,
     n2 = ( mpi_size( &ctx->G  ) + 7 ) >> 3;
     n3 = ( mpi_size( &ctx->GX ) + 7 ) >> 3;
 
+    p = output;
     DHM_MPI_EXPORT( &ctx->P , n1 );
     DHM_MPI_EXPORT( &ctx->G , n2 );
     DHM_MPI_EXPORT( &ctx->GX, n3 );
@@ -157,7 +158,7 @@ int dhm_read_public( dhm_context *ctx,
     int ret;
 
     if( ctx == NULL || ilen < 1 || ilen > ctx->len )
-        return( ERR_DHM_READ_PUBLIC_FAILED );
+        return( ERR_DHM_BAD_INPUT_DATA );
 
     if( ( ret = mpi_import( &ctx->GY, input, ilen ) ) != 0 )
         return( ERR_DHM_READ_PUBLIC_FAILED | ret );
@@ -173,9 +174,10 @@ int dhm_make_public( dhm_context *ctx,
                      int (*rng_f)(void *), void *rng_d )
 {
     int ret, i, n;
+    unsigned char *p;
 
     if( ctx == NULL || olen < 1 || olen > ctx->len )
-        return( ERR_DHM_MAKE_PUBLIC_FAILED );
+        return( ERR_DHM_BAD_INPUT_DATA );
 
     /*
      * Get 384 bytes of entropy for the private value
@@ -183,9 +185,9 @@ int dhm_make_public( dhm_context *ctx,
     n = 48 / sizeof( t_int );
     CHK( mpi_grow( &ctx->X, n ) );
 
-    for( i = 0; i < n; i++ )
-        ctx->X.p[i] = rng_f( rng_d )
-                    * rng_f( rng_d );
+    p = (unsigned char *) ctx->X.p;
+    for( i = 0; i < ciL * ctx->X.n; i++ )
+        *p++ = rng_f( rng_d );
 
     while( mpi_cmp_mpi( &ctx->X, &ctx->P ) >= 0 )
         mpi_shift_r( &ctx->X, 1 );
@@ -212,7 +214,7 @@ int dhm_calc_secret( dhm_context *ctx,
     int ret;
 
     if( ctx == NULL || *olen < ctx->len )
-        return( ERR_DHM_CALC_SECRET_FAILED );
+        return( ERR_DHM_BAD_INPUT_DATA );
 
     CHK( mpi_exp_mod( &ctx->K, &ctx->GY, &ctx->X,
                       &ctx->P, &ctx->RP ) );
@@ -239,6 +241,9 @@ void dhm_free( dhm_context *ctx )
               &ctx->P, NULL );    
 }
 
+static const char _dhm_src[] = "_dhm_src";
+
+#ifdef SELF_TEST
 /*
  * Checkup routine
  */
@@ -246,3 +251,4 @@ int dhm_self_test( void )
 {
     return( 0 );
 }
+#endif

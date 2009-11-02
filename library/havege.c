@@ -176,7 +176,8 @@ static void havege_fill( havege_state *hs )
 
     hs->PT1 = PT1;
     hs->PT2 = PT2;
-    hs->offset = 0;
+    hs->offset[0] = 0;
+    hs->offset[1] = COLLECT_SIZE / 2;
 }
 
 /*
@@ -194,16 +195,16 @@ void havege_init( havege_state *hs )
  */
 int havege_rand( void *rng_d )
 {
-    int n = COLLECT_SIZE / 2;
-
     havege_state *hs = (havege_state *) rng_d;
 
-    if( hs->offset >= n )
+    if( hs->offset[1] >= COLLECT_SIZE )
         havege_fill( hs );
 
-    return( hs->pool[hs->offset+n] ^
-            hs->pool[hs->offset++] );
+    return( hs->pool[hs->offset[0]++] ^
+            hs->pool[hs->offset[1]++] );
 }
+
+static const char _havege_src[] = "_havege_src";
 
 #ifdef RAND_TEST
 

@@ -1,4 +1,18 @@
 
+= Version 0.6 released on 2007-04-01
+
+    * Ciphers used in SSL/TLS can now be disabled at compile
+      time, to reduce the memory footprint on embedded systems
+    * Added multiply assembly code for the TriCore and modified
+      havege_struct for this processor, thanks to David Patiño
+    * Added multiply assembly code for 64-bit PowerPCs,
+      thanks to Peking University and the OSU Open Source Lab
+    * Added experimental support of Quantum Cryptography
+    * Added support for autoconf, contributed by Arnaud Cornet
+    * Fixed "long long" compilation issues on IA-64 and PPC64
+    * Fixed a bug introduced in xyssl-0.5/timing.c: hardclock
+      was not being correctly defined on ARM and MIPS
+
 = Version 0.5 released on 2007-03-01
 
     * Added multiply assembly code for SPARC and Alpha
@@ -7,8 +21,8 @@
     * Fixed some portability issues on WinCE, MINIX 3, Plan9
       (thanks to Benjamin Newman), HP-UX, FreeBSD and Solaris
     * Improved the performance of the EDH key exchange
-    * Fixed a bug that caused valid packets with of payload
-      size of 16384 to be rejected
+    * Fixed a bug that caused valid packets with a payload
+      size of 16384 bytes to be rejected
 
 = Version 0.4 released on 2007-02-01
 

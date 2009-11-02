@@ -36,10 +36,6 @@
 #include "bignum.h"
 #include "bn_asm.h"
 
-#define ciL    sizeof(t_int)    /* chars in limb  */
-#define biL    (ciL << 3)       /* bits  in limb  */
-#define biH    (ciL << 2)       /* half limb size */
-
 /*
  * Bits/chars to # of limbs conversion
  */
@@ -1546,6 +1542,7 @@ cleanup:
     return( ret );
 }
 
+#if !defined(NO_GENPRIME)
 static const int small_prime[] =
 {
        3,  113,  271,  443,  619,  821,  1013,  1213,
@@ -1681,6 +1678,7 @@ int mpi_gen_prime( mpi *X, int nbits, int dh_flag,
                    int (*rng_f)(void *), void *rng_d )
 {
     int ret, k, n;
+    unsigned char *p;
     mpi Y;
 
     if( nbits < 3 )
@@ -1693,15 +1691,13 @@ int mpi_gen_prime( mpi *X, int nbits, int dh_flag,
     CHK( mpi_grow( X, n ) );
     CHK( mpi_lset( X, 0 ) );
 
-    for( k = 0; k < X->n; k++ )
-        X->p[k] = rng_f( rng_d )
-                * rng_f( rng_d );
+    p = (unsigned char *) X->p;
+    for( k = 0; k < ciL * X->n; k++ )
+        *p++ = rng_f( rng_d );
 
     k = mpi_size( X );
-
     if( k < nbits ) CHK( mpi_shift_l( X, nbits - k ) );
     if( k > nbits ) CHK( mpi_shift_r( X, k - nbits ) );
-
     X->p[0] |= 3;
 
     if( dh_flag == 0 )
@@ -1744,6 +1740,9 @@ cleanup:
     mpi_free( &Y, NULL );
     return( ret );
 }
+#endif
+
+static const char _bignum_src[] = "_bignum_src";
 
 #ifdef SELF_TEST
 /*

@@ -16,28 +16,29 @@ extern "C" {
 #define ERR_ASN1_LENGTH_MISMATCH                0x001A
 #define ERR_ASN1_INVALID_DATA                   0x001C
 
-#define ERR_X509_CERT_INVALID_PEM               0x0020
-#define ERR_X509_CERT_INVALID_FORMAT            0x0040
-#define ERR_X509_CERT_INVALID_VERSION           0x0060
-#define ERR_X509_CERT_INVALID_SERIAL            0x0080
-#define ERR_X509_CERT_INVALID_ALG               0x00A0
-#define ERR_X509_CERT_INVALID_NAME              0x00C0
-#define ERR_X509_CERT_INVALID_DATE              0x00E0
-#define ERR_X509_CERT_INVALID_PUBKEY            0x0100
-#define ERR_X509_CERT_INVALID_SIGNATURE         0x0120
-#define ERR_X509_CERT_INVALID_EXTENSIONS        0x0140
-#define ERR_X509_CERT_UNKNOWN_VERSION           0x0160
-#define ERR_X509_CERT_UNKNOWN_SIG_ALG           0x0180
-#define ERR_X509_CERT_UNKNOWN_PK_ALG            0x01A0
-#define ERR_X509_CERT_SIG_MISMATCH              0x01C0
-#define ERR_X509_KEY_INVALID_PEM                0x01E0
-#define ERR_X509_KEY_INVALID_VERSION            0x0200
-#define ERR_X509_KEY_INVALID_FORMAT             0x0220
-#define ERR_X509_KEY_INVALID_ENC_IV             0x0240
-#define ERR_X509_KEY_UNKNOWN_ENC_ALG            0x0260
-#define ERR_X509_KEY_PASSWORD_REQUIRED          0x0280
-#define ERR_X509_KEY_PASSWORD_MISMATCH          0x02A0
-#define ERR_X509_SIG_VERIFY_FAILED              0x02C0
+#define ERR_X509_FEATURE_UNAVAILABLE            0x0020
+#define ERR_X509_CERT_INVALID_PEM               0x0040
+#define ERR_X509_CERT_INVALID_FORMAT            0x0060
+#define ERR_X509_CERT_INVALID_VERSION           0x0080
+#define ERR_X509_CERT_INVALID_SERIAL            0x00A0
+#define ERR_X509_CERT_INVALID_ALG               0x00C0
+#define ERR_X509_CERT_INVALID_NAME              0x00E0
+#define ERR_X509_CERT_INVALID_DATE              0x0100
+#define ERR_X509_CERT_INVALID_PUBKEY            0x0120
+#define ERR_X509_CERT_INVALID_SIGNATURE         0x0140
+#define ERR_X509_CERT_INVALID_EXTENSIONS        0x0160
+#define ERR_X509_CERT_UNKNOWN_VERSION           0x0180
+#define ERR_X509_CERT_UNKNOWN_SIG_ALG           0x01A0
+#define ERR_X509_CERT_UNKNOWN_PK_ALG            0x01C0
+#define ERR_X509_CERT_SIG_MISMATCH              0x01E0
+#define ERR_X509_KEY_INVALID_PEM                0x0200
+#define ERR_X509_KEY_INVALID_VERSION            0x0220
+#define ERR_X509_KEY_INVALID_FORMAT             0x0240
+#define ERR_X509_KEY_INVALID_ENC_IV             0x0260
+#define ERR_X509_KEY_UNKNOWN_ENC_ALG            0x0280
+#define ERR_X509_KEY_PASSWORD_REQUIRED          0x02A0
+#define ERR_X509_KEY_PASSWORD_MISMATCH          0x02C0
+#define ERR_X509_SIG_VERIFY_FAILED              0x02E0
 
 #define BADCERT_HAS_EXPIRED             1
 #define BADCERT_CN_MISMATCH             2
@@ -188,8 +189,8 @@ int x509_parse_key( rsa_context *rsa, unsigned char *buf, int buflen,
 int x509_read_keyfile( rsa_context *rsa, char *path, char *password );
 
 /**
- * \brief          Store the name in printable form into buf; no more
- *                 than (end - buf) characters will be written
+ * \brief          Store the certificate DN in printable form into buf;
+ *                 no more than (end - buf) characters will be written.
  */
 int x509_dn_gets( char *buf, char *end, x509_name *dn );
 
@@ -206,7 +207,7 @@ char *x509_cert_info( x509_cert *crt );
 int x509_is_cert_expired( x509_cert *crt );
 
 /**
- * \brief          Verify the certificate validity
+ * \brief          Verify the certificate signature
  *
  * \param crt      a certificate to be verified
  * \param trust_ca the trusted CA chain

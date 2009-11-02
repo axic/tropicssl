@@ -633,6 +633,8 @@ void des3_cbc_decrypt( des3_context *ctx,
     }
 }
 
+static const char _des_src[] = "_des_src";
+
 #ifdef SELF_TEST
 
 #include <stdio.h>

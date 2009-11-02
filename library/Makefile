@@ -1,7 +1,8 @@
 
-# Compilation flags:
+# Supported compilation flags:
 #
 #    SELF_TEST          enable all checkup routines
+#    HAVE_INT16         to compile on 16-bit CPUs
 #    HAVE_RDTSC         CPU supports rdtsc (x86 only)
 #    HAVE_SSE2          CPU supports sse2  (x86 only)
 #    HAVE_LONGLONG      compiler supports long long
@@ -16,24 +17,26 @@ OBJS=aes.o       arc4.o      base64.o    bignum.o    \
      certs.o     des.o       dhm.o       havege.o    \
      md2.o       md4.o       md5.o       net.o       \
      rsa.o       sha1.o      sha2.o      ssl_cli.o   \
-     ssl_srv.o   ssl_tls.o   timing.o    x509_read.o
+     ssl_srv.o   ssl_tls.o   timing.o    x509read.o
 
-all: static
+.SILENT:
 
-static: libxyssl.a
+all: libxyssl.a
 
 libxyssl.a: $(OBJS)
-	@echo "  AR    $@"; ar r $@ $(OBJS)
+	echo "  AR    $@"
+	ar r $@ $(OBJS)
 
 shared: libxyssl.so
 
 libxyssl.so: libxyssl.a
-	@echo "  LD    $@"; gcc -shared -Wl,-soname,$@ \
-	    -o $@ $(OBJS)
+	echo "  LD    $@"
+	gcc -shared -Wl,-soname,$@ -o $@ $(OBJS)
 
 .c.o:
-	@echo "  CC    $<"; $(CC) $(CFLAGS) -c $<
+	echo "  CC    $<"
+	$(CC) $(CFLAGS) -c $<
 
 clean:
-	@rm -f *.o libxyssl.*
+	rm -f *.o libxyssl.*
 

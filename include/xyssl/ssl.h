@@ -8,31 +8,38 @@
 extern "C" {
 #endif
 
-#define ERR_SSL_INVALID_MAC                     0x1000
-#define ERR_SSL_INVALID_RECORD                  0x1800
-#define ERR_SSL_INVALID_MODULUS_SIZE            0x2000
-#define ERR_SSL_UNKNOWN_CIPHER                  0x2800
-#define ERR_SSL_NO_CIPHER_CHOSEN                0x3000
-#define ERR_SSL_NO_SESSION_FOUND                0x3800
-#define ERR_SSL_NO_CLIENT_CERTIFICATE           0x4000
-#define ERR_SSL_CERTIFICATE_TOO_LARGE           0x4800
-#define ERR_SSL_CERTIFICATE_REQUIRED            0x5000
-#define ERR_SSL_PRIVATE_KEY_REQUIRED            0x5800
-#define ERR_SSL_CA_CHAIN_REQUIRED               0x6000
-#define ERR_SSL_UNEXPECTED_MESSAGE              0x6800
-#define ERR_SSL_FATAL_ALERT_MESSAGE             0x7000
-#define ERR_SSL_PEER_VERIFY_FAILED              0x7800
-#define ERR_SSL_PEER_CLOSE_NOTIFY               0x8000
-#define ERR_SSL_BAD_HS_CLIENT_HELLO             0x8800
-#define ERR_SSL_BAD_HS_SERVER_HELLO             0x9000
-#define ERR_SSL_BAD_HS_CERTIFICATE              0x9800
-#define ERR_SSL_BAD_HS_CERTIFICATE_REQUEST      0xA000
-#define ERR_SSL_BAD_HS_SERVER_KEY_EXCHANGE      0xA800
-#define ERR_SSL_BAD_HS_SERVER_HELLO_DONE        0xB000
-#define ERR_SSL_BAD_HS_CLIENT_KEY_EXCHANGE      0xB800
-#define ERR_SSL_BAD_HS_CERTIFICATE_VERIFY       0xC000
-#define ERR_SSL_BAD_HS_CHANGE_CIPHER_SPEC       0xC800
-#define ERR_SSL_BAD_HS_FINISHED                 0xD000
+#include "x509.h"
+#include "rsa.h"
+#include "dhm.h"
+#include "md5.h"
+#include "sha1.h"
+
+#define ERR_SSL_FEATURE_UNAVAILABLE             0x1000
+#define ERR_SSL_INVALID_MAC                     0x1800
+#define ERR_SSL_INVALID_RECORD                  0x2000
+#define ERR_SSL_INVALID_MODULUS_SIZE            0x2800
+#define ERR_SSL_UNKNOWN_CIPHER                  0x3000
+#define ERR_SSL_NO_CIPHER_CHOSEN                0x3800
+#define ERR_SSL_NO_SESSION_FOUND                0x4000
+#define ERR_SSL_NO_CLIENT_CERTIFICATE           0x4800
+#define ERR_SSL_CERTIFICATE_TOO_LARGE           0x5000
+#define ERR_SSL_CERTIFICATE_REQUIRED            0x5800
+#define ERR_SSL_PRIVATE_KEY_REQUIRED            0x6000
+#define ERR_SSL_CA_CHAIN_REQUIRED               0x6800
+#define ERR_SSL_UNEXPECTED_MESSAGE              0x7000
+#define ERR_SSL_FATAL_ALERT_MESSAGE             0x7800
+#define ERR_SSL_PEER_VERIFY_FAILED              0x8000
+#define ERR_SSL_PEER_CLOSE_NOTIFY               0x8800
+#define ERR_SSL_BAD_HS_CLIENT_HELLO             0x9000
+#define ERR_SSL_BAD_HS_SERVER_HELLO             0x9800
+#define ERR_SSL_BAD_HS_CERTIFICATE              0xA000
+#define ERR_SSL_BAD_HS_CERTIFICATE_REQUEST      0xA800
+#define ERR_SSL_BAD_HS_SERVER_KEY_EXCHANGE      0xB000
+#define ERR_SSL_BAD_HS_SERVER_HELLO_DONE        0xB800
+#define ERR_SSL_BAD_HS_CLIENT_KEY_EXCHANGE      0xC000
+#define ERR_SSL_BAD_HS_CERTIFICATE_VERIFY       0xC800
+#define ERR_SSL_BAD_HS_CHANGE_CIPHER_SPEC       0xD000
+#define ERR_SSL_BAD_HS_FINISHED                 0xD800
 
 /*
  * Various constants
@@ -118,12 +125,6 @@ typedef enum
     SSL_HANDSHAKE_OVER
 }
 ssl_states;
-
-#include "sha1.h"
-#include "md5.h"
-#include "rsa.h"
-#include "dhm.h"
-#include "x509.h"
 
 typedef struct
 {

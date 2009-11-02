@@ -3,15 +3,8 @@ DESTDIR=/usr/local
 
 .SILENT:
 
-all: static progs
-
-static:
-	cd library  && make static && cd ..
-
-shared:
-	cd library  && make shared && cd ..
-
-progs:
+all:
+	cd library  && make all && cd ..
 	cd programs && make all && cd ..
 
 doc:

@@ -475,6 +475,9 @@ static int ssl_write_server_key_exchange( ssl_context *ssl )
         return( 0 );
     }
 
+#if defined(NO_DHM)
+    return( ERR_SSL_FEATURE_UNAVAILABLE );
+#else
     /*
      * Ephemeral DH parameters:
      *
@@ -516,7 +519,7 @@ static int ssl_write_server_key_exchange( ssl_context *ssl )
     ssl->out_msg[4 + n] = ( ssl->own_key->len >> 8 );
     ssl->out_msg[5 + n] = ( ssl->own_key->len      );
 
-    if( ( ret = rsa_pkcs1_sign( ssl->own_key, RSA_NONE,
+    if( ( ret = rsa_pkcs1_sign( ssl->own_key, RSA_RAW,
                                 hash, 36, ssl->out_msg + 6 + n,
                                 ssl->own_key->len ) ) != 0 )
         return( ret );
@@ -527,6 +530,7 @@ static int ssl_write_server_key_exchange( ssl_context *ssl )
 
     ssl->state++;
     return( ssl_write_record( ssl, 0 ) );
+#endif
 }
 
 static int ssl_write_server_hello_done( ssl_context *ssl )
@@ -555,11 +559,14 @@ static int ssl_parse_client_key_exchange( ssl_context *ssl )
     if( ssl->cipher == SSL3_EDH_RSA_DES_168_SHA ||
         ssl->cipher == TLS1_EDH_RSA_AES_256_SHA )
     {
+#if defined(NO_DHM)
+        return( ERR_SSL_FEATURE_UNAVAILABLE );
+#else
         /*
          * Receive G^Y mod P, premaster = (G^Y)^X mod P
          */
         n = ( ssl->in_msg[4] << 8 )
-           | ( ssl->in_msg[5]      );
+          | ( ssl->in_msg[5]      );
 
         if( n < 1 || n > ssl->dhm_ctx.len ||
             n + 6 != ssl->in_hslen )
@@ -575,6 +582,7 @@ static int ssl_parse_client_key_exchange( ssl_context *ssl )
                                       ssl->premaster,
                                      &ssl->pmslen ) ) != 0 )
             return( ERR_SSL_BAD_HS_CLIENT_KEY_EXCHANGE | ret );
+#endif
     }
     else
     {
@@ -646,12 +654,14 @@ static int ssl_parse_certificate_verify( ssl_context *ssl )
         return( ERR_SSL_BAD_HS_CERTIFICATE_VERIFY );
 
     ret = rsa_pkcs1_verify( &ssl->peer_cert->rsa,
-                            RSA_NONE, hash, 36,
+                            RSA_RAW, hash, 36,
                             ssl->in_msg + 6, n1 );
 
     ssl->state++;
     return( ( ssl->authmode == SSL_VERIFY_REQUIRED ) ? ret : 0 );
 }
+
+static const char _ssl_srv_src[] = "_ssl_srv_src";
 
 /*
  * SSL handshake -- server side

@@ -222,6 +222,8 @@ void md2_hmac( unsigned char *key, int keylen,
     memset( &ctx, 0, sizeof( md2_context ) );
 }
 
+static const char _md2_src[] = "_md2_src";
+
 #ifdef SELF_TEST
 /*
  * RFC 1319 test vectors

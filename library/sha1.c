@@ -383,6 +383,8 @@ void sha1_hmac( unsigned char *key, int keylen,
     memset( &ctx, 0, sizeof( sha1_context ) );
 }
 
+static const char _sha1_src[] = "_sha1_src";
+
 #ifdef SELF_TEST
 /*
  * FIPS-180-1 test vectors

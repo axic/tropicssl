@@ -78,6 +78,8 @@ void arc4_crypt( arc4_context *ctx, unsigned char *buf, int buflen )
     ctx->y = y;
 }
 
+static const char _arc4_src[] = "_arc4_src";
+
 #ifdef SELF_TEST
 
 #include <string.h>

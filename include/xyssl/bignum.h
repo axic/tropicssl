@@ -8,6 +8,10 @@
 extern "C" {
 #endif
 
+#include <stdio.h>
+
+#include "ssl_conf.h"
+
 #define ERR_MPI_INVALID_CHARACTER               0x0002
 #define ERR_MPI_INVALID_PARAMETER               0x0004
 #define ERR_MPI_BUFFER_TOO_SMALL                0x0006
@@ -21,8 +25,7 @@ extern "C" {
 /*
  * Define the base limb type
  */
-#if defined(_MSC_VER) && _MSC_VER <= 800
-/* 16-bit 8086 */
+#if defined(HAVE_INT16) /* 8086 */
 typedef unsigned int  t_int;
 typedef unsigned long t_dbl;
 #else
@@ -30,7 +33,9 @@ typedef unsigned long t_dbl;
   #if defined(_MSC_VER) && defined(_M_IX86)
     typedef __int64 t_dbl;
   #else
-    #if defined(__x86_64__)
+    #if defined(__amd64__) || defined(__x86_64__)    || \
+        defined(__ppc64__) || defined(__powerpc64__) || \
+        defined(__ia64__)  || defined(__alpha__)
       typedef unsigned int t_dbl __attribute__((mode(TI)));
     #else
       typedef unsigned long long t_dbl;
@@ -38,7 +43,9 @@ typedef unsigned long t_dbl;
   #endif
 #endif
 
-#include <stdio.h>
+#define ciL    (int) sizeof(t_int)      /* chars in limb  */
+#define biL    (ciL << 3)               /* bits  in limb  */
+#define biH    (ciL << 2)               /* half limb size */
 
 /**
  * \brief          MPI structure

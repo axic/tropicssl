@@ -1,0 +1,12 @@
+
+AC_INIT([xyssl],[0.6.0])
+AM_CONFIG_HEADER(library/config.h)
+AM_INIT_AUTOMAKE(xyssl,0.6.0)
+AM_MAINTAINER_MODE
+
+AC_PROG_RANLIB
+AC_PROG_CC
+AM_PROG_CC_C_O
+AC_PROG_INSTALL
+AC_OUTPUT(Makefile library/Makefile programs/Makefile)
+

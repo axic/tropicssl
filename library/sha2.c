@@ -364,6 +364,8 @@ void sha2_hmac( unsigned char *key, int keylen,
     memset( &ctx, 0, sizeof( sha2_context ) );
 }
 
+static const char _sha2_src[] = "_sha2_src";
+
 #ifdef SELF_TEST
 /*
  * FIPS-180-2 test vectors

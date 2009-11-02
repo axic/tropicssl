@@ -231,7 +231,7 @@ int net_accept( int bind_fd, int *client_fd,
 int net_set_block( int fd )
 {
 #if defined(WIN32) || defined(_WIN32_WCE)
-    int n = 0;
+    long n = 0;
     return( ioctlsocket( fd, FIONBIO, &n ) );
 #else
     return( fcntl( fd, fcntl( fd, F_GETFL ) & ~O_NONBLOCK ) );
@@ -241,7 +241,7 @@ int net_set_block( int fd )
 int net_set_nonblock( int fd )
 {
 #if defined(WIN32) || defined(_WIN32_WCE)
-    int n = 1;
+    long n = 1;
     return( ioctlsocket( fd, FIONBIO, &n ) );
 #else
     return( fcntl( fd, fcntl( fd, F_GETFL ) | O_NONBLOCK ) );

@@ -176,6 +176,8 @@ int base64_decode( unsigned char *dst, int *dlen,
     return( 0 );
 }
 
+static const char _base64_src[] = "_base64_src";
+
 #ifdef SELF_TEST
 
 #include <string.h>

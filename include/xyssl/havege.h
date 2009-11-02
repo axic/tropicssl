@@ -15,9 +15,9 @@ extern "C" {
  */
 typedef struct
 {
-    int WALK[8192];
+    int PT1, PT2, offset[2];
     int pool[COLLECT_SIZE];
-    int PT1, PT2, offset;
+    int WALK[8192];
 }
 havege_state;
 

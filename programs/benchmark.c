@@ -26,7 +26,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "xyssl/md2.h"
 #include "xyssl/md4.h"
 #include "xyssl/md5.h"
 #include "xyssl/sha1.h"
@@ -60,23 +59,6 @@ int main( void )
     memset( buf, 0xAA, sizeof( buf ) );
 
     printf( "\n" );
-
-    /*
-     * MD2 timing
-     */ 
-    printf( "  MD2       :  " );
-    fflush( stdout );
-
-    set_alarm( 1 );
-    for( i = 1; ! alarmed; i++ )
-        md2_csum( buf, BUFSIZE, tmp );
-
-    tsc = hardclock();
-    for( j = 0; j < 32; j++ )
-        md2_csum( buf, BUFSIZE, tmp );
-
-    printf( "%9ld Kb/s,  %9ld cycles/byte\n", i * BUFSIZE / 1024,
-                    ( hardclock() - tsc ) / ( j * BUFSIZE ) );
 
     /*
      * MD4 timing
@@ -229,11 +211,54 @@ int main( void )
     /*
      * RSA-1024 timing
      */ 
+    memset( &rsa, 0, sizeof( rsa ) );
+
+    rsa.len = 128;
+
+    mpi_read( &rsa.N , "9292758453063D803DD603D5E777D788" \
+                       "8ED1D5BF35786190FA2F23EBC0848AEA" \
+                       "DDA92CA6C3D80B32C4D109BE0F36D6AE" \
+                       "7130B9CED7ACDF54CFC7555AC14EEBAB" \
+                       "93A89813FBF3C4F8066D2D800F7C38A8" \
+                       "1AE31942917403FF4946B0A83D3D3E05" \
+                       "EE57C6F5F5606FB5D4BC6CD34EE0801A" \
+                       "5E94BB77B07507233A0BC7BAC8F90F79", 16 );
+
+    mpi_read( &rsa.E , "10001", 16 );
+    mpi_read( &rsa.D , "24BF6185468786FDD303083D25E64EFC" \
+                       "66CA472BC44D253102F8B4A9D3BFA750" \
+                       "91386C0077937FE33FA3252D28855837" \
+                       "AE1B484A8A9A45F7EE8C0C634F99E8CD" \
+                       "DF79C5CE07EE72C7F123142198164234" \
+                       "CABB724CF78B8173B9F880FC86322407" \
+                       "AF1FEDFDDE2BEB674CA15F3E81A1521E" \
+                       "071513A1E85B5DFA031F21ECAE91A34D", 16 );
+
+    mpi_read( &rsa.P , "C36D0EB7FCD285223CFB5AABA5BDA3D8" \
+                       "2C01CAD19EA484A87EA4377637E75500" \
+                       "FCB2005C5C7DD6EC4AC023CDA285D796" \
+                       "C3D9E75E1EFC42488BB4F1D13AC30A57", 16 );
+    mpi_read( &rsa.Q , "C000DF51A7C77AE8D7C7370C1FF55B69" \
+                       "E211C2B9E5DB1ED0BF61D0D9899620F4" \
+                       "910E4168387E3C30AA1E00C339A79508" \
+                       "8452DD96A9A5EA5D9DCA68DA636032AF", 16 );
+
+    mpi_read( &rsa.DP, "C1ACF567564274FB07A0BBAD5D26E298" \
+                       "3C94D22288ACD763FD8E5600ED4A702D" \
+                       "F84198A5F06C2E72236AE490C93F07F8" \
+                       "3CC559CD27BC2D1CA488811730BB5725", 16 );
+    mpi_read( &rsa.DQ, "4959CBF6F8FEF750AEE6977C155579C7" \
+                       "D8AAEA56749EA28623272E4F7D0592AF" \
+                       "7C1F1313CAC9471B5C523BFE592F517B" \
+                       "407A1BD76C164B93DA2D32A383E58357", 16 );
+    mpi_read( &rsa.QP, "9AE7FBC99546432DF71896FC239EADAE" \
+                       "F38D18D2B2F0E2DD275AA977E2BF4411" \
+                       "F5A3B2A5D33605AEBBCCBA7FEB9F2D2F" \
+                       "A74206CEC169D74BF5A8C50D6F48EA08", 16 );
+
     printf( "  RSA-1024  :  " );
     fflush( stdout );
-
-    rsa_gen_key( &rsa, 1024, 65537, myrand, NULL );
-    set_alarm( 4 );
+    set_alarm( 3 );
 
     for( i = 1; ! alarmed; i++ )
     {
@@ -241,11 +266,11 @@ int main( void )
         rsa_public( &rsa, buf, 128, buf, 128 );
     }
 
-    printf( "%9ld  public/s\n", i / 4 );
+    printf( "%9ld  public/s\n", i / 3 );
 
     printf( "  RSA-1024  :  " );
     fflush( stdout );
-    set_alarm( 4 );
+    set_alarm( 3 );
 
     for( i = 1; ! alarmed; i++ )
     {
@@ -253,39 +278,7 @@ int main( void )
         rsa_private( &rsa, buf, 128, buf, 128 );
     }
 
-    printf( "%9ld private/s\n", i / 4 );
-
-    rsa_free( &rsa );
-
-    /*
-     * RSA-2048 timing
-     */ 
-    printf( "  RSA-2048  :  " );
-    fflush( stdout );
-
-    rsa_gen_key( &rsa, 2048, 65537, myrand, NULL );
-    set_alarm( 4 );
-
-    for( i = 1; ! alarmed; i++ )
-    {
-        buf[0] = 0;
-        rsa_public( &rsa, buf, 256, buf, 256 );
-    }
-
-    printf( "%9ld  public/s\n", i / 4 );
-
-    printf( "  RSA-2048  :  " );
-    fflush( stdout );
-
-    set_alarm( 4 );
-
-    for( i = 1; ! alarmed; i++ )
-    {
-        buf[0] = 0;
-        rsa_private( &rsa, buf, 256, buf, 256 );
-    }
-
-    printf( "%9ld private/s\n\n", i / 4 );
+    printf( "%9ld private/s\n\n", i / 3 );
 
     rsa_free( &rsa );
 

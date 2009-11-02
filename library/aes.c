@@ -850,6 +850,8 @@ void aes_cbc_decrypt( aes_context *ctx,
     }
 }
 
+static const char _aes_src[] = "_aes_src";
+
 #ifdef SELF_TEST
 
 #include <stdio.h>
