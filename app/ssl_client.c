@@ -39,28 +39,36 @@
 #define GET_REQUEST \
     "HEAD /hello/ HTTP/1.1\r\nHost: %s\r\n\r\n"
 
-uint ciphers[] =
+/*
+ * dummy DHM parameters (not used)
+ */
+char dhm_ext_modulus[]   = "";
+char dhm_ext_generator[] = "";
+
+/*
+ * cipher list sent to server
+ */
+int ciphers[] =
 {
+    TLS1_EDH_RSA_AES_256_SHA,
+    SSL3_EDH_RSA_DES_168_SHA,
     TLS1_RSA_AES_256_SHA,
-    SSL3_RSA_DES_192_SHA,
+    SSL3_RSA_DES_168_SHA,
     SSL3_RSA_RC4_128_SHA,
     0
 };
 
 int main( void )
 {
-    int ret;
+    int ret, len;
     int server_fd;
-
-    uint len;
     uchar buf[1024];
-
     havege_state hs;
     ssl_context ssl;
     x509_cert cacert;
 
     /*
-     * == Initialize the RNG ==
+     * => Initialize the RNG
      */
     printf( "\n  . Seeding the random nb. generator..." );
     fflush( stdout );
@@ -69,7 +77,7 @@ int main( void )
     printf( " ok\n" );
 
     /*
-     * == Load the trusted CA ==
+     * => Load the trusted CA
      */
     printf( "  . Loading the CA root  certificate..." );
     fflush( stdout );
@@ -87,7 +95,7 @@ int main( void )
     printf( " ok\n" );
 
     /*
-     * === TCP connect() ===
+     * => TCP connect()
      */
     printf( "  . Connecting  to tcp/%s/443...", SERVER_CN );
     fflush( stdout );
@@ -102,7 +110,7 @@ int main( void )
     printf( " ok\n" );
 
     /*
-     * == Handshake ==
+     * => Handshake
      */
     printf( "  . Performing the SSL/TLS handshake..." );
     fflush( stdout );
@@ -125,15 +133,11 @@ int main( void )
         goto exit;
     }
 
-    printf( " ok\n" );
-
-    printf( "    [ Cipher is %s ]\n",
-        ( ssl.cipher == TLS1_RSA_AES_256_SHA ) ? "TLS1_RSA_AES_256_SHA" :
-        ( ssl.cipher == SSL3_RSA_DES_192_SHA ) ? "SSL3_RSA_DES_192_SHA" :
-                                                 "SSL3_RSA_RC4_128_SHA" );
+    printf( " ok\n    [ Cipher is %s ]\n",
+            ssl_cipher_name( &ssl ) );
 
     /*
-     * == X.509 Cert. signature verify ==
+     * => X.509 Cert. signature verify
      */
     printf( "  . Verifying peer X.509 certificate..." );
 
@@ -156,7 +160,7 @@ int main( void )
         printf( " ok\n" );
 
     /*
-     * == Write the GET Request ==
+     * => Write the GET Request
      */
     printf( "  > Write to server:" );
 
@@ -172,13 +176,14 @@ int main( void )
     printf( "\n\n%s", buf );
 
     /*
-     * == Read the HTTP Response ==
+     * => Read the HTTP Response
      */
     printf( "  < Read from server:" );
 
     memset( buf, 0, sizeof( buf ) );
     len = sizeof( buf ) - 1;
-    if( ( ret = ssl_read( &ssl, buf, &len, 0 ) ) != 0 )
+    ret = ssl_read( &ssl, buf, &len, 0 );
+    if( ret != 0 )
     {
         printf( " failed\n  ! ssl_read returned %08x\n\n", ret );
         ssl_close( &ssl );

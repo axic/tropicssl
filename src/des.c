@@ -29,11 +29,10 @@
 #endif
 
 #include <string.h>
-#include <stdio.h>
 
 #include "des.h"
 
-/* 
+/*
  * 32-bit integer manipulation macros (big endian)
  */
 #ifndef GET_UINT32_BE
@@ -55,7 +54,7 @@
 }
 #endif
 
-/* 
+/*
  * Expanded DES S-boxes
  */
 ulong SB1[64] =
@@ -218,7 +217,7 @@ static ulong SB8[64] =
     0x00001040, 0x00040040, 0x10000000, 0x10041000
 };
 
-/* 
+/*
  * PC1: left and right halves bit-swap
  */
 static ulong LHs[16] =
@@ -237,7 +236,7 @@ static ulong RHs[16] =
     0x00000101, 0x01000101, 0x00010101, 0x01010101,
 };
 
-/* 
+/*
  * Initial Permutation macro
  */
 #define DES_IP(X,Y)                                             \
@@ -251,7 +250,7 @@ static ulong RHs[16] =
     X = ((X << 1) | (X >> 31)) & 0xFFFFFFFF;                    \
 }
 
-/* 
+/*
  * Final Permutation macro
  */
 #define DES_FP(X,Y)                                             \
@@ -265,7 +264,7 @@ static ulong RHs[16] =
     T = ((X >>  4) ^ Y) & 0x0F0F0F0F; Y ^= T; X ^= (T <<  4);   \
 }
 
-/* 
+/*
  * DES round macro
  */
 #define DES_ROUND(X,Y)                          \
@@ -353,7 +352,7 @@ void des_main_ks( ulong SK[32], uchar key[8] )
 }
 
 /*
- * DES key schedule
+ * DES key schedule (56-bit)
  */
 void des_set_key( des_context *ctx, uchar key[8] )
 {
@@ -393,7 +392,7 @@ void des_crypt( ulong SK[32], uchar input[8], uchar output[8] )
 }
 
 /*
- * DES 64-bit block encryption (ECB)
+ * DES block encryption (ECB mode)
  */
 void des_encrypt( des_context *ctx, uchar input[8], uchar output[8] )
 {
@@ -401,7 +400,7 @@ void des_encrypt( des_context *ctx, uchar input[8], uchar output[8] )
 }
 
 /*
- * DES 64-bit block decryption (ECB)
+ * DES block decryption (ECB mode)
  */
 void des_decrypt( des_context *ctx, uchar input[8], uchar output[8] )
 {
@@ -409,14 +408,14 @@ void des_decrypt( des_context *ctx, uchar input[8], uchar output[8] )
 }
 
 /*
- * DES-CBC encryption
+ * DES-CBC buffer encryption
  */
 void des_cbc_encrypt( des_context *ctx, uchar iv[8],
-                      uchar *input, uchar *output, uint len )
+                      uchar *input, uchar *output, int len )
 {
-    int i, n = len;
+    int i;
 
-    while( n > 0 )
+    while( len > 0 )
     {
         for( i = 0; i < 8; i++ )
             output[i] = input[i] ^ iv[i];
@@ -431,15 +430,15 @@ void des_cbc_encrypt( des_context *ctx, uchar iv[8],
 }
 
 /*
- * DES-CBC decryption
+ * DES-CBC buffer decryption
  */
 void des_cbc_decrypt( des_context *ctx, uchar iv[8],
-                      uchar *input, uchar *output, uint len )
+                      uchar *input, uchar *output, int len )
 {
-    int i, n = len;
+    int i;
     uchar temp[8];
 
-    while( n > 0 )
+    while( len > 0 )
     {
         memcpy( temp, input, 8 );
         des_crypt( ctx->dsk, input, output );
@@ -548,7 +547,7 @@ void des3_crypt( ulong SK[96], uchar input[8], uchar output[8] )
 }
 
 /*
- * Triple-DES 64-bit block encryption (ECB)
+ * Triple-DES block encryption (ECB mode)
  */
 void des3_encrypt( des3_context *ctx, uchar input[8], uchar output[8] )
 {
@@ -556,7 +555,7 @@ void des3_encrypt( des3_context *ctx, uchar input[8], uchar output[8] )
 }
 
 /*
- * Triple-DES 64-bit block decryption (ECB)
+ * Triple-DES block decryption (ECB mode)
  */
 void des3_decrypt( des3_context *ctx, uchar input[8], uchar output[8] )
 {
@@ -564,13 +563,14 @@ void des3_decrypt( des3_context *ctx, uchar input[8], uchar output[8] )
 }
 
 /*
- * 3DES-CBC encryption
+ * 3DES-CBC buffer encryption
  */
 void des3_cbc_encrypt( des3_context *ctx, uchar iv[8],
-                       uchar *input, uchar *output, uint len )
+                       uchar *input, uchar *output, int len )
 {
-    int i, n = len;
-    while( n > 0 )
+    int i;
+
+    while( len > 0 )
     {
         for( i = 0; i < 8; i++ )
             output[i] = input[i] ^ iv[i];
@@ -580,19 +580,20 @@ void des3_cbc_encrypt( des3_context *ctx, uchar iv[8],
 
         input  += 8;
         output += 8;
-        n -= 8;
+        len    -= 8;
     }
 }
 
 /*
- * 3DES-CBC decryption
+ * 3DES-CBC buffer decryption
  */
 void des3_cbc_decrypt( des3_context *ctx, uchar iv[8],
-                       uchar *input, uchar *output, uint len )
+                       uchar *input, uchar *output, int len )
 {
+    int i;
     uchar temp[8];
-    int i, n = len;
-    while( n > 0 )
+
+    while( len > 0 )
     {
         memcpy( temp, input, 8 );
         des3_crypt( ctx->dsk, input, output );
@@ -604,12 +605,15 @@ void des3_cbc_decrypt( des3_context *ctx, uchar iv[8],
 
         input  += 8;
         output += 8;
-        n -= 8;
+        len    -= 8;
     }
 }
 
 #ifdef SELF_TEST
-/* 
+
+#include <stdio.h>
+
+/*
  * DES/3DES test vectors (source: NIST, tripledes-vectors.zip)
  */
 static uchar DES3_keys[24] =
@@ -696,7 +700,6 @@ int des_self_test( void )
 #else
 int des_self_test( void )
 {
-    printf( "3DES self-test not available\n\n" );
-    return( 1 );
+    return( 0 );
 }
 #endif

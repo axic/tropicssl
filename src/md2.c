@@ -63,8 +63,9 @@ static uchar PI_SUBST[256] =
     0x8D, 0x33, 0x9F, 0x11, 0x83, 0x14
 };
 
+
 /*
- * Core MD2 functions
+ * MD2 context setup
  */
 void md2_starts( md2_context *ctx )
 {
@@ -73,7 +74,7 @@ void md2_starts( md2_context *ctx )
 
 void md2_process( md2_context *ctx )
 {
-    uint i, j;
+    int i, j;
     uchar t = 0;
 
     for( i = 0; i < 16; i++ )
@@ -96,22 +97,25 @@ void md2_process( md2_context *ctx )
         t = (ctx->cksum[i] ^= PI_SUBST[ctx->buffer[i] ^ t]);
 }
 
-void md2_update( md2_context *ctx, uchar *input, uint length )
+/*
+ * MD2 process buffer
+ */
+void md2_update( md2_context *ctx, uchar *input, int ilen )
 {
-    uint fill;
+    int fill;
 
-    while( length > 0 )
+    while( ilen > 0 )
     {
-        if( ctx->left + length > 16 )
+        if( ctx->left + ilen > 16 )
             fill = 16 - ctx->left;
         else
-            fill = length;
+            fill = ilen;
 
         memcpy( ctx->buffer + ctx->left, input, fill );
 
         ctx->left += fill;
-        input  += fill;
-        length -= fill;
+        input += fill;
+        ilen  -= fill;
 
         if( ctx->left == 16 )
         {
@@ -121,9 +125,12 @@ void md2_update( md2_context *ctx, uchar *input, uint length )
     }
 }
 
-void md2_finish( md2_context *ctx, uchar digest[16] )
+/*
+ * MD2 final digest
+ */
+void md2_finish( md2_context *ctx, uchar output[16] )
 {
-    uint i;
+    int i;
     uchar x;
 
     x = (uchar)( 16 - ctx->left );
@@ -136,52 +143,52 @@ void md2_finish( md2_context *ctx, uchar digest[16] )
     memcpy( ctx->buffer, ctx->cksum, 16 );
     md2_process( ctx );
 
-    memcpy( digest, ctx->state, 16 );
+    memcpy( output, ctx->state, 16 );
 }
 
 /*
- * Output MD5(file contents), returns 0 if successful.
+ * Output = MD2( input buffer )
  */
-int md2_file( char *filename, uchar digest[16] )
+void md2_csum( uchar *input, int ilen, uchar output[16] )
+{
+    md2_context ctx;
+
+    md2_starts( &ctx );
+    md2_update( &ctx, input, ilen );
+    md2_finish( &ctx, output );
+}
+
+/*
+ * Output = MD2( file contents )
+ */
+int md2_file( char *path, uchar output[16] )
 {
     FILE *f;
     size_t n;
     md2_context ctx;
     uchar buf[1024];
 
-    if( ( f = fopen( filename, "rb" ) ) == NULL )
+    if( ( f = fopen( path, "rb" ) ) == NULL )
         return( 1 );
 
     md2_starts( &ctx );
 
     while( ( n = fread( buf, 1, sizeof( buf ), f ) ) > 0 )
-        md2_update( &ctx, buf, (uint) n );
+        md2_update( &ctx, buf, n );
 
-    md2_finish( &ctx, digest );
+    md2_finish( &ctx, output );
 
     fclose( f );
     return( 0 );
 }
 
 /*
- * Output MD2(buf)
+ * Output = HMAC-MD2( input buffer, hmac key )
  */
-void md2_csum( uchar *buf, uint buflen, uchar digest[16] )
+void md2_hmac( uchar *key, int keylen, uchar *input, int ilen,
+               uchar output[16] )
 {
-    md2_context ctx;
-
-    md2_starts( &ctx );
-    md2_update( &ctx, buf, buflen );
-    md2_finish( &ctx, digest );
-}
-
-/*
- * Output HMAC-MD2(buf,key)
- */
-void md2_hmac( uchar *buf, uint buflen, uchar *key, uint keylen,
-               uchar digest[16] )
-{
-    uint i;
+    int i;
     md2_context ctx;
     uchar k_ipad[64];
     uchar k_opad[64];
@@ -200,13 +207,13 @@ void md2_hmac( uchar *buf, uint buflen, uchar *key, uint keylen,
 
     md2_starts( &ctx );
     md2_update( &ctx, k_ipad, 64 );
-    md2_update( &ctx, buf, buflen );
+    md2_update( &ctx, input, ilen );
     md2_finish( &ctx, tmpbuf );
 
     md2_starts( &ctx );
     md2_update( &ctx, k_opad, 64 );
     md2_update( &ctx, tmpbuf, 16 );
-    md2_finish( &ctx, digest );
+    md2_finish( &ctx, output );
 
     memset( k_ipad, 0, 64 );
     memset( k_opad, 0, 64 );
@@ -215,7 +222,7 @@ void md2_hmac( uchar *buf, uint buflen, uchar *key, uint keylen,
 }
 
 #ifdef SELF_TEST
-/* 
+/*
  * RFC 1319 test vectors
  */
 static char *md2_test_str[7] =
@@ -278,7 +285,6 @@ int md2_self_test( void )
 #else
 int md2_self_test( void )
 {
-    printf( "MD2 self-test not available\n\n" );
-    return( 1 );
+    return( 0 );
 }
 #endif

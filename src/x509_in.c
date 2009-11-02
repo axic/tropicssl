@@ -40,18 +40,18 @@
 
 #include "x509.h"
 #include "rsa.h"
-#include "mpi.h"
 #include "md2.h"
 #include "md4.h"
 #include "md5.h"
 #include "sha1.h"
 #include "des.h"
+#include "bignum.h"
 #include "base64.h"
 
-/* 
+/*
  * ASN.1 DER decoding routines
  */
-int asn1_get_len( uchar **p, uchar *end, uint *len )
+int asn1_get_len( uchar **p, uchar *end, int *len )
 {
     if( ( end - *p ) < 1 )
         return( ERR_ASN1_OUT_OF_DATA );
@@ -84,13 +84,13 @@ int asn1_get_len( uchar **p, uchar *end, uint *len )
         }
     }
 
-    if( *len > (uint) ( end - *p ) )
+    if( *len > (int) ( end - *p ) )
         return( ERR_ASN1_OUT_OF_DATA );
 
     return( 0 );
 }
 
-int asn1_get_tag( uchar **p, uchar *end, uint *len, uint tag )
+int asn1_get_tag( uchar **p, uchar *end, int *len, int tag )
 {
     if( ( end - *p ) < 1 )
         return( ERR_ASN1_OUT_OF_DATA );
@@ -103,10 +103,9 @@ int asn1_get_tag( uchar **p, uchar *end, uint *len, uint tag )
     return( asn1_get_len( p, end, len ) );
 }
 
-int asn1_get_bool( uchar **p, uchar *end, uint *val )
+int asn1_get_bool( uchar **p, uchar *end, int *val )
 {
-    int ret;
-    uint len;
+    int ret, len;
 
     if( ( ret = asn1_get_tag( p, end, &len, ASN1_BOOLEAN ) ) != 0 )
         return( ret );
@@ -120,15 +119,14 @@ int asn1_get_bool( uchar **p, uchar *end, uint *val )
     return( 0 );
 }
 
-int asn1_get_int( uchar **p, uchar *end, uint *val )
+int asn1_get_int( uchar **p, uchar *end, int *val )
 {
-    int ret;
-    uint len;
+    int ret, len;
 
     if( ( ret = asn1_get_tag( p, end, &len, ASN1_INTEGER ) ) != 0 )
         return( ret );
 
-    if( len > sizeof( uint ) || ( **p & 0x80 ) != 0 )
+    if( len > (int) sizeof( int ) || ( **p & 0x80 ) != 0 )
         return( ERR_ASN1_INVALID_LENGTH );
 
     *val = 0;
@@ -144,8 +142,7 @@ int asn1_get_int( uchar **p, uchar *end, uint *val )
 
 int asn1_get_mpi( uchar **p, uchar *end, mpi *X )
 {
-    int ret;
-    uint len;
+    int ret, len;
 
     if( ( ret = asn1_get_tag( p, end, &len, ASN1_INTEGER ) ) != 0 )
         return( ret );
@@ -157,13 +154,12 @@ int asn1_get_mpi( uchar **p, uchar *end, mpi *X )
     return( ret );
 }
 
-/* 
+/*
  *  Version  ::=  INTEGER  {  v1(0), v2(1), v3(2)  }
  */
-int x509_get_version( uchar **p, uchar *end, uint *ver )
+int x509_get_version( uchar **p, uchar *end, int *ver )
 {
-    int ret;
-    uint len;
+    int ret, len;
 
     if( ( ret = asn1_get_tag( p, end, &len,
             ASN1_CONTEXT_SPECIFIC | ASN1_CONSTRUCTED | 0 ) ) != 0 )
@@ -186,7 +182,7 @@ int x509_get_version( uchar **p, uchar *end, uint *ver )
     return( 0 );
 }
 
-/* 
+/*
  *  CertificateSerialNumber  ::=  INTEGER
  */
 int x509_get_serial( uchar **p, uchar *end, x509_buf *serial )
@@ -213,15 +209,14 @@ int x509_get_serial( uchar **p, uchar *end, x509_buf *serial )
     return( 0 );
 }
 
-/* 
+/*
  *  AlgorithmIdentifier  ::=  SEQUENCE  {
  *       algorithm               OBJECT IDENTIFIER,
  *       parameters              ANY DEFINED BY algorithm OPTIONAL  }
  */
 int x509_get_alg( uchar **p, uchar *end, x509_buf *alg )
 {
-    int ret;
-    uint len;
+    int ret, len;
 
     if( ( ret = asn1_get_tag( p, end, &len,
             ASN1_CONSTRUCTED | ASN1_SEQUENCE ) ) != 0 )
@@ -252,7 +247,7 @@ int x509_get_alg( uchar **p, uchar *end, x509_buf *alg )
     return( 0 );
 }
 
-/* 
+/*
  *  RelativeDistinguishedName ::=
  *    SET OF AttributeTypeAndValue
  *
@@ -266,8 +261,7 @@ int x509_get_alg( uchar **p, uchar *end, x509_buf *alg )
  */
 int x509_get_name( uchar **p, uchar *end, x509_name *cur )
 {
-    int ret;
-    uint len;
+    int ret, len;
     uchar *end2;
     x509_buf *oid;
     x509_buf *val;
@@ -336,7 +330,7 @@ int x509_get_name( uchar **p, uchar *end, x509_name *cur )
     return( x509_get_name( p, end2, cur->next ) );
 }
 
-/* 
+/*
  *  Validity ::= SEQUENCE {
  *       notBefore      Time,
  *       notAfter       Time }
@@ -348,8 +342,7 @@ int x509_get_name( uchar **p, uchar *end, x509_name *cur )
 int x509_get_dates( uchar **p, uchar *end,
                     x509_time *from, x509_time *to )
 {
-    int ret;
-    uint len;
+    int ret, len;
     char date[64];
 
     if( ( ret = asn1_get_tag( p, end, &len,
@@ -365,8 +358,8 @@ int x509_get_dates( uchar **p, uchar *end,
         return( ERR_X509_CERT_INVALID_DATE | ret );
 
     memset( date,  0, sizeof( date ) );
-    memcpy( date, *p, ( len < sizeof( date ) - 1 ) ?
-                        len : sizeof( date ) - 1 );
+    memcpy( date, *p, ( len < (int) sizeof( date ) - 1 ) ?
+                        len : (int) sizeof( date ) - 1 );
 
     if( sscanf( date, "%2d%2d%2d%2d%2d%2d",
                 &from->year, &from->mon, &from->day,
@@ -382,8 +375,8 @@ int x509_get_dates( uchar **p, uchar *end,
         return( ERR_X509_CERT_INVALID_DATE | ret );
 
     memset( date,  0, sizeof( date ) );
-    memcpy( date, *p, ( len < sizeof( date ) - 1 ) ?
-                        len : sizeof( date ) - 1 );
+    memcpy( date, *p, ( len < (int) sizeof( date ) - 1 ) ?
+                        len : (int) sizeof( date ) - 1 );
 
     if( sscanf( date, "%2d%2d%2d%2d%2d%2d",
                 &to->year, &to->mon, &to->day,
@@ -402,7 +395,7 @@ int x509_get_dates( uchar **p, uchar *end,
     return( 0 );
 }
 
-/* 
+/*
  *  SubjectPublicKeyInfo  ::=  SEQUENCE  {
  *       algorithm            AlgorithmIdentifier,
  *       subjectPublicKey     BIT STRING }
@@ -410,8 +403,7 @@ int x509_get_dates( uchar **p, uchar *end,
 int x509_get_pubkey( uchar **p, uchar *end,
                      x509_buf *pk_alg_oid, mpi *N, mpi *E )
 {
-    int ret;
-    uint len;
+    int ret, len;
     uchar *end2;
 
     if( ( ret = x509_get_alg( p, end, pk_alg_oid ) ) != 0 )
@@ -463,8 +455,7 @@ int x509_get_pubkey( uchar **p, uchar *end,
 
 int x509_get_sig( uchar **p, uchar *end, x509_buf *sig )
 {
-    int ret;
-    uint len;
+    int ret, len;
 
     sig->tag = **p;
 
@@ -482,7 +473,7 @@ int x509_get_sig( uchar **p, uchar *end, x509_buf *sig )
     return( 0 );
 }
 
-/* 
+/*
  * X.509 v2/v3 unique identifier (not parsed)
  */
 int x509_get_uid( uchar **p, uchar *end, x509_buf *uid, int n )
@@ -509,16 +500,15 @@ int x509_get_uid( uchar **p, uchar *end, x509_buf *uid, int n )
     return( 0 );
 }
 
-/* 
+/*
  * X.509 v3 extensions (only BasicConstraints are parsed)
  */
 int x509_get_ext( uchar **p, uchar *end, x509_buf *ext,
-                  uint *ca_istrue, uint *max_pathlen )
+                  int *ca_istrue, int *max_pathlen )
 {
-    int ret;
-    uint is_critical = 1;
-    uint is_cacert = 0;
-    uint len;
+    int ret, len;
+    int is_critical = 1;
+    int is_cacert   = 0;
     uchar *end2;
 
     if( *p == end )
@@ -587,6 +577,9 @@ int x509_get_ext( uchar **p, uchar *end, x509_buf *ext,
                 ASN1_CONSTRUCTED | ASN1_SEQUENCE ) ) != 0 )
             return( ERR_X509_CERT_INVALID_EXTENSIONS | ret );
 
+        if( *p == end2 )
+            continue;
+
         if( ( ret = asn1_get_bool( p, end2, &is_cacert ) ) != 0 )
             return( ERR_X509_CERT_INVALID_EXTENSIONS | ret );
 
@@ -613,12 +606,11 @@ int x509_get_ext( uchar **p, uchar *end, x509_buf *ext,
 }
 
 /*
- * Parse one or more certificate and add them to the chain.
+ * Read one or more certificates and add them to the chain
  */
-int x509_add_certs( x509_cert *chain, uchar *buf, uint buflen )
+int x509_add_certs( x509_cert *chain, uchar *buf, int buflen )
 {
-    int ret;
-    uint len;
+    int ret, len;
     uchar *s1, *s2;
     uchar *p, *end;
     x509_cert *crt;
@@ -650,6 +642,7 @@ int x509_add_certs( x509_cert *chain, uchar *buf, uint buflen )
         /*
          * get the DER data length and decode the buffer
          */
+        len = 0;
         ret = base64_decode( NULL, &len, s1, s2 - s1 );
 
         if( ret == ERR_BASE64_INVALID_CHARACTER )
@@ -707,7 +700,7 @@ int x509_add_certs( x509_cert *chain, uchar *buf, uint buflen )
         return( ERR_X509_CERT_INVALID_FORMAT );
     }
 
-    if( len != (uint) ( end - p ) )
+    if( len != (int) ( end - p ) )
     {
         x509_free_cert( crt );
         return( ERR_X509_CERT_INVALID_FORMAT |
@@ -934,16 +927,16 @@ int x509_add_certs( x509_cert *chain, uchar *buf, uint buflen )
 }
 
 /*
- * Load a certificate from file, returns 0 if successful.
+ * Load one or more certificates and add them to the chain
  */
-int x509_read_crtfile( x509_cert *chain, char *filename )
+int x509_read_crtfile( x509_cert *chain, char *path )
 {
     int ret;
     FILE *f;
     ulong len;
     uchar *buf;
 
-    if( ( f = fopen( filename, "rb" ) ) == NULL )
+    if( ( f = fopen( path, "rb" ) ) == NULL )
         return( 1 );
 
     fseek( f, 0, SEEK_END ); len = ftell( f );
@@ -969,8 +962,8 @@ int x509_read_crtfile( x509_cert *chain, char *filename )
     return( ret );
 }
 
-/* 
- * Read a 16-byte hex string and convert it to binary.
+/*
+ * Read a 16-byte hex string and convert it to binary
  */
 int x509_des3_getiv( uchar *s, uchar iv[8] )
 {
@@ -994,11 +987,11 @@ int x509_des3_getiv( uchar *s, uchar iv[8] )
     return( 0 );
 }
 
-/* 
- * Decrypt with 3DES-CBC, using PBKDF1 for key derivation.
+/*
+ * Decrypt with 3DES-CBC, using PBKDF1 for key derivation
  */
-void x509_des3_decrypt( uchar des3_iv[8], uchar *buf, uint buflen,
-                                          uchar *pwd, uint pwdlen )
+void x509_des3_decrypt( uchar des3_iv[8], uchar *buf, int buflen,
+                                          uchar *pwd, int pwdlen )
 {
     md5_context md5_ctx;
     des3_context des3_ctx;
@@ -1032,13 +1025,12 @@ void x509_des3_decrypt( uchar des3_iv[8], uchar *buf, uint buflen,
 }
 
 /*
- * Parse a DER-encoded private key file.
+ * Parse a private RSA key
  */
-int x509_parse_key( rsa_context *rsa, uchar *buf, uint buflen,
-                                      uchar *pwd, uint pwdlen )
+int x509_parse_key( rsa_context *rsa, uchar *buf, int buflen,
+                                      uchar *pwd, int pwdlen )
 {
-    int ret;
-    uint len, enc;
+    int ret, len, enc;
     uchar *s1, *s2;
     uchar *p, *end;
     uchar des3_iv[8];
@@ -1083,6 +1075,7 @@ int x509_parse_key( rsa_context *rsa, uchar *buf, uint buflen,
                 else return( ERR_X509_KEY_INVALID_PEM );
         }
 
+        len = 0;
         ret = base64_decode( NULL, &len, s1, s2 - s1 );
 
         if( ret == ERR_BASE64_INVALID_CHARACTER )
@@ -1204,20 +1197,23 @@ int x509_parse_key( rsa_context *rsa, uchar *buf, uint buflen,
         return( ret );
     }
 
+    if( s1 != NULL )
+        free( buf );
+
     return( 0 );
 }
 
 /*
- * Load a private key from file, optionaly password-protected.
+ * Load and parse a private RSA key
  */
-int x509_read_keyfile( rsa_context *rsa, char *filename, char *password )
+int x509_read_keyfile( rsa_context *rsa, char *path, char *password )
 {
     int ret;
     FILE *f;
     ulong len;
     uchar *buf;
 
-    if( ( f = fopen( filename, "rb" ) ) == NULL )
+    if( ( f = fopen( path, "rb" ) ) == NULL )
         return( 1 );
 
     fseek( f, 0, SEEK_END ); len = ftell( f );
@@ -1252,12 +1248,12 @@ int x509_read_keyfile( rsa_context *rsa, char *filename, char *password )
 #endif
 
 /*
- * Store the DN in printable form into buf; no more
- * than (end - buf) characters will be written.
+ * Store the name in printable form into buf; no more
+ * than (end - buf) characters will be written
  */
 int dn_gets( char *buf, char *end, x509_name *dn )
 {
-    uint i;
+    int i;
     uchar c;
     x509_name *name;
     char s[128], *p;
@@ -1318,7 +1314,7 @@ int dn_gets( char *buf, char *end, x509_name *dn )
 
         for( i = 0; i < name->val.len; i++ )
         {
-            if( i >= sizeof( s ) - 1 )
+            if( i >= (int) sizeof( s ) - 1 )
                 break;
 
             c = name->val.p[i];
@@ -1335,12 +1331,12 @@ int dn_gets( char *buf, char *end, x509_name *dn )
 }
 
 /*
- * Returns an informational string about the certificate,
- * or NULL if memory allocation failed.
+ * Return an informational string about the
+ * certificate, or NULL if memory allocation failed
  */
 char *x509_cert_info( x509_cert *crt )
 {
-    uint i, n;
+    int i, n;
     char *buf, *p, *end;
 
     if( ( buf = (char *) malloc( 4096 ) ) == NULL )
@@ -1397,7 +1393,7 @@ char *x509_cert_info( x509_cert *crt )
 }
 
 /*
- * Returns 0 if certificate is still valid, or BADCERT_HAS_EXPIRED.
+ * Return 0 if the certificate is still valid, or BADCERT_HAS_EXPIRED
  */
 int x509_is_cert_expired( x509_cert *crt )
 {
@@ -1422,7 +1418,7 @@ int x509_is_cert_expired( x509_cert *crt )
     return( 0 );
 }
 
-void x509_hash( uchar *in, uint len, uchar *out, int alg )
+void x509_hash( uchar *in, int len, int alg, uchar *out )
 {
     switch( alg )
     {
@@ -1436,27 +1432,19 @@ void x509_hash( uchar *in, uint len, uchar *out, int alg )
 }
 
 /*
- * Verify the certificate validity; set cn to NULL if the subject
- * CommonName must not be verified.
- *
- * Returns 0 if successful or ERR_X509_SIG_VERIFY_FAILED,
- * in which case *flags will have one or more of the following
- * values set:
- *      BADCERT_HAS_EXPIRED
- *      BADCERT_CN_MISMATCH
- *      BADCERT_NOT_TRUSTED
+ * Verify the certificate validity
  */
 int x509_verify_cert( x509_cert *crt, x509_cert *trust_ca,
-                      char *cn, uint *flags )
+                      char *cn, int *flags )
 {
     int alg_id;
+    int pathlen;
     char *dn_end;
     char crt_dn[256];
     char ca_dn[256];
     uchar hash[20];
     x509_cert *cur;
     x509_name *name;
-    uint pathlen = 1;
 
     *flags = x509_is_cert_expired( crt );
 
@@ -1485,6 +1473,8 @@ int x509_verify_cert( x509_cert *crt, x509_cert *trust_ca,
      */
     cur = crt->next;
 
+    pathlen = 1;
+
     while( cur->version != 0 )
     {
         memset( crt_dn, 0, sizeof( crt_dn ) );
@@ -1502,8 +1492,8 @@ int x509_verify_cert( x509_cert *crt, x509_cert *trust_ca,
         }
 
         alg_id = crt->sig_oid1.p[8];
-        x509_hash( crt->tbs.p, crt->tbs.len, hash, alg_id );
-        if( rsa_pkcs1_verify( &cur->rsa, hash, alg_id,
+        x509_hash( crt->tbs.p, crt->tbs.len, alg_id, hash );
+        if( rsa_pkcs1_verify( &cur->rsa, alg_id, hash, 0,
                               crt->sig.p, crt->sig.len ) != 0 )
             return( ERR_X509_SIG_VERIFY_FAILED );
 
@@ -1537,8 +1527,8 @@ int x509_verify_cert( x509_cert *crt, x509_cert *trust_ca,
             return( ERR_X509_SIG_VERIFY_FAILED );
 
         alg_id = crt->sig_oid1.p[8];
-        x509_hash( crt->tbs.p,  crt->tbs.len, hash, alg_id );
-        if( rsa_pkcs1_verify( &trust_ca->rsa, hash, alg_id,
+        x509_hash( crt->tbs.p,  crt->tbs.len, alg_id, hash );
+        if( rsa_pkcs1_verify( &trust_ca->rsa, alg_id, hash, 0,
                               crt->sig.p, crt->sig.len ) != 0 )
             return( ERR_X509_SIG_VERIFY_FAILED );
 
@@ -1558,30 +1548,51 @@ int x509_verify_cert( x509_cert *crt, x509_cert *trust_ca,
  */
 void x509_free_cert( x509_cert *crt )
 {
-    x509_name *cur, *prv;
+    x509_cert *cert_cur = crt;
+    x509_cert *cert_prv;
+    x509_name *name_cur;
+    x509_name *name_prv;
 
-    cur = crt->issuer.next;
+    if( crt == NULL )
+        return;
 
-    while( cur != NULL )
+    do
     {
-        prv = cur;
-        cur = cur->next;
-        free( prv );
+        rsa_free( &crt->rsa );
+
+        name_cur = cert_cur->issuer.next;
+        while( name_cur != NULL )
+        {
+            name_prv = name_cur;
+            name_cur = name_cur->next;
+            free( name_prv );
+        }
+
+        name_cur = cert_cur->subject.next;
+        while( name_cur != NULL )
+        {
+            name_prv = name_cur;
+            name_cur = name_cur->next;
+            free( name_prv );
+        }
+
+        if( cert_cur->raw.p != NULL )
+            free( cert_cur->raw.p );
+
+        cert_cur = cert_cur->next;
     }
+    while( cert_cur != NULL );
 
-    cur = crt->subject.next;
-
-    while( cur != NULL )
+    cert_cur = crt;
+    do
     {
-        prv = cur;
-        cur = cur->next;
-        free( prv );
+        cert_prv = cert_cur;
+        cert_cur = cert_cur->next;
+
+        if( cert_prv != crt )
+            free( cert_prv );
     }
-
-    rsa_free( &crt->rsa );
-
-    if( crt->raw.p != NULL )
-        free( crt->raw.p );
+    while( cert_cur != NULL );
 }
 
 #ifdef SELF_TEST
@@ -1593,8 +1604,7 @@ void x509_free_cert( x509_cert *crt )
  */
 int x509_self_test( void )
 {
-    int ret;
-    uint flags;
+    int ret, flags;
     x509_cert cacert;
     x509_cert cltcert;
     rsa_context rsa;
@@ -1642,12 +1652,15 @@ int x509_self_test( void )
     }
 
     printf( "passed\n\n" );
+
+    x509_free_cert( &cacert  );
+    x509_free_cert( &cltcert );
+    rsa_free( &rsa );
     return( 0 );
 }
 #else
 int x509_self_test( void )
 {
-    printf( "X.509 self-test not available\n\n" );
-    return( 1 );
+    return( 0 );
 }
 #endif

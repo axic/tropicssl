@@ -32,7 +32,7 @@
 
 #include "sha1.h"
 
-/* 
+/*
  * 32-bit integer manipulation macros (big endian)
  */
 #ifndef GET_UINT32_BE
@@ -55,7 +55,7 @@
 #endif
 
 /*
- * Core SHA-1 functions
+ * SHA-1 context setup
  */
 void sha1_starts( sha1_context *ctx )
 {
@@ -225,42 +225,47 @@ void sha1_process( sha1_context *ctx, uchar data[64] )
     ctx->state[4] += E;
 }
 
-void sha1_update( sha1_context *ctx, uchar *input, uint length )
+/*
+ * SHA-1 process buffer
+ */
+void sha1_update( sha1_context *ctx, uchar *input, int ilen )
 {
-    ulong left, fill;
+    int fill;
+    ulong left;
 
-    if( ! length ) return;
+    if( ilen <= 0 )
+        return;
 
     left = ctx->total[0] & 0x3F;
     fill = 64 - left;
 
-    ctx->total[0] += length;
+    ctx->total[0] += ilen;
     ctx->total[0] &= 0xFFFFFFFF;
 
-    if( ctx->total[0] < length )
+    if( ctx->total[0] < (ulong) ilen )
         ctx->total[1]++;
 
-    if( left && length >= fill )
+    if( left && ilen >= fill )
     {
         memcpy( (void *) (ctx->buffer + left),
                 (void *) input, fill );
         sha1_process( ctx, ctx->buffer );
-        length -= fill;
-        input  += fill;
+        input += fill;
+        ilen  -= fill;
         left = 0;
     }
 
-    while( length >= 64 )
+    while( ilen >= 64 )
     {
         sha1_process( ctx, input );
-        length -= 64;
-        input  += 64;
+        input += 64;
+        ilen  -= 64;
     }
 
-    if( length )
+    if( ilen > 0 )
     {
         memcpy( (void *) (ctx->buffer + left),
-                (void *) input, length );
+                (void *) input, ilen );
     }
 }
 
@@ -272,7 +277,10 @@ static uchar sha1_padding[64] =
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-void sha1_finish( sha1_context *ctx, uchar digest[20] )
+/*
+ * SHA-1 final digest
+ */
+void sha1_finish( sha1_context *ctx, uchar output[20] )
 {
     ulong last, padn;
     ulong high, low;
@@ -291,56 +299,56 @@ void sha1_finish( sha1_context *ctx, uchar digest[20] )
     sha1_update( ctx, sha1_padding, padn );
     sha1_update( ctx, msglen, 8 );
 
-    PUT_UINT32_BE( ctx->state[0], digest,  0 );
-    PUT_UINT32_BE( ctx->state[1], digest,  4 );
-    PUT_UINT32_BE( ctx->state[2], digest,  8 );
-    PUT_UINT32_BE( ctx->state[3], digest, 12 );
-    PUT_UINT32_BE( ctx->state[4], digest, 16 );
+    PUT_UINT32_BE( ctx->state[0], output,  0 );
+    PUT_UINT32_BE( ctx->state[1], output,  4 );
+    PUT_UINT32_BE( ctx->state[2], output,  8 );
+    PUT_UINT32_BE( ctx->state[3], output, 12 );
+    PUT_UINT32_BE( ctx->state[4], output, 16 );
 }
 
 /*
- * Output SHA-1(file contents), returns 0 if successful.
+ * Output = SHA-1( file contents )
  */
-int sha1_file( char *filename, uchar digest[20] )
+int sha1_file( char *path, uchar output[20] )
 {
     FILE *f;
     size_t n;
     sha1_context ctx;
     uchar buf[1024];
 
-    if( ( f = fopen( filename, "rb" ) ) == NULL )
+    if( ( f = fopen( path, "rb" ) ) == NULL )
         return( 1 );
 
     sha1_starts( &ctx );
 
     while( ( n = fread( buf, 1, sizeof( buf ), f ) ) > 0 )
-        sha1_update( &ctx, buf, (uint) n );
+        sha1_update( &ctx, buf, n );
 
-    sha1_finish( &ctx, digest );
+    sha1_finish( &ctx, output );
 
     fclose( f );
     return( 0 );
 }
 
 /*
- * Output SHA-1(buf)
+ * Output = SHA-1( input buffer )
  */
-void sha1_csum( uchar *buf, uint buflen, uchar digest[20] )
+void sha1_csum( uchar *input, int ilen, uchar output[20] )
 {
     sha1_context ctx;
 
     sha1_starts( &ctx );
-    sha1_update( &ctx, buf, buflen );
-    sha1_finish( &ctx, digest );
+    sha1_update( &ctx, input, ilen );
+    sha1_finish( &ctx, output );
 }
 
 /*
- * Output HMAC-SHA-1(key,buf)
+ * Output = HMAC-SHA-1( input buffer, hmac key )
  */
-void sha1_hmac( uchar *key, uint keylen, uchar *buf, uint buflen,
-                uchar digest[20] )
+void sha1_hmac( uchar *key, int klen, uchar *input, int ilen,
+                uchar output[20] )
 {
-    uint i;
+    int i;
     sha1_context ctx;
     uchar k_ipad[64];
     uchar k_opad[64];
@@ -349,7 +357,7 @@ void sha1_hmac( uchar *key, uint keylen, uchar *buf, uint buflen,
     memset( k_ipad, 0x36, 64 );
     memset( k_opad, 0x5C, 64 );
 
-    for( i = 0; i < keylen; i++ )
+    for( i = 0; i < klen; i++ )
     {
         if( i >= 64 ) break;
 
@@ -359,13 +367,13 @@ void sha1_hmac( uchar *key, uint keylen, uchar *buf, uint buflen,
 
     sha1_starts( &ctx );
     sha1_update( &ctx, k_ipad, 64 );
-    sha1_update( &ctx, buf, buflen );
+    sha1_update( &ctx, input, ilen );
     sha1_finish( &ctx, tmpbuf );
 
     sha1_starts( &ctx );
     sha1_update( &ctx, k_opad, 64 );
     sha1_update( &ctx, tmpbuf, 20 );
-    sha1_finish( &ctx, digest );
+    sha1_finish( &ctx, output );
 
     memset( k_ipad, 0, 64 );
     memset( k_opad, 0, 64 );
@@ -374,7 +382,7 @@ void sha1_hmac( uchar *key, uint keylen, uchar *buf, uint buflen,
 }
 
 #ifdef SELF_TEST
-/* 
+/*
  * FIPS-180-1 test vectors
  */
 static char *sha1_test_str[3] = 
@@ -437,7 +445,6 @@ int sha1_self_test( void )
 #else
 int sha1_self_test( void )
 {
-    printf( "SHA-1 self-test not available\n\n" );
-    return( 1 );
+    return( 0 );
 }
 #endif

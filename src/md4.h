@@ -1,3 +1,6 @@
+/**
+ * \file md4.h
+ */
 #ifndef _MD4_H
 #define _MD4_H
 
@@ -14,39 +17,75 @@ extern "C" {
 
 #endif
 
+/**
+ * \brief          MD4 context structure
+ */
 typedef struct
 {
-    ulong total[2];
-    ulong state[4];
-    uchar buffer[64];
+    ulong total[2];     /*!< number of bytes processed  */
+    ulong state[4];     /*!< intermediate digest state  */
+    uchar buffer[64];   /*!< data block being processed */
 }
 md4_context;
 
-/*
- * Core MD4 functions
+/**
+ * \brief          MD4 context setup
+ *
+ * \param ctx      MD4 context to be initialized
  */
 void md4_starts( md4_context *ctx );
-void md4_update( md4_context *ctx, uchar *input, uint length );
-void md4_finish( md4_context *ctx, uchar digest[16] );
 
-/*
- * Output MD5(file contents), returns 0 if successful.
+/**
+ * \brief          MD4 process buffer
+ *
+ * \param ctx      MD4 context
+ * \param input    buffer holding the  data
+ * \param ilen     length of the input data
  */
-int md4_file( char *filename, uchar digest[16] );
+void md4_update( md4_context *ctx, uchar *input, int ilen );
 
-/*
- * Output MD4(buf)
+/**
+ * \brief          MD4 final digest
+ *
+ * \param ctx      MD4 context
+ * \param output   MD4 checksum result
  */
-void md4_csum( uchar *buf, uint buflen, uchar digest[16] );
+void md4_finish( md4_context *ctx, uchar output[16] );
 
-/*
- * Output HMAC-MD4(buf,key)
+/**
+ * \brief          Output = MD4( input buffer )
+ *
+ * \param input    buffer holding the  data
+ * \param ilen     length of the input data
+ * \param output   MD4 checksum result
  */
-void md4_hmac( uchar *buf, uint buflen, uchar *key, uint keylen,
-                uchar digest[16] );
+void md4_csum( uchar *input, int ilen, uchar output[16] );
 
-/*
- * Checkup routine
+/**
+ * \brief          Output = MD4( file contents )
+ *
+ * \param path     input file name
+ * \param output   MD4 checksum result
+ * \return         0 if successful, or 1 if fopen failed
+ */
+int md4_file( char *path, uchar output[16] );
+
+/**
+ * \brief          Output = HMAC-MD4( input buffer, hmac key )
+ *
+ * \param key      HMAC secret key
+ * \param klen     length of the HMAC key
+ * \param input    buffer holding the  data
+ * \param ilen     length of the input data
+ * \param output   HMAC-MD4 result
+ */
+void md4_hmac( uchar *key, int klen, uchar *input, int ilen,
+               uchar output[16] );
+
+/**
+ * \brief          Checkup routine
+ *
+ * \return         0 if successful, or 1 if the test failed
  */
 int md4_self_test( void );
 

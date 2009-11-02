@@ -145,7 +145,7 @@
     for( i = 0; i < 16; i++ )                           \
         hs->pool[n] ^= RES[i];
 
-/* 
+/*
  * Entropy gathering function
  */
 void havege_collect_rand( havege_state *hs )
@@ -185,7 +185,7 @@ void havege_collect_rand( havege_state *hs )
 }
 
 /*
- * HAVEGE initialization phase
+ * HAVEGE initialization
  */
 void havege_init( havege_state *hs )
 {
@@ -194,11 +194,11 @@ void havege_init( havege_state *hs )
 }
 
 /*
- * Return a random unsigned long
+ * HAVEGE rand function
  */
-ulong havege_rand( void *rng_state )
+ulong havege_rand( void *rng_st )
 {
-    havege_state *hs = (havege_state *) rng_state;
+    havege_state *hs = (havege_state *) rng_st;
 
     if( hs->offset >= COLLECT_SIZE )
     {

@@ -32,16 +32,16 @@ RSC=rc.exe
 
 # PROP BASE Use_MFC 0
 # PROP BASE Use_Debug_Libraries 0
-# PROP BASE Output_Dir "xyssl___Win32_Release"
-# PROP BASE Intermediate_Dir "xyssl___Win32_Release"
+# PROP BASE Output_Dir ""
+# PROP BASE Intermediate_Dir "Release__xyssl"
 # PROP BASE Target_Dir ""
 # PROP Use_MFC 0
 # PROP Use_Debug_Libraries 0
-# PROP Output_Dir "xyssl___Win32_Release"
-# PROP Intermediate_Dir "xyssl___Win32_Release"
+# PROP Output_Dir ""
+# PROP Intermediate_Dir "Release__xyssl"
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_MBCS" /D "_LIB" /YX /FD /c
-# ADD CPP /nologo /W3 /GX /O2 /D "NDEBUG" /D "WIN32" /D "_MBCS" /D "_LIB" /D "SELF_TEST" /YX /FD /c
+# ADD CPP /nologo /W3 /GX /O2 /D "NDEBUG" /D "WIN32" /D "_MBCS" /D "_LIB" /D "SELF_TEST" /D "HAVE_SSE2" /YX /FD /c
 # ADD BASE RSC /l 0x40c /d "NDEBUG"
 # ADD RSC /l 0x40c /d "NDEBUG"
 BSC32=bscmake.exe
@@ -55,8 +55,8 @@ LIB32=link.exe -lib
 
 # PROP BASE Use_MFC 0
 # PROP BASE Use_Debug_Libraries 1
-# PROP BASE Output_Dir "xyssl___Win32_Debug"
-# PROP BASE Intermediate_Dir "xyssl___Win32_Debug"
+# PROP BASE Output_Dir ""
+# PROP BASE Intermediate_Dir "Debug__xyssl"
 # PROP BASE Target_Dir ""
 # PROP Use_MFC 0
 # PROP Use_Debug_Libraries 1
@@ -64,7 +64,7 @@ LIB32=link.exe -lib
 # PROP Intermediate_Dir "Debug__xyssl"
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_MBCS" /D "_LIB" /YX /FD /GZ /c
-# ADD CPP /nologo /W3 /Gm /GX /ZI /Od /D "_DEBUG" /D "WIN32" /D "_MBCS" /D "_LIB" /D "SELF_TEST" /YX /FD /GZ /c
+# ADD CPP /nologo /W3 /Gm /GX /ZI /Od /D "_DEBUG" /D "WIN32" /D "_MBCS" /D "_LIB" /D "SELF_TEST" /D "HAVE_SSE2" /YX /FD /GZ /c
 # SUBTRACT CPP /Fr
 # ADD BASE RSC /l 0x40c /d "_DEBUG"
 # ADD RSC /l 0x40c /d "_DEBUG"
@@ -98,7 +98,15 @@ SOURCE=..\src\base64.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\src\bignum.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\src\des.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\dhm.c
 # End Source File
 # Begin Source File
 
@@ -115,10 +123,6 @@ SOURCE=..\src\md4.c
 # Begin Source File
 
 SOURCE=..\src\md5.c
-# End Source File
-# Begin Source File
-
-SOURCE=..\src\mpi.c
 # End Source File
 # Begin Source File
 
@@ -178,7 +182,15 @@ SOURCE=..\src\base64.h
 # End Source File
 # Begin Source File
 
+SOURCE=..\src\bignum.h
+# End Source File
+# Begin Source File
+
 SOURCE=..\src\des.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\src\dhm.h
 # End Source File
 # Begin Source File
 
@@ -198,7 +210,7 @@ SOURCE=..\src\md5.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\src\mpi.h
+SOURCE=..\src\mul.h
 # End Source File
 # Begin Source File
 

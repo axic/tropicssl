@@ -35,40 +35,53 @@
 #include "x509.h"
 #include "net.h"
 
-#define HTTP_RESPONSE               \
-    "HTTP/1.0 200 OK\r\n"           \
-    "Content-Type: text/html\r\n"   \
-    "\r\n"                          \
-    "<h2><br><center>Successful "   \
-    "connection with cipher: %s\r\n"
+#define HTTP_RESPONSE \
+    "HTTP/1.0 200 OK\r\nContent-Type: text/html\r\n\r\n" \
+    "<h2><p><center>Successful connection using: %s\r\n"
+
+/*
+ * Computing a safe DH-1024 prime takes ages,
+ * so it's faster to use a precomputed value
+ * (this one is only provided as an example).
+ */
+char *dhm_ext_modulus = 
+    "E4004C1F94182000103D883A448B3F80" \
+    "2CE4B44A83301270002C20D0321CFD00" \
+    "11CCEF784C26A400F43DFB901BCA7538" \
+    "F2C6B176001CF5A0FD16D2C48B1D0C1C" \
+    "F6AC8E1DA6BCC3B4E1F96B0564965300" \
+    "FFA1D0B601EB2800F489AA512C4B248C" \
+    "01F76949A60BB7F00A40B1EAB64BDD48" \
+    "E8A700D60B7F1200FA8E77B0A979DABF";
+
+char *dhm_ext_generator = "2";
 
 /*
  * sorted by order of preference
  */
-uint ciphers[] =
+int ciphers[] =
 {
+    TLS1_EDH_RSA_AES_256_SHA,
+    SSL3_EDH_RSA_DES_168_SHA,
     TLS1_RSA_AES_256_SHA,
-    SSL3_RSA_DES_192_SHA,
+    SSL3_RSA_DES_168_SHA,
     SSL3_RSA_RC4_128_SHA,
     0
 };
 
 int main( void )
 {
-    int ret;
+    int ret, len;
     int listen_fd;
     int client_fd;
-
-    uint len;
     uchar buf[1024];
-
     havege_state hs;
     ssl_context ssl;
     x509_cert srvcert;
     rsa_context rsa;
 
     /*
-     * == Initialize the RNG ==
+     * => Initialize the RNG
      */
     printf( "\n  . Seeding the random nb. generator..." );
     fflush( stdout );
@@ -77,7 +90,7 @@ int main( void )
     printf( " ok\n" );
 
     /*
-     * == Load the certificates and private key ==
+     * => Load the certificates and private key
      */
     printf( "  . Loading the server cert. and key..." );
     fflush( stdout );
@@ -111,12 +124,12 @@ int main( void )
     printf( " ok\n" );
 
     /*
-     * == TCP bind() ==
+     * => TCP bind()
      */
-    printf( "  . Listen on https://localhost:1443..." );
+    printf( "  . Listen on https://localhost:4443..." );
     fflush( stdout );
 
-    ret = net_bind( &listen_fd, NULL, 1443 );
+    ret = net_bind( &listen_fd, NULL, 4443 );
     if( ret != 0 )
     {
         printf( " failed\n  ! net_bind returned %08x\n\n", ret );
@@ -126,10 +139,10 @@ int main( void )
     printf( " ok\n" );
 
     /*
-     * == TCP accept() ==
+     * => TCP accept()
      */
 #ifdef WIN32
-    ShellExecute( NULL, "open", "https://localhost:1443/",
+    ShellExecute( NULL, "open", "https://localhost:4443/",
                   NULL, NULL, SW_SHOWNORMAL );
 #endif
 
@@ -148,7 +161,7 @@ accept:
     printf( " ok\n" );
 
    /*
-     * == Handshake ==
+     * => Handshake
      */
     printf( "  . Performing the SSL/TLS handshake..." );
     fflush( stdout );
@@ -175,7 +188,7 @@ accept:
     printf( " ok\n" );
 
     /*
-     * == Read the HTTP Request ==
+     * => Read the HTTP Request
      */
     printf( "  < Read from client:" );
 
@@ -195,14 +208,12 @@ accept:
     printf( "\n\n%s", buf );
 
     /*
-     * == Write the 200 Response ==
+     * => Write the 200 Response
      */
     printf( "  > Write to client:" );
 
     len = sprintf( (char *) buf, HTTP_RESPONSE,
-        ( ssl.cipher == TLS1_RSA_AES_256_SHA ) ? "TLS1_RSA_AES_256_SHA" :
-        ( ssl.cipher == SSL3_RSA_DES_192_SHA ) ? "SSL3_RSA_DES_192_SHA" :
-                                                 "SSL3_RSA_RC4_128_SHA" );
+                   ssl_cipher_name( &ssl ) );
     ret = ssl_write( &ssl, buf, len );
     if( ret != 0 )
     {

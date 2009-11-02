@@ -34,12 +34,9 @@
 
 int ssl_parse_client_hello( ssl_context *ssl )
 {
-    int ret;
-    uint i, j, n;
-    uint ciph_len;
-    uint sess_len;
-    uint chal_len;
-    uint comp_len;
+    int ret, i, j, n;
+    int ciph_len, sess_len;
+    int chal_len, comp_len;
     uchar *buf;
 
     buf = ssl->in_hdr;
@@ -64,13 +61,13 @@ int ssl_parse_client_hello( ssl_context *ssl )
             buf[3] != SSLV3_MAJOR_VERSION )
             return( ERR_SSL_BAD_HS_CLIENT_HELLO );
 
-        memcpy( ssl->max_client_ver, buf + 3, 2 );
+        memcpy( ssl->max_ver, buf + 3, 2 );
 
         ssl->major_version = SSLV3_MAJOR_VERSION;
         ssl->minor_version = ( buf[4] <= TLS10_MINOR_VERSION )
                              ? buf[4]  : TLS10_MINOR_VERSION;
 
-        n = (uint) buf[1] - 3;
+        n = (int) buf[1] - 3;
 
         if( ( ret = net_read_all( ssl->read_fd, buf + 5, n ) ) != 0 )
             return( ret );
@@ -88,14 +85,14 @@ int ssl_parse_client_hello( ssl_context *ssl )
          *    ..  .  ..   session id
          *    ..  .  ..   challenge
          */
-        ciph_len = ( (uint) buf[5] << 8 ) | buf[ 6];
-        sess_len = ( (uint) buf[7] << 8 ) | buf[ 8];
-        chal_len = ( (uint) buf[9] << 8 ) | buf[10];
+        ciph_len = ( (int) buf[5] << 8 ) | buf[ 6];
+        sess_len = ( (int) buf[7] << 8 ) | buf[ 8];
+        chal_len = ( (int) buf[9] << 8 ) | buf[10];
 
-        if( ciph_len  < 3 || ciph_len > 96 || ( ciph_len % 3 ) != 0 )
+        if( ciph_len  < 3 || ciph_len > 192 || ( ciph_len % 3 ) != 0 )
             return( ERR_SSL_BAD_HS_CLIENT_HELLO );
 
-        if( sess_len != 0 || chal_len <  8 || chal_len > 32 )
+        if( sess_len != 0 || chal_len < 8 || chal_len > 32 )
             return( ERR_SSL_BAD_HS_CLIENT_HELLO );
 
         if( n != 6 + ciph_len + sess_len + chal_len )
@@ -134,13 +131,11 @@ int ssl_parse_client_hello( ssl_context *ssl )
             buf[3] != 0 || buf[4] < 45 )
             return( ERR_SSL_BAD_HS_CLIENT_HELLO );
 
-        memcpy( ssl->max_client_ver, buf + 1, 2 );
-
         ssl->major_version = SSLV3_MAJOR_VERSION;
         ssl->minor_version = ( buf[2] <= TLS10_MINOR_VERSION )
                              ? buf[2]  : TLS10_MINOR_VERSION;
 
-        n = (uint) buf[4];
+        n = (int) buf[4];
         buf = ssl->in_msg;
 
         if( ( ret = net_read_all( ssl->read_fd, buf, n ) ) != 0 )
@@ -168,14 +163,16 @@ int ssl_parse_client_hello( ssl_context *ssl )
             buf[4] != SSLV3_MAJOR_VERSION )
             return( ERR_SSL_BAD_HS_CLIENT_HELLO );
 
-        if( buf[1] != 0 || buf[2] != 0 || (uint) buf[3] + 4 != n )
+        memcpy( ssl->max_ver, buf + 4, 2 );
+
+        if( buf[1] != 0 || buf[2] != 0 || (int) buf[3] + 4 != n )
             return( ERR_SSL_BAD_HS_CLIENT_HELLO );
 
         memcpy( ssl->randbytes, buf + 6, 32 );
 
-        sess_len = (uint) buf[38];
-        ciph_len = (uint) buf[40 + sess_len];
-        comp_len = (uint) buf[41 + sess_len + ciph_len];
+        sess_len = (int) buf[38];
+        ciph_len = (int) buf[40 + sess_len];
+        comp_len = (int) buf[41 + sess_len + ciph_len];
 
         if( buf[39 + sess_len] != 0 )
             return( ERR_SSL_BAD_HS_CLIENT_HELLO );
@@ -266,11 +263,65 @@ int ssl_write_certificate_request( ssl_context *ssl )
 
 int ssl_write_server_key_exchange( ssl_context *ssl )
 {
+    int ret, n;
+    uchar hash[36];
+    md5_context md5;
+    sha1_context sha1;
+
+    if( ssl->cipher != SSL3_EDH_RSA_DES_168_SHA &&
+        ssl->cipher != TLS1_EDH_RSA_AES_256_SHA )
+        return( 0 );
+
     /*
-     * TODO: handle Ephemeral Diffie-Hellman KEX
+     * Ephemeral DH parameters:
+     *
+     * struct {
+     *     opaque dh_p<1..2^16-1>;
+     *     opaque dh_g<1..2^16-1>;
+     *     opaque dh_Ys<1..2^16-1>;
+     * } ServerDHParams;
      */
-    ssl = NULL;
-    return( 0 );
+    if( ( ret = dhm_ssl_make_params( &ssl->dhm_ctx,
+                                      ssl->out_msg + 4, &n,
+                       ssl->rng_func, ssl->rng_state ) ) != 0 )
+        return( ret );
+
+    /*
+     * digitally-signed struct {
+     *     opaque md5_hash[16];
+     *     opaque sha_hash[20];
+     * };
+     *
+     * md5_hash
+     *     MD5(ClientHello.random + ServerHello.random
+     *                            + ServerParams);
+     * sha_hash
+     *     SHA(ClientHello.random + ServerHello.random
+     *                            + ServerParams);
+     */
+    md5_starts( &md5 );
+    md5_update( &md5, ssl->randbytes, 64  );
+    md5_update( &md5, ssl->out_msg + 4, n );
+    md5_finish( &md5, hash );
+
+    sha1_starts( &sha1 );
+    sha1_update( &sha1, ssl->randbytes, 64  );
+    sha1_update( &sha1, ssl->out_msg + 4, n );
+    sha1_finish( &sha1, hash + 16 );
+
+    ssl->out_msg[4 + n] = (uchar)( ssl->own_key->len >> 8 );
+    ssl->out_msg[5 + n] = (uchar)( ssl->own_key->len      );
+
+    if( ( ret = rsa_pkcs1_sign( ssl->own_key, RSA_NONE,
+                                hash, 36, ssl->out_msg + 6 + n,
+                                ssl->own_key->len ) ) != 0 )
+        return( ret );
+
+    ssl->out_msglen  = 6 + n + ssl->own_key->len;
+    ssl->out_msgtype = SSL_MSG_HANDSHAKE;
+    ssl->out_msg[0]  = SSL_HS_SERVER_KEY_EXCHANGE;
+
+    return( ssl_write_record( ssl, 0 ) );
 }
 
 int ssl_write_server_hello_done( ssl_context *ssl )
@@ -284,8 +335,7 @@ int ssl_write_server_hello_done( ssl_context *ssl )
 
 int ssl_parse_client_key_exchange( ssl_context *ssl )
 {
-    int ret;
-    uint i, j, k;
+    int ret, n1, n2, n3;
 
     if( ( ret = ssl_read_record( ssl, 0 ) ) != 0 )
         return( ret );
@@ -296,29 +346,54 @@ int ssl_parse_client_key_exchange( ssl_context *ssl )
     if( ssl->in_msg[0] != SSL_HS_CLIENT_KEY_EXCHANGE )
         return( ERR_SSL_BAD_HS_CLIENT_KEY_EXCHANGE );
 
-    i = 4;
-    j = ssl->own_key->len;
-    k = 48;
-
-    if( ssl->minor_version != SSLV3_MINOR_VERSION )
+    if( ssl->cipher == SSL3_EDH_RSA_DES_168_SHA ||
+        ssl->cipher == TLS1_EDH_RSA_AES_256_SHA )
     {
-        i += 2;
-        if( ssl->in_msg[4] != (uchar)( j >> 8 ) ||
-            ssl->in_msg[5] != (uchar)  j )
+        /*
+         * Receive G^Y mod P, premaster = (G^Y)^X mod P
+         */
+        n1 = ( ssl->in_msg[4] << 8 ) | ssl->in_msg[5];
+        n2 = n1 + 6;
+
+        if( n1 != ssl->dhm_ctx.len || n2 != ssl->hslen )
+            return( ERR_SSL_BAD_HS_CLIENT_KEY_EXCHANGE );
+
+        if( ( ret = dhm_read_public( &ssl->dhm_ctx,
+                                      ssl->in_msg + 6, n1 ) ) != 0 )
+            return( ret );
+
+        if( ( ret = dhm_calc_secret( &ssl->dhm_ctx,
+                                      ssl->premaster , n1 ) ) != 0 )
+            return( ret );
+    }
+    else
+    {
+        /*
+         * Decrypt the premaster using own private RSA key
+         */
+        n1 = 4;
+        n2 = ssl->own_key->len;
+        n3 = 48;
+
+        if( ssl->minor_version != SSLV3_MINOR_VERSION )
+        {
+            n1 += 2;
+            if( ssl->in_msg[4] != (uchar)( n2 >> 8 ) ||
+                ssl->in_msg[5] != (uchar)  n2 )
+                return( ERR_SSL_BAD_HS_CLIENT_KEY_EXCHANGE );
+        }
+
+        if( ssl->hslen != n1 + n2 )
+            return( ERR_SSL_BAD_HS_CLIENT_KEY_EXCHANGE );
+
+        if( ( ret = rsa_pkcs1_decrypt( ssl->own_key,
+                                       ssl->in_msg + n1, n2,
+                                       ssl->premaster, &n3 ) ) != 0 )
+            return( ret );
+
+        if( n3 != 48 || memcmp( ssl->premaster, ssl->max_ver, 2 ) != 0 )
             return( ERR_SSL_BAD_HS_CLIENT_KEY_EXCHANGE );
     }
-
-    if( ssl->hslen != i + j )
-        return( ERR_SSL_BAD_HS_CLIENT_KEY_EXCHANGE );
-
-    if( ( ret = rsa_pkcs1_decrypt( ssl->own_key,
-                                   ssl->in_msg + i, j,
-                                   ssl->premaster, &k ) ) != 0 )
-        return( ret );
-
-    if( k != sizeof( ssl->premaster ) ||
-        memcmp( ssl->premaster, ssl->max_client_ver, 2 ) != 0 )
-        return( ERR_SSL_BAD_HS_CLIENT_KEY_EXCHANGE );
 
     ssl_derive_keys( ssl );
 

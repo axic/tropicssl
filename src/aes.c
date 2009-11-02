@@ -29,11 +29,10 @@
 #endif
 
 #include <string.h>
-#include <stdio.h>
 
 #include "aes.h"
 
-/* 
+/*
  * 32-bit integer manipulation macros (big endian)
  */
 #ifndef GET_UINT32_BE
@@ -55,7 +54,7 @@
 }
 #endif
 
-/* 
+/*
  * Uncomment the following line to use pre-computed tables,
  * otherwise the tables will be generated at the first run.
  *
@@ -64,7 +63,7 @@
 
 #ifndef FIXED_TABLES
 
-/* 
+/*
  * Forward S-box & tables
  */
 ulong FSb[256];
@@ -73,7 +72,7 @@ ulong FT1[256];
 ulong FT2[256]; 
 ulong FT3[256]; 
 
-/* 
+/*
  * Reverse S-box & tables
  */
 ulong RSb[256];
@@ -82,18 +81,18 @@ ulong RT1[256];
 ulong RT2[256];
 ulong RT3[256];
 
-/* 
+/*
  * Round constants
  */
 ulong RCON[10];
 
-/* 
+/*
  * Tables generation code
  */
 int do_init = 1;
 
 #define ROTR8(x) ( ( ( x << 24 ) & 0xFFFFFFFF ) | \
-                   ( ( x & 0xFFFFFFFF ) >>  8 ) )
+                   ( ( x & 0xFFFFFFFF ) >> 8 ) )
 #define XTIME(x) ( ( x << 1 ) ^ ( ( x & 0x80 ) ? 0x1B : 0x00 ) )
 #define MUL(x,y) ( ( x && y ) ? pow[(log[x] + log[y]) % 255] : 0 )
 
@@ -176,7 +175,7 @@ void aes_gen_tables( void )
 
 #else
 
-/* 
+/*
  * Forward S-box
  */
 static const ulong FSb[256] =
@@ -215,7 +214,7 @@ static const ulong FSb[256] =
     0x41, 0x99, 0x2D, 0x0F, 0xB0, 0x54, 0xBB, 0x16
 };
 
-/* 
+/*
  * Forward tables
  */
 #define FT \
@@ -303,7 +302,7 @@ static const ulong FT3[256] = { FT };
 
 #undef FT
 
-/* 
+/*
  * Reverse S-box
  */
 static const ulong RSb[256] =
@@ -342,7 +341,7 @@ static const ulong RSb[256] =
     0xE1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0C, 0x7D
 };
 
-/* 
+/*
  * Reverse tables
  */
 #define RT \
@@ -430,7 +429,7 @@ static const ulong RT3[256] = { RT };
 
 #undef RT
 
-/* 
+/*
  * Round constants
  */
 static const ulong RCON[10] =
@@ -448,7 +447,7 @@ void aes_gen_tables( void )
 
 #endif
 
-/* 
+/*
  * Decryption key schedule tables
  */
 int KT_init = 1;
@@ -459,32 +458,32 @@ ulong KT2[256];
 ulong KT3[256];
 
 /*
- * AES key schedule (keysize can be 128, 192 or 256)
+ * AES key schedule
  */
-void aes_set_key( aes_context *ctx, uchar *key, uint keysize )
+void aes_set_key( aes_context *ctx, uchar *key, int keysize )
 {
-    uint i;
+    int i;
     ulong *RK, *SK;
 
     if( do_init )
     {
         aes_gen_tables();
-
         do_init = 0;
     }
 
     switch( keysize )
     {
-        case 256: ctx->nr = 14; break;
+        case 128: ctx->nr = 10; break;
         case 192: ctx->nr = 12; break;
-        default : ctx->nr = 10; break;
+        case 256: ctx->nr = 14; break;
+        default : return;
     }
 
     RK = ctx->erk;
 
     for( i = 0; i < (keysize >> 5); i++ )
     {
-        GET_UINT32_BE( RK[i], key, i * 4 );
+        GET_UINT32_BE( RK[i], key, i << 2 );
     }
 
     /*
@@ -613,8 +612,8 @@ void aes_set_key( aes_context *ctx, uchar *key, uint keysize )
     *SK++ = *RK++;
 }
 
-/*
- * AES 128-bit block encryption (ECB)
+/**
+ * AES block encryption (ECB mode)
  */
 void aes_encrypt( aes_context *ctx, uchar input[16], uchar output[16] )
 {
@@ -703,7 +702,7 @@ void aes_encrypt( aes_context *ctx, uchar input[16], uchar output[16] )
 }
 
 /*
- * AES 128-bit block decryption (ECB)
+ * AES block decryption (ECB mode)
  */
 void aes_decrypt( aes_context *ctx, uchar input[16], uchar output[16] )
 {
@@ -792,13 +791,14 @@ void aes_decrypt( aes_context *ctx, uchar input[16], uchar output[16] )
 }
 
 /*
- * AES-CBC encryption
+ * AES-CBC buffer encryption
  */
 void aes_cbc_encrypt( aes_context *ctx, uchar iv[16],
-                      uchar *input, uchar *output, uint len )
+                      uchar *input, uchar *output, int len )
 {
-    int i, n = len;
-    while( n > 0 )
+    int i;
+
+    while( len > 0 )
     {
         for( i = 0; i < 16; i++ )
             output[i] = input[i] ^ iv[i];
@@ -808,19 +808,20 @@ void aes_cbc_encrypt( aes_context *ctx, uchar iv[16],
 
         input  += 16;
         output += 16;
-        n -= 16;
+        len    -= 16;
     }
 }
 
 /*
- * AES-CBC decryption
+ * AES-CBC buffer decryption
  */
 void aes_cbc_decrypt( aes_context *ctx, uchar iv[16],
-                      uchar *input, uchar *output, uint len )
+                      uchar *input, uchar *output, int len )
 {
+    int i;
     uchar temp[16];
-    int i, n = len;
-    while( n > 0 )
+
+    while( len > 0 )
     {
         memcpy( temp, input, 16 );
         aes_decrypt( ctx, input, output );
@@ -832,15 +833,18 @@ void aes_cbc_decrypt( aes_context *ctx, uchar iv[16],
 
         input  += 16;
         output += 16;
-        n -= 16;
+        len    -= 16;
     }
 }
 
 #ifdef SELF_TEST
-/* 
- * AES-EBC test vectors (source: NIST, rijndael-vals.zip)
+
+#include <stdio.h>
+
+/*
+ * AES-ECB test vectors (source: NIST, rijndael-vals.zip)
  */
-static uchar AES_enc_test[3][16] =
+static uchar aes_enc_test[3][16] =
 {
     { 0xC3, 0x4C, 0x05, 0x2C, 0xC0, 0xDA, 0x8D, 0x73,
       0x45, 0x1A, 0xFE, 0x5F, 0x03, 0xBE, 0x29, 0x7F },
@@ -850,7 +854,7 @@ static uchar AES_enc_test[3][16] =
       0xFF, 0x30, 0xB4, 0xEA, 0x21, 0x63, 0x6D, 0xA4 }
 };
     
-static uchar AES_dec_test[3][16] =
+static uchar aes_dec_test[3][16] =
 {
     { 0x44, 0x41, 0x6A, 0xC2, 0xD1, 0xF5, 0x3C, 0x58,
       0x33, 0x03, 0x91, 0x7E, 0x6B, 0xE9, 0xEB, 0xE0 },
@@ -865,7 +869,7 @@ static uchar AES_dec_test[3][16] =
  */
 int aes_self_test( void )
 {
-    uint i, j, u, v;
+    int i, j, u, v;
     aes_context ctx;
     uchar buf[32];
 
@@ -874,7 +878,7 @@ int aes_self_test( void )
         u = i >> 1;
         v = i & 1;
 
-        printf( "  AES-EBC-%3d (%s): ", 128 + u * 64,
+        printf( "  AES-ECB-%3d (%s): ", 128 + u * 64,
                 ( v == 0 ) ? "enc" : "dec" );
 
         memset( buf, 0, 32 );
@@ -886,8 +890,8 @@ int aes_self_test( void )
             if( v == 1 ) aes_decrypt( &ctx, buf, buf );
         }
 
-        if( ( v == 0 && memcmp( buf, AES_enc_test[u], 16 ) != 0 ) ||
-            ( v == 1 && memcmp( buf, AES_dec_test[u], 16 ) != 0 ) )
+        if( ( v == 0 && memcmp( buf, aes_enc_test[u], 16 ) != 0 ) ||
+            ( v == 1 && memcmp( buf, aes_dec_test[u], 16 ) != 0 ) )
         {
             printf( "failed\n" );
             return( 1 );
@@ -902,7 +906,6 @@ int aes_self_test( void )
 #else
 int aes_self_test( void )
 {
-    printf( "AES self-test not available\n\n" );
-    return( 1 );
+    return( 0 );
 }
 #endif

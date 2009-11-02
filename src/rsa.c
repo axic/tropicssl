@@ -35,16 +35,10 @@
 #include "rsa.h"
 
 /*
- * Generate a RSA keypair of nbits in size according
- * to the specified public exponent.
- *
- * Function "rng_func" takes one argument (rng_state)
- * and should return a random unsigned long.
- *
- * Returns 0 if successful, or ERR_RSA_KEYGEN_FAILED.
+ * Generate an RSA keypair
  */
-int rsa_gen_key( rsa_context *ctx, uint nbits, uint exponent,
-                 ulong (*rng_func)(void *), void *rng_state )
+int rsa_gen_key( rsa_context *ctx, int nbits, int exponent,
+                 ulong (*rng_fn)(void *), void *rng_st )
 {
     int ret;
     mpi P1, Q1, H, G;
@@ -54,18 +48,17 @@ int rsa_gen_key( rsa_context *ctx, uint nbits, uint exponent,
     memset( ctx, 0, sizeof( rsa_context ) );
 
     /*
-     * find primes P and Q with Q < P so that
+     * find primes P and Q with Q < P so that:
      * GCD( E, (P-1)*(Q-1) ) == 1
      */
     CHK( mpi_lset( &ctx->E, exponent ) );
 
+    nbits >>= 1;
+
     do
     {
-        CHK( mpi_gen_prime( &ctx->P, nbits / 2, 0,
-                            rng_func, rng_state ) );
-
-        CHK( mpi_gen_prime( &ctx->Q, nbits / 2, 0,
-                            rng_func, rng_state ) );
+        CHK( mpi_gen_prime( &ctx->P, nbits, 0, rng_fn, rng_st ) );
+        CHK( mpi_gen_prime( &ctx->Q, nbits, 0, rng_fn, rng_st ) );
 
         if( mpi_cmp_mpi( &ctx->P, &ctx->Q ) < 0 )
             mpi_swap( &ctx->P, &ctx->Q );
@@ -105,14 +98,10 @@ cleanup:
 }
 
 /*
- * Perform an RSA public key operation. This function
- * does not take care of message padding: both ilen and
- * olen must be equal to the modulus size (ctx->len).
- *
- * Returns 0 if successful, or ERR_RSA_PUBLIC_FAILED.
+ * Perform an RSA public key operation
  */
-int rsa_public( rsa_context *ctx, uchar *input,  uint ilen,
-                                  uchar *output, uint olen )
+int rsa_public( rsa_context *ctx, uchar *input,  int ilen,
+                                  uchar *output, int olen )
 {
     int ret;
     mpi T;
@@ -130,7 +119,7 @@ int rsa_public( rsa_context *ctx, uchar *input,  uint ilen,
         return( ERR_RSA_PUBLIC_FAILED );
     }
 
-    CHK( mpi_exp_mod( &T, &T, &ctx->E, &ctx->N ) );
+    CHK( mpi_exp_mod( &T, &T, &ctx->E, &ctx->N, &ctx->RN ) );
     CHK( mpi_export( &T, output, &olen ) );
 
 cleanup:
@@ -144,14 +133,10 @@ cleanup:
 }
 
 /*
- * Perform an RSA private key operation. This function
- * does not take care of message padding: both ilen an
- * olen must be equal to the modulus size (ctx->len).
- *
- * Returns 0 if successful, or ERR_RSA_PRIVATE_FAILED.
+ * Perform an RSA private key operation
  */
-int rsa_private( rsa_context *ctx, uchar *input,  uint ilen,
-                                   uchar *output, uint olen )
+int rsa_private( rsa_context *ctx, uchar *input,  int ilen,
+                                   uchar *output, int olen )
 {
     int ret;
     mpi T, T1, T2;
@@ -170,7 +155,7 @@ int rsa_private( rsa_context *ctx, uchar *input,  uint ilen,
     }
 
 #if 0
-    CHK( mpi_exp_mod( &T, &T, &ctx->D, &ctx->N ) );
+    CHK( mpi_exp_mod( &T, &T, &ctx->D, &ctx->N, &ctx->RN ) );
 #else
     /*
      * faster decryption using the CRT
@@ -178,8 +163,8 @@ int rsa_private( rsa_context *ctx, uchar *input,  uint ilen,
      * T1 = input ^ dP mod P
      * T2 = input ^ dQ mod Q
      */
-    CHK( mpi_exp_mod( &T1, &T, &ctx->DP, &ctx->P ) );
-    CHK( mpi_exp_mod( &T2, &T, &ctx->DQ, &ctx->Q ) );
+    CHK( mpi_exp_mod( &T1, &T, &ctx->DP, &ctx->P, &ctx->RP ) );
+    CHK( mpi_exp_mod( &T2, &T, &ctx->DQ, &ctx->Q, &ctx->RQ ) );
 
     /*
      * T = (T1 - T2) * (Q^-1 mod P) mod P
@@ -193,7 +178,6 @@ int rsa_private( rsa_context *ctx, uchar *input,  uint ilen,
      */
     CHK( mpi_mul_mpi( &T1, &T, &ctx->Q ) );
     CHK( mpi_add_mpi( &T, &T2, &T1 ) );
-
 #endif
 
     CHK( mpi_export( &T, output, &olen ) );
@@ -209,8 +193,7 @@ cleanup:
 }
 
 /*
- * Returns 0 if the public key is valid,
- * or ERR_RSA_KEY_CHECK_FAILED.
+ * Return 0 if the public key is valid or ERR_RSA_KEY_CHECK_FAILED
  */
 int rsa_check_pubkey( rsa_context *ctx )
 {
@@ -230,8 +213,7 @@ int rsa_check_pubkey( rsa_context *ctx )
 }
 
 /*
- * Returns 0 if the private key is valid,
- * or ERR_RSA_KEY_CHECK_FAILED.
+ * Return 0 if the private key is valid or ERR_RSA_KEY_CHECK_FAILED
  */
 int rsa_check_privkey( rsa_context *ctx )
 {
@@ -260,21 +242,11 @@ cleanup:
 }
 
 /*
- * Add the PKCS1 v1.5 padding and perform a public RSA.
- *
- *      ctx     points to an RSA public key
- *      input   buffer holding the data to be encrypted
- *      ilen    length of the plaintext; cannot be longer
- *              than the modulus, minus 3+8 for padding
- *      output  buffer that will hold the ciphertext
- *      olen    must be the same as the modulus size
- *              (for example, 128 if RSA-1024 is used)
- *
- * Returns 0 if successful, or ERR_RSA_ENCRYPT_FAILED
+ * Add the PKCS1 v1.5 padding and do a public RSA
  */
 int rsa_pkcs1_encrypt( rsa_context *ctx,
-                       uchar *input,  uint ilen,
-                       uchar *output, uint olen )
+                       uchar *input,  int ilen,
+                       uchar *output, int olen )
 {
     int nb_pad;
     uchar *p = output;
@@ -303,20 +275,11 @@ int rsa_pkcs1_encrypt( rsa_context *ctx,
 }
 
 /*
- * Perform a private RSA and remove the PKCS1 v1.5 padding.
- *
- *      ctx     points to an RSA private key
- *      input   buffer holding the encrypted data
- *      ilen    must be the same as the modulus size
- *      output  buffer that will hold the plaintext
- *      olen    size of output buffer, will be updated
- *              to contain the length of the plaintext
- *
- * Returns 0 if successful, or ERR_RSA_DECRYPT_FAILED
+ * Do a private RSA and remove the PKCS1 v1.5 padding
  */
 int rsa_pkcs1_decrypt( rsa_context *ctx,
-                       uchar *input,  uint  ilen,
-                       uchar *output, uint *olen )
+                       uchar *input,  int  ilen,
+                       uchar *output, int *olen )
 {
     uchar *p, tmp[512];
 
@@ -339,10 +302,10 @@ int rsa_pkcs1_decrypt( rsa_context *ctx,
     }
     p++;
 
-    if( *olen < ilen - (uint)(p - tmp) )
+    if( *olen < ilen - (int)(p - tmp) )
         return( ERR_RSA_DECRYPT_FAILED );
 
-    *olen = ilen - (uint)(p - tmp);
+    *olen = ilen - (int)(p - tmp);
     memcpy( output, p, *olen );
 
     return( 0 );
@@ -350,19 +313,10 @@ int rsa_pkcs1_decrypt( rsa_context *ctx,
 
 /*
  * Perform a private RSA to sign a message digest
- *
- *      ctx     points to an RSA private key
- *      hash    buffer holding the message digest
- *      alg_id  must be set to RSA_MD2/4/5 or RSA_SHA1
- *      sig     buffer that will hold the ciphertext
- *      siglen  must be the same as the modulus size
- *              (for example, 128 if RSA-1024 is used)
- *
- * Returns 0 if successful, or ERR_RSA_SIGN_FAILED
  */
-int rsa_pkcs1_sign( rsa_context *ctx,
-                    uchar *hash, int alg_id,
-                    uchar *sig, uint siglen )
+int rsa_pkcs1_sign( rsa_context *ctx, int alg_id,
+                    uchar *hash, int hashlen,
+                    uchar *sig,  int siglen )
 {
     int nb_pad;
     uchar *p = sig;
@@ -380,6 +334,10 @@ int rsa_pkcs1_sign( rsa_context *ctx,
 
         case RSA_SHA1:
             nb_pad = siglen - 3 - 35;
+            break;
+
+        case RSA_NONE:
+            nb_pad = siglen - 3 - hashlen;
             break;
 
         default:
@@ -418,6 +376,10 @@ int rsa_pkcs1_sign( rsa_context *ctx,
             memcpy( p + 15, hash, 20 );
             break;
 
+        case RSA_NONE:
+            memcpy( p, hash, hashlen );
+            break;
+
         default:
             return( ERR_RSA_SIGN_FAILED );
     }
@@ -429,48 +391,41 @@ int rsa_pkcs1_sign( rsa_context *ctx,
 }
 
 /*
- * Perform a public RSA and check the message digest.
- *
- *      ctx     points to an RSA public key
- *      hash    buffer holding the message digest
- *      alg_id  must be set to RSA_MD{2,4,5} or RSA_SHA1
- *      sig     buffer holding the ciphertext
- *      siglen  must be the same as the modulus size
- *
- * Returns 0 if successful, or ERR_RSA_VERIFY_FAILED
+ * Perform a public RSA and check the message digest
  */
-int rsa_pkcs1_verify( rsa_context *ctx,
-                      uchar *hash, int alg_id,
-                      uchar *sig, uint siglen )
+int rsa_pkcs1_verify( rsa_context *ctx, int alg_id,
+                      uchar *hash, int hashlen,
+                      uchar *sig,  int siglen )
 {
     int len;
-    uchar *p, c, tmp[512];
+    uchar *p, c, buf[512];
 
     if( siglen != ctx->len || siglen < 48 || siglen > 512 )
         return( ERR_RSA_VERIFY_FAILED );
 
-    if( rsa_public( ctx, sig, siglen, tmp, siglen ) != 0 )
+    if( rsa_public( ctx, sig, siglen, buf, siglen ) != 0 )
         return( ERR_RSA_VERIFY_FAILED );
 
-    p = tmp;
+    p = buf;
 
     if( *p++ != 0 || *p++ != RSA_SIGN )
         return( ERR_RSA_VERIFY_FAILED );
 
     while( *p != 0 )
     {
-        if( p >= tmp + siglen - 1 || *p != 0xFF )
+        if( p >= buf + siglen - 1 || *p != 0xFF )
             return( ERR_RSA_VERIFY_FAILED );
         p++;
     }
     p++;
 
-    len = siglen - (uint)( p - tmp );
+    len = siglen - (int)( p - buf );
 
     if( len == 34 )
     {
         c = p[13];
         p[13] = 0;
+
         if( memcmp( p, ASN1_HASH_MDX, 18 ) != 0 )
             return( ERR_RSA_VERIFY_FAILED );
 
@@ -490,17 +445,24 @@ int rsa_pkcs1_verify( rsa_context *ctx,
             return( 0 );
     }
 
+    if( len == hashlen && alg_id == RSA_NONE )
+    {
+        if( memcmp( p, hash, hashlen ) == 0 )
+            return( 0 );
+    }
+
     return( ERR_RSA_VERIFY_FAILED );
 }
 
 /*
- * Free the components of an RSA key.
+ * Free the components of an RSA key
  */
 void rsa_free( rsa_context *ctx )
 {
     mpi_free( &ctx->N,  &ctx->E,  &ctx->D,
               &ctx->P,  &ctx->Q,  &ctx->DP,
-              &ctx->DQ, &ctx->QP, NULL );
+              &ctx->DQ, &ctx->QP, &ctx->RN,
+              &ctx->RP, &ctx->RQ, NULL );
 }
 
 #ifdef SELF_TEST
@@ -519,7 +481,7 @@ uchar plaintext[] =
  */
 int rsa_self_test( void )
 {
-    uint len;
+    int len;
     rsa_context rsa;
     uchar md5sum[16];
     uchar decrypted[PTLEN];
@@ -604,7 +566,7 @@ int rsa_self_test( void )
 
     md5_csum( plaintext, PTLEN, md5sum );
 
-    if( rsa_pkcs1_sign( &rsa, md5sum, RSA_MD5,
+    if( rsa_pkcs1_sign( &rsa, RSA_MD5, md5sum, 16,
                         ciphertext, CTLEN ) != 0 )
     {
         printf( "failed\n" );
@@ -613,7 +575,7 @@ int rsa_self_test( void )
 
     printf( "passed\n  PKCS#1 sig. verify: " );
 
-    if( rsa_pkcs1_verify( &rsa, md5sum, RSA_MD5,
+    if( rsa_pkcs1_verify( &rsa, RSA_MD5, md5sum, 16,
                           ciphertext, CTLEN ) != 0 )
     {
         printf( "failed\n" );
@@ -621,12 +583,13 @@ int rsa_self_test( void )
     }
 
     printf( "passed\n\n" );
+
+    rsa_free( &rsa );
     return( 0 );
 }
 #else
 int rsa_self_test( void )
 {
-    printf( "RSA self-test not available\n\n" );
-    return( 1 );
+    return( 0 );
 }
 #endif

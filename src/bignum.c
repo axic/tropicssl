@@ -33,13 +33,14 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-#include "mpi.h"
+#include "bignum.h"
+#include "muladdc.h"
 
 #define ciL    sizeof(t_int)    /* chars in limb  */
 #define biL    (ciL << 3)       /* bits  in limb  */
 #define biH    (ciL << 2)       /* half limb size */
 
-/*  
+/*
  * Bits/chars to # of limbs conversion
  */
 #define BITS_TO_LIMBS(i)  (((i) + biL - 1) / biL)
@@ -80,6 +81,8 @@ void mpi_free( mpi *X, ... )
             free( X->p );
         }
 
+        memset( X, 0, sizeof( mpi ) );
+
         X = va_arg( args, mpi* );
     }
 
@@ -87,10 +90,7 @@ void mpi_free( mpi *X, ... )
 }
 
 /*
- * Enlarge total size to the specified # of limbs
- *
- * Returns 0 if successful
- *         1 if memory allocation failed
+ * Enlarge X to the specified # of limbs
  */
 int mpi_grow( mpi *X, int nblimbs )
 {
@@ -102,7 +102,7 @@ int mpi_grow( mpi *X, int nblimbs )
             X->s = 1;
 
         X->n = nblimbs;
-        X->p = (t_int *) realloc( X->p, X->n * ciL );
+        X->p = (t_int *) realloc( X->p, 16 + X->n * ciL );
 
         if( X->p == NULL )
             return( 1 );
@@ -114,30 +114,7 @@ int mpi_grow( mpi *X, int nblimbs )
 }
 
 /*
- * Set value to integer z
- *
- * Returns 0 if successful
- *         1 if memory allocation failed
- */
-int mpi_lset( mpi *X, int z )
-{
-    int ret;
-
-    CHK( mpi_grow( X, 1 ) );
-    memset( X->p, 0, X->n * ciL );
-    X->p[0] = ( z < 0 ) ? -z : z;
-    X->s    = ( z < 0 ) ? -1 : 1;
-
-cleanup:
-
-    return( ret );
-}
-
-/*
  * Copy the contents of Y into X
- *
- * Returns 0 if successful
- *         1 if memory allocation failed
  */
 int mpi_copy( mpi *X, mpi *Y )
 {
@@ -175,11 +152,25 @@ void mpi_swap( mpi *X, mpi *Y )
     memcpy( Y , &T, sizeof( mpi ) );
 }
 
-/* 
+/*
+ * Set value from integer
+ */
+int mpi_lset( mpi *X, int z )
+{
+    int ret;
+
+    CHK( mpi_grow( X, 1 ) );
+    memset( X->p, 0, X->n * ciL );
+    X->p[0] = ( z < 0 ) ? -z : z;
+    X->s    = ( z < 0 ) ? -1 : 1;
+
+cleanup:
+
+    return( ret );
+}
+
+/*
  * Convert an ASCII character to digit value
- *
- * Returns 0 if successful
- *         ERR_MPI_INVALID_CHARACTER if conversion to digit failed
  */
 int mpi_get_digit( t_int *d, int radix, char c )
 {
@@ -197,11 +188,6 @@ int mpi_get_digit( t_int *d, int radix, char c )
 
 /*
  * Set value from string
- *
- * Returns 0 if successful
- *         1 if memory allocation failed
- *         ERR_MPI_INVALID_PARAMETER if radix is not between 2 and 16
- *         ERR_MPI_INVALID_CHARACTER if a non-digit character is found
  */
 int mpi_read( mpi *X, char *s, int radix )
 {
@@ -257,15 +243,10 @@ cleanup:
     return( ret );
 }
 
-/* 
+/*
  * Helper to display the digits high-order first
- * (don't call this function directly, use mpi_showf)
- *
- * Returns 0 if successful
- *         1 if memory allocation failed
- *         ERR_MPI_INVALID_PARAMETER if base is not between 2 and 16
  */
-int mpi_recurse_showf( FILE *fout, mpi *X, int radix )
+int mpi_recurse_showf( mpi *X, int radix, FILE *fout )
 {
     int ret;
     t_int r;
@@ -277,10 +258,14 @@ int mpi_recurse_showf( FILE *fout, mpi *X, int radix )
     CHK( mpi_div_int( X, NULL, X, radix ) );
 
     if( mpi_cmp_int( X, 0 ) != 0 )
-        CHK( mpi_recurse_showf( fout, X, radix ) );
+        CHK( mpi_recurse_showf( X, radix, fout ) );
 
-    fprintf( fout, "%c", ( r < 10 ) ? ( (char) r + 0x30 )
-                                    : ( (char) r + 0x37 ) );
+    if( fout != NULL )
+        fprintf( fout, "%c", ( r < 10 ) ? ( (char) r + 0x30 )
+                                        : ( (char) r + 0x37 ) );
+    else
+        printf( "%c", ( r < 10 ) ? ( (char) r + 0x30 )
+                                 : ( (char) r + 0x37 ) );
 
 cleanup:
 
@@ -288,13 +273,9 @@ cleanup:
 }
 
 /*
- * Print value in the given numeric base (into fout)
- *
- * Returns 0 if successful
- *         1 if memory allocation failed
- *         ERR_MPI_INVALID_PARAMETER if base is not between 2 and 16
+ * Print the value of X into fout
  */
-int mpi_showf( FILE *fout, char *name, mpi *X, int radix )
+int mpi_showf( char *name, mpi *X, int radix, FILE *fout )
 {
     int ret, i, j, k, l;
     mpi T;
@@ -304,7 +285,10 @@ int mpi_showf( FILE *fout, char *name, mpi *X, int radix )
 
     mpi_init( &T, NULL );
 
-    fprintf( fout, "%s%c", name, ( X->s == -1 ) ? '-' : ' ' );
+    if( fout != NULL )
+        fprintf( fout, "%s%c", name, ( X->s == -1 ) ? '-' : ' ' );
+    else
+        printf( "%s%c", name, ( X->s == -1 ) ? '-' : ' ' );
 
     if( radix == 16 )
     {
@@ -319,7 +303,11 @@ int mpi_showf( FILE *fout, char *name, mpi *X, int radix )
                 if( k == 0 && l == 0 && (i + j) != 0 )
                     continue;
 
-                fprintf( fout, "%02X", k );
+                if( fout != NULL )
+                    fprintf( fout, "%02X", k );
+                else
+                    printf( "%02X", k );
+
                 l = 1;
             }
         }
@@ -327,10 +315,13 @@ int mpi_showf( FILE *fout, char *name, mpi *X, int radix )
     else
     {
         CHK( mpi_copy( &T, X ) );
-        CHK( mpi_recurse_showf( fout, &T, radix ) );
+        CHK( mpi_recurse_showf( &T, radix, fout ) );
     }
 
-    fprintf( fout, "\n" );
+    if( fout != NULL )
+        fprintf( fout, "\n" );
+    else
+        printf( "\n" );
 
 cleanup:
 
@@ -339,27 +330,19 @@ cleanup:
 }
 
 /*
- * Print value in the given numeric base (into stdout)
- *
- * Returns 0 if successful
- *         1 if memory allocation failed
- *         ERR_MPI_INVALID_PARAMETER if base is not between 2 and 16
+ * Print the value of X on the console
  */
 int mpi_show( char *name, mpi *X, int radix )
 {
-    return( mpi_showf( stdout, name, X, radix ) );
+    return( mpi_showf( name, X, radix, NULL ) );
 }
 
 /*
- * Import unsigned value from binary data
- *
- * Returns 0 if successful
- *         1 if memory allocation failed
+ * Import an unsigned value from binary data
  */
-int mpi_import( mpi *X, unsigned char *buf, uint buflen )
+int mpi_import( mpi *X, uchar *buf, int buflen )
 {
-    int ret, i, j;
-    uint n;
+    int ret, i, j, n;
 
     for( n = 0; n < buflen; n++ )
         if( buf[n] != 0 )
@@ -368,7 +351,7 @@ int mpi_import( mpi *X, unsigned char *buf, uint buflen )
     CHK( mpi_grow( X, CHARS_TO_LIMBS(buflen - n) ) );
     CHK( mpi_lset( X, 0 ) );
 
-    for( i = buflen - 1, j = 0; i >= (int) n; i--, j++ )
+    for( i = buflen - 1, j = 0; i >= n; i--, j++ )
         X->p[j / ciL] |= (t_int) buf[i] << ((j % ciL ) << 3);
 
 cleanup:
@@ -377,18 +360,11 @@ cleanup:
 }
 
 /*
- * Export unsigned value into binary data
- *
- * Call this function with buflen = 0 to obtain the required
- * buffer size in buflen.
- *
- * Returns 0 if successful
- *         ERR_MPI_BUFFER_TOO_SMALL if buf hasn't enough room
+ * Export an unsigned value into binary data
  */
-int mpi_export( mpi *X, unsigned char *buf, uint *buflen )
+int mpi_export( mpi *X, uchar *buf, int *buflen )
 {
-    int i, j;
-    uint n;
+    int i, j, n;
 
     n = ( mpi_size( X ) + 7 ) >> 3;
 
@@ -407,9 +383,9 @@ int mpi_export( mpi *X, unsigned char *buf, uint *buflen )
 }
 
 /*
- * Returns actual size in bits
+ * Return the actual size in bits (without leading 0s)
  */
-uint mpi_size( mpi *X )
+int mpi_size( mpi *X )
 {
     int i, j;
 
@@ -425,12 +401,11 @@ uint mpi_size( mpi *X )
 }
 
 /*
- * Returns # of least significant bits
+ * Return the number of least significant bits
  */
-uint mpi_lsb( mpi *X )
+int mpi_lsb( mpi *X )
 {
-    int i, j;
-    uint count = 0;
+    int i, j, count = 0;
 
     for( i = 0; i < X->n; i++ )
         for( j = 0; j < (int) biL; j++, count++ )
@@ -442,11 +417,8 @@ uint mpi_lsb( mpi *X )
 
 /*
  * Left-shift: X <<= count
- *
- * Returns 0 if successful,
- *         1 if memory allocation failed
  */
-int mpi_shift_l( mpi *X, uint count )
+int mpi_shift_l( mpi *X, int count )
 {
     int ret, i, v0, t1;
     t_int r0 = 0, r1;
@@ -494,10 +466,8 @@ cleanup:
 
 /*
  * Right-shift: X >>= count
- *
- * Always returns 0.
  */
-int mpi_shift_r( mpi *X, uint count )
+int mpi_shift_r( mpi *X, int count )
 {
     int i, v0, v1;
     t_int r0 = 0, r1;
@@ -535,11 +505,7 @@ int mpi_shift_r( mpi *X, uint count )
 }
 
 /*
- * Compare absolute values
- *
- * Returns 1 if |X| is greater than |Y|
- *        -1 if |X| is lesser  than |Y|
- *         0 if |X| is equal to |Y|
+ * Compare unsigned values
  */
 int mpi_cmp_abs( mpi *X, mpi *Y )
 {
@@ -570,10 +536,6 @@ int mpi_cmp_abs( mpi *X, mpi *Y )
 
 /*
  * Compare signed values
- *
- * Returns 1 if X is greater than Y
- *        -1 if X is lesser  than Y
- *         0 if X is equal to Y
  */
 int mpi_cmp_mpi( mpi *X, mpi *Y )
 {
@@ -607,10 +569,6 @@ int mpi_cmp_mpi( mpi *X, mpi *Y )
 
 /*
  * Compare signed values
- *
- * Returns 1 if X is greater than z
- *        -1 if X is lesser  than z
- *         0 if X is equal to z
  */
 int mpi_cmp_int( mpi *X, int z )
 {
@@ -627,9 +585,6 @@ int mpi_cmp_int( mpi *X, int z )
 
 /*
  * Unsigned addition: X = |A| + |B|  (HAC 14.7)
- *
- * Returns 0 if successful
- *         1 if memory allocation failed
  */
 int mpi_add_abs( mpi *X, mpi *A, mpi *B )
 {
@@ -675,16 +630,33 @@ cleanup:
 }
 
 /*
+ * Helper for mpi substraction
+ */
+void mpi_sub_hlp( int n, t_int *s, t_int *d )
+{
+    int i;
+    t_int c, z;
+
+    for( i = c = 0; i < n; i++, s++, d++ )
+    {
+        z = ( *d <  c );     *d -=  c;
+        c = ( *d < *s ) + z; *d -= *s;
+    }
+
+    while( c != 0 )
+    {
+        z = ( *d < c ); *d -= c;
+        c = z; i++; d++;
+    }
+}
+
+/*
  * Unsigned substraction: X = |A| - |B|  (HAC 14.9)
- *
- * Returns 0 if successful
- *         ERR_MPI_NEGATIVE_VALUE if B is greater than A
  */
 int mpi_sub_abs( mpi *X, mpi *A, mpi *B )
 {
     mpi TB;
-    int ret, i, j;
-    t_int *o, *p, c, z;
+    int ret, n;
 
     if( mpi_cmp_abs( A, B ) < 0 )
         return( ERR_MPI_NEGATIVE_VALUE );
@@ -702,23 +674,11 @@ int mpi_sub_abs( mpi *X, mpi *A, mpi *B )
 
     ret = 0;
 
-    for( j = B->n - 1; j >= 0; j-- )
-        if( B->p[j] != 0 )
+    for( n = B->n - 1; n >= 0; n-- )
+        if( B->p[n] != 0 )
             break;
 
-    o = B->p; p = X->p; c = 0;
-
-    for( i = 0; i <= j; i++, o++, p++ )
-    {
-        z = ( *p <  c );     *p -=  c;
-        c = ( *p < *o ) + z; *p -= *o;
-    }
-
-    while( c != 0 )
-    {
-        z = ( *p < c ); *p -= c;
-        c = z; i++; p++;
-    }
+    mpi_sub_hlp( n + 1, B->p, X->p );
 
 cleanup:
 
@@ -728,9 +688,6 @@ cleanup:
 
 /*
  * Signed addition: X = A + B
- *
- * Returns 0 if successful
- *         1 if memory allocation failed
  */
 int mpi_add_mpi( mpi *X, mpi *A, mpi *B )
 {
@@ -762,9 +719,6 @@ cleanup:
 
 /*
  * Signed substraction: X = A - B
- *
- * Returns 0 if successful
- *         1 if memory allocation failed
  */
 int mpi_sub_mpi( mpi *X, mpi *A, mpi *B )
 {
@@ -796,9 +750,6 @@ cleanup:
 
 /*
  * Signed addition: X = A + b
- *
- * Returns 0 if successful
- *         1 if memory allocation failed
  */
 int mpi_add_int( mpi *X, mpi *A, int b )
 {
@@ -815,9 +766,6 @@ int mpi_add_int( mpi *X, mpi *A, int b )
 
 /*
  * Signed substraction: X = A - b
- *
- * Returns 0 if successful,
- *         1 if memory allocation failed
  */
 int mpi_sub_int( mpi *X, mpi *A, int b )
 {
@@ -832,139 +780,19 @@ int mpi_sub_int( mpi *X, mpi *A, int b )
     return( mpi_sub_mpi( X, A, &_B ) );
 }
 
-/* 
- * Multiply source s with b, add result to
- * destination d and set carry c.
- */
-#if defined _MSC_VER
-
-#define MULADDC_INIT                    \
-    __asm   mov     esi, s              \
-    __asm   mov     edi, d              \
-    __asm   mov     ecx, c              \
-    __asm   mov     ebx, b
-
-#define MULADDC_CORE                    \
-    __asm   lodsd                       \
-    __asm   mul     ebx                 \
-    __asm   add     eax, ecx            \
-    __asm   adc     edx, 0              \
-    __asm   add     eax, [edi]          \
-    __asm   adc     edx, 0              \
-    __asm   mov     ecx, edx            \
-    __asm   stosd
-
-#define MULADDC_STOP                    \
-    __asm   mov     c, ecx              \
-    __asm   mov     d, edi              \
-    __asm   mov     s, esi              \
-
-#else
-#if defined __i386__
-
-#define MULADDC_INIT                    \
-    asm( "movl  %0, %%esi" :: "m" (s)); \
-    asm( "movl  %0, %%edi" :: "m" (d)); \
-    asm( "movl  %0, %%ecx" :: "m" (c)); \
-    asm( "movl  %0, %%ebx" :: "m" (b));
-
-#define MULADDC_CORE                    \
-    asm( "lodsl                 " );    \
-    asm( "mull  %ebx            " );    \
-    asm( "addl  %ecx,   %eax    " );    \
-    asm( "adcl  $0,     %edx    " );    \
-    asm( "addl  (%edi), %eax    " );    \
-    asm( "adcl  $0,     %edx    " );    \
-    asm( "movl  %edx,   %ecx    " );    \
-    asm( "stosl                 " );
-
-#define MULADDC_STOP                    \
-    asm( "movl  %%ecx, %0" :: "m" (c)); \
-    asm( "movl  %%edi, %0" :: "m" (d)); \
-    asm( "movl  %%esi, %0" :: "m" (s) : \
-         "eax", "ecx", "edx",           \
-         "ebx", "esi", "edi" );
-
-#else
-#if defined __amd64__
-
-#define MULADDC_INIT                    \
-    asm( "movq  %0, %%rsi" :: "m" (s)); \
-    asm( "movq  %0, %%rdi" :: "m" (d)); \
-    asm( "movq  %0, %%rcx" :: "m" (c)); \
-    asm( "movq  %0, %%rbx" :: "m" (b));
-
-#define MULADDC_CORE                    \
-    asm( "lodsq                 " );    \
-    asm( "mulq  %rbx            " );    \
-    asm( "addq  %rcx,   %rax    " );    \
-    asm( "adcq  $0,     %rdx    " );    \
-    asm( "addq  (%rdi), %rax    " );    \
-    asm( "adcq  $0,     %rdx    " );    \
-    asm( "movq  %rdx,   %rcx    " );    \
-    asm( "stosq                 " );
-
-#define MULADDC_STOP                    \
-    asm( "movq  %%rcx, %0" :: "m" (c)); \
-    asm( "movq  %%rdi, %0" :: "m" (d)); \
-    asm( "movq  %%rsi, %0" :: "m" (s) : \
-         "rax", "rcx", "rdx",           \
-         "rbx", "rsi", "rdi" );
-
-#else
-#warning no muladdc assembly code for this cpu
-
-#define MULADDC_INIT                    \
-{                                       \
-    t_int s0, s1, b0, b1;               \
-    t_int r0, r1, rx, ry;               \
-    b0 = ( b << biH ) >> biH;           \
-    b1 = ( b >> biH );
-
-#define MULADDC_CORE                    \
-    s0 = ( *s << biH ) >> biH;          \
-    s1 = ( *s >> biH ); s++;            \
-    rx = s0 * b1; r0 = s0 * b0;         \
-    ry = s1 * b0; r1 = s1 * b1;         \
-    r1 += ( rx >> biH );                \
-    r1 += ( ry >> biH );                \
-    rx <<= biH; ry <<= biH;             \
-    r0 += rx; r1 += (r0 < rx);          \
-    r0 += ry; r1 += (r0 < ry);          \
-    r0 +=  c; r1 += (r0 <  c);          \
-    r0 += *d; r1 += (r0 < *d);          \
-    c = r1; *(d++) = r0;
-
-#define MULADDC_STOP                    \
-}
-
-#endif
-#endif
-#endif
-
-void MULADDC( int i, t_int *s, t_int *d, t_int b )
+/*
+ * Helper for mpi multiplication
+ */ 
+void mpi_mul_hlp( int i, t_int *s, t_int *d, t_int b )
 {
     t_int c = 0;
 
-    for( ; i >= 16; i -= 16 )
-    {
-        MULADDC_INIT
-        MULADDC_CORE  MULADDC_CORE
-        MULADDC_CORE  MULADDC_CORE
-        MULADDC_CORE  MULADDC_CORE
-        MULADDC_CORE  MULADDC_CORE
-        MULADDC_CORE  MULADDC_CORE
-        MULADDC_CORE  MULADDC_CORE
-        MULADDC_CORE  MULADDC_CORE
-        MULADDC_CORE  MULADDC_CORE
-        MULADDC_STOP
-    }
+#if defined(MULADDC_HUIT)
 
-    for( ; i >= 4; i -= 4 )
+    for( ; i >= 8; i -= 8 )
     {
         MULADDC_INIT
-        MULADDC_CORE  MULADDC_CORE
-        MULADDC_CORE  MULADDC_CORE
+        MULADDC_HUIT
         MULADDC_STOP
     }
 
@@ -975,6 +803,65 @@ void MULADDC( int i, t_int *s, t_int *d, t_int b )
         MULADDC_STOP
     }
 
+#else
+    if( i == 32 )
+    {
+        MULADDC_INIT
+        MULADDC_CORE   MULADDC_CORE
+        MULADDC_CORE   MULADDC_CORE   MULADDC_CORE
+        MULADDC_CORE   MULADDC_CORE   MULADDC_CORE
+
+        MULADDC_CORE   MULADDC_CORE
+        MULADDC_CORE   MULADDC_CORE   MULADDC_CORE
+        MULADDC_CORE   MULADDC_CORE   MULADDC_CORE
+        MULADDC_CORE   MULADDC_CORE   MULADDC_CORE
+        MULADDC_CORE   MULADDC_CORE   MULADDC_CORE
+        MULADDC_CORE   MULADDC_CORE
+
+        MULADDC_CORE   MULADDC_CORE   MULADDC_CORE
+        MULADDC_CORE   MULADDC_CORE   MULADDC_CORE
+        MULADDC_CORE   MULADDC_CORE
+        MULADDC_STOP
+    }
+    else
+    {
+        if( i == 16 )
+        {
+            MULADDC_INIT
+            MULADDC_CORE   MULADDC_CORE
+            MULADDC_CORE   MULADDC_CORE
+            MULADDC_CORE   MULADDC_CORE
+            MULADDC_CORE   MULADDC_CORE
+
+            MULADDC_CORE   MULADDC_CORE
+            MULADDC_CORE   MULADDC_CORE
+            MULADDC_CORE   MULADDC_CORE
+            MULADDC_CORE   MULADDC_CORE
+            MULADDC_STOP
+        }
+        else
+        {
+            for( ; i >= 8; i -= 8 )
+            {
+                MULADDC_INIT
+                MULADDC_CORE   MULADDC_CORE
+                MULADDC_CORE   MULADDC_CORE
+
+                MULADDC_CORE   MULADDC_CORE
+                MULADDC_CORE   MULADDC_CORE
+                MULADDC_STOP
+            }
+
+            for( ; i > 0; i-- )
+            {
+                MULADDC_INIT
+                MULADDC_CORE
+                MULADDC_STOP
+            }
+        }
+    }
+#endif
+
     do {
         *d += c; c = ( *d < c ); d++;
     }
@@ -983,9 +870,6 @@ void MULADDC( int i, t_int *s, t_int *d, t_int b )
 
 /*
  * Baseline multiplication: X = A * B  (HAC 14.12)
- *
- * Returns 0 if successful
- *         1 if memory allocation failed
  */
 int mpi_mul_mpi( mpi *X, mpi *A, mpi *B )
 {
@@ -1009,7 +893,7 @@ int mpi_mul_mpi( mpi *X, mpi *A, mpi *B )
     CHK( mpi_lset( X, 0 ) );
 
     for( i++; j >= 0; j-- )
-        MULADDC( i, A->p, X->p + j, B->p[j] );
+        mpi_mul_hlp( i, A->p, X->p + j, B->p[j] );
 
     X->s = A->s * B->s;
 
@@ -1021,9 +905,6 @@ cleanup:
 
 /*
  * Baseline multiplication: X = A * b
- *
- * Returns 0 if successful
- *         1 if memory allocation failed
  */
 int mpi_mul_int( mpi *X, mpi *A, t_int b )
 {
@@ -1040,10 +921,6 @@ int mpi_mul_int( mpi *X, mpi *A, t_int b )
 
 /*
  * Division by mpi: A = Q * B + R  (HAC 14.20)
- *
- * Returns 0 if successful
- *         1 if memory allocation failed
- *         ERR_MPI_DIVISION_BY_ZERO if B == 0
  */
 int mpi_div_mpi( mpi *Q, mpi *R, mpi *A, mpi *B )
 {
@@ -1209,11 +1086,7 @@ int mpi_div_int( mpi *Q, mpi *R, mpi *A, int b )
 }
 
 /*
- * Modulo: X = A mod N
- *
- * Returns 0 if successful
- *         1 if memory allocation failed
- *         ERR_MPI_DIVISION_BY_ZERO if N == 0
+ * Modulo: R = A mod B
  */
 int mpi_mod_mpi( mpi *R, mpi *A, mpi *B )
 {
@@ -1234,11 +1107,6 @@ cleanup:
 
 /*
  * Modulo: r = A mod b
- *
- * Returns 0 if successful
- *         1 if memory allocation failed
- *         ERR_MPI_DIVISION_BY_ZERO if b == 0
- *         ERR_MPI_INVALID_PARAMETER if |sign| != 1
  */
 int mpi_mod_int( t_int *r, mpi *A, int b )
 {
@@ -1278,10 +1146,10 @@ int mpi_mod_int( t_int *r, mpi *A, int b )
     return( 0 );
 }
 
-/* 
+/*
  * Fast Montgomery initialization (thanks to Tom St Denis)
  */
-void mpi_montg_init( t_int *mm, mpi *N )
+int mpi_montg_init( t_int *mm, mpi *N )
 {
     t_int x, m0 = N->p[0];
 
@@ -1294,110 +1162,120 @@ void mpi_montg_init( t_int *mm, mpi *N )
     if( biL >= 64 ) x *= (2 - (m0 * x));
 
     *mm = ~x + 1;
+
+    return( 0 );
 }
 
-/* 
- * Montgomery multiplication: X = A * B * R^-1 mod N  (HAC 14.36)
- * (Z is a decoy used to prevent timing attacks)
- *
- * Returns 0 if successful
- *         1 if memory allocation failed
+/*
+ * Montgomery multiplication: A = A * B * R^-1 mod N  (HAC 14.36)
  */
-int mpi_montgomery( mpi *X, mpi *A, mpi *B, mpi *N, mpi *Z, t_int mm )
+void mpi_montmul( mpi *A, mpi *B, mpi *N, t_int mm, mpi *T )
 {
-    int ret, i, maxB;
-    t_int j;
-    t_int u0, *x0, z = 1;
-    t_int u1, *x1;
-    mpi U;
+    int i, n, m;
+    t_int u0, u1, *d;
 
-    U.s = U.n = 1; U.p = &z;
+    memset( T->p, 0, ciL * T->n );
 
-    if( A == NULL ) A = &U;
-    if( B == NULL ) B = &U;
+    d = T->p;
+    n = N->n;
+    m = ( B->n < n ) ? B->n : n;
 
-    CHK( mpi_grow( X, N->n + 2 ) );
-    CHK( mpi_lset( X, 0 ) );
-
-    maxB = ( B->n > N->n ) ? N->n : B->n;
-
-    for( i = 0; i < N->n; i++ )
+    for( i = 0; i < n; i++ )
     {
         /*
-         * X = X + u0*B + u1*M
+         * T = (T + u0*B + u1*N) / 2^biL
          */
-        u0 = ( i < A->n ) ? A->p[i] : 0;
-        u1 = ( X->p[0] + u0 * B->p[0] ) * mm;
+        u0 = A->p[i];
+        u1 = ( d[0] + u0 * B->p[0] ) * mm;
 
-        MULADDC( maxB, B->p, X->p, u0 );
-        MULADDC( N->n, N->p, X->p, u1 );
+        mpi_mul_hlp( m, B->p, d, u0 );
+        mpi_mul_hlp( n, N->p, d, u1 );
 
-        /*
-         * right-shift X by one limb
-         */
-        x0 = X->p;
-        x1 = X->p + 1;
-
-        for( j = X->n - 1; j > 0; j-- )
-            *x0++ = *x1++;
-
-        *x0 = 0;
+        *d++ = u0; d[n + 1] = 0;
     }
 
-    CHK( mpi_copy( Z, N ) );
+    memcpy( A->p, d, ciL * (n + 1) );
 
-    if( mpi_cmp_abs( X, N ) >= 0 )
-        { CHK( mpi_sub_abs( X, X, N ) ); }
+    if( mpi_cmp_abs( A, N ) >= 0 )
+        mpi_sub_hlp( n, N->p, A->p );
     else
-        { CHK( mpi_sub_abs( Z, Z, X ) ); }
+        /* prevent timing attacks */
+        mpi_sub_hlp( n, A->p, T->p );
+}
 
-cleanup:
+/*
+ * Montgomery reduction: A = A * R^-1 mod N
+ */
+void mpi_montred( mpi *A, mpi *N, t_int mm, mpi *T )
+{
+    t_int z = 1;
+    mpi U;
 
-    return( ret );
+    U.n = U.s = z;
+    U.p = &z;
+
+    mpi_montmul( A, &U, N, mm, T );
 }
 
 /*
  * Sliding-window exponentiation: X = A^E mod N  (HAC 14.85)
- *
- * Returns 0 if successful
- *         1 if memory allocation failed
- *         ERR_MPI_INVALID_PARAMETER if N is negative or even
  */
-int mpi_exp_mod( mpi *X, mpi *A, mpi *E, mpi *N )
+int mpi_exp_mod( mpi *X, mpi *A, mpi *E, mpi *N, mpi *_RR )
 {
-    int ret, i, j, wsize, wbits, nbits;
-    int bufsize, nblimbs, state;
-    mpi R, S, T, W[64], Z;
-    t_int mm, ei;
+    int ret, i, j, wsize, wbits;
+    int bufsize, nblimbs, nbits;
+    t_int ei, mm, state;
+    mpi RR, T, W[64];
 
     if( mpi_cmp_int( N, 0 ) < 0 || ( N->p[0] & 1 ) == 0 )
         return( ERR_MPI_INVALID_PARAMETER );
 
-    mpi_init( &Z, &R, &S, &T, NULL );
+    /*
+     * Init temps and window size
+     */
+    mpi_montg_init( &mm, N );
+    mpi_init( &RR, &T, NULL );
     memset( W, 0, sizeof( W ) );
-
-    /*
-     * S = R mod N
-     */
-    CHK( mpi_lset( &R, 1 ) );
-    CHK( mpi_shift_l( &R, N->n * biL ) );
-    CHK( mpi_mod_mpi( &S, &R, N ) );
-
-    /*
-     * W[1] = A * R mod N
-     */
-    CHK( mpi_copy( &R, A ) );
-    CHK( mpi_shift_l( &R, N->n * biL ) );
-    CHK( mpi_mod_mpi( &W[1], &R, N ) );
 
     i = mpi_size( E );
 
-    wsize = ( i > 671 ) ? 6 :
-            ( i > 239 ) ? 5 :
-            ( i >  79 ) ? 4 :
-            ( i >  23 ) ? 3 : 2;
+    wsize = ( i > 671 ) ? 6 : ( i > 239 ) ? 5 :
+            ( i >  79 ) ? 4 : ( i >  23 ) ? 3 : 1;
 
-    mpi_montg_init( &mm, N );
+    j = N->n + 1;
+    CHK( mpi_grow( X, j ) );
+    CHK( mpi_grow( &W[1],  j ) );
+    CHK( mpi_grow( &T, j * 2 ) );
+
+    /*
+     * If 1st call, pre-compute R^2 mod N
+     */
+    if( _RR == NULL || _RR->p == NULL )
+    {
+        CHK( mpi_lset( &RR, 1 ) );
+        CHK( mpi_shift_l( &RR, N->n * 2 * biL ) );
+        CHK( mpi_mod_mpi( &RR, &RR, N ) );
+
+        if( _RR != NULL )
+            memcpy( _RR, &RR, sizeof( mpi ) );
+    }
+    else
+        memcpy( &RR, _RR, sizeof( mpi ) );
+
+    /*
+     * W[1] = A * R^2 * R^-1 mod N = A * R mod N
+     */
+    if( mpi_cmp_mpi( A, N ) >= 0 )
+        mpi_mod_mpi( &W[1], A, N );
+    else   mpi_copy( &W[1], A );
+
+    mpi_montmul( &W[1], &RR, N, mm, &T );
+
+    /*
+     * X = R^2 * R^-1 mod N = R mod N
+     */
+    CHK( mpi_copy( X, &RR ) );
+    mpi_montred( X, N, mm, &T );
 
     if( wsize > 1 )
     {
@@ -1406,21 +1284,21 @@ int mpi_exp_mod( mpi *X, mpi *A, mpi *E, mpi *N )
          */
         j =  1 << (wsize - 1);
 
-        CHK( mpi_copy( &W[j], &W[1] ) );
+        CHK( mpi_grow( &W[j], N->n + 1 ) );
+        CHK( mpi_copy( &W[j], &W[1]    ) );
 
         for( i = 0; i < wsize - 1; i++ )
-        {
-            CHK( mpi_montgomery( &T, &W[j], &W[j], N, &Z, mm ) );
-            CHK( mpi_copy( &W[j], &T ) );
-        }
+            mpi_montmul( &W[j], &W[j], N, mm, &T );
     
         /*
-         * W[i] = W[1] * W[i - 1]
+         * W[i] = W[i - 1] * W[1]
          */
         for( i = j + 1; i < (1 << wsize); i++ )
         {
-            CHK( mpi_montgomery( &T, &W[i - 1], &W[1], N, &Z, mm ) );
-            CHK( mpi_copy( &W[i], &T ) );
+            CHK( mpi_grow( &W[i], N->n + 1 ) );
+            CHK( mpi_copy( &W[i], &W[i - 1] ) );
+
+            mpi_montmul( &W[i], &W[1], N, mm, &T );
         }
     }
 
@@ -1453,10 +1331,9 @@ int mpi_exp_mod( mpi *X, mpi *A, mpi *E, mpi *N )
         if( ei == 0 && state == 1 )
         {
             /*
-             * out of window, square S
+             * out of window, square X
              */
-            CHK( mpi_montgomery( &T, &S, &S, N, &Z, mm ) );
-            CHK( mpi_copy( &S, &T ) );
+            mpi_montmul( X, X, N, mm, &T );
             continue;
         }
 
@@ -1471,19 +1348,15 @@ int mpi_exp_mod( mpi *X, mpi *A, mpi *E, mpi *N )
         if( nbits == wsize )
         {
             /*
-             * S = S^wsize R^-1 mod N
+             * X = X^wsize R^-1 mod N
              */
             for( i = 0; i < wsize; i++ )
-            {
-                CHK( mpi_montgomery( &T, &S, &S, N, &Z, mm ) );
-                CHK( mpi_copy( &S, &T ) );
-            }
+                mpi_montmul( X, X, N, mm, &T );
 
             /*
-             * S = S * W[wbits] R^-1 mod N
+             * X = X * W[wbits] R^-1 mod N
              */
-            CHK( mpi_montgomery( &T, &S, &W[wbits], N, &Z, mm ) );
-            CHK( mpi_copy( &S, &T ) );
+            mpi_montmul( X, &W[wbits], N, mm, &T );
 
             state--;
             nbits = 0;
@@ -1496,45 +1369,37 @@ int mpi_exp_mod( mpi *X, mpi *A, mpi *E, mpi *N )
      */
     for( i = 0; i < nbits; i++ )
     {
-        CHK( mpi_montgomery( &T, &S, &S, N, &Z, mm ) );
-        CHK( mpi_copy( &S, &T ) );
+        mpi_montmul( X, X, N, mm, &T );
 
         wbits <<= 1;
 
         if( (wbits & (1 << wsize)) != 0 )
-        {
-            CHK( mpi_montgomery( &T, &S, &W[1], N, &Z, mm ) );
-            CHK( mpi_copy( &S, &T ) );
-        }
+            mpi_montmul( X, &W[1], N, mm, &T );
     }
 
     /*
      * X = A^E * R * R^-1 mod N = A^E mod N
      */
-    CHK( mpi_montgomery( &T, &S, NULL, N, &Z, mm ) );
-    CHK( mpi_copy( X, &T ) );
-
-    if( wsize > 1 )
-        for( i = (1 << (wsize - 1));
-             i < (1 << wsize); i++ )
-            mpi_free( &W[i], NULL );
+    mpi_montred( X, N, mm, &T );
 
 cleanup:
 
-    mpi_free( &Z, &W[1], &R, &S, &T, NULL );
+    for( i = (1 << (wsize - 1)); i < (1 << wsize); i++ )
+        mpi_free( &W[i], NULL );
+
+    if( _RR != NULL )
+         mpi_free( &W[1], &T, NULL );
+    else mpi_free( &W[1], &T, &RR, NULL );
+
     return( ret );
 }
 
 /*
- * Greatest common divisor  (HAC 14.54)
- *
- * Returns 0 if successful
- *         1 if memory allocation failed
+ * Greatest common divisor: G = gcd(A, B)  (HAC 14.54)
  */
 int mpi_gcd( mpi *G, mpi *A, mpi *B )
 {
-    int ret;
-    uint count;
+    int ret, count;
     mpi TG, TA, TB;
 
     mpi_init( &TG, &TA, &TB, NULL );
@@ -1579,11 +1444,6 @@ cleanup:
 
 /*
  * Modular inverse: X = A^-1 mod N  (HAC 14.61 / 14.64)
- *
- * Returns 0 if successful
- *         1 if memory allocation failed
- *         ERR_MPI_INVALID_PARAMETER if N is negative or nil
- *         ERR_MPI_NOT_INVERTIBLE if A has no inverse mod N
  */
 int mpi_inv_mod( mpi *X, mpi *A, mpi *N )
 {
@@ -1675,52 +1535,50 @@ cleanup:
     return( ret );
 }
 
-int small_prime[] = {
-   3,  113,  271,  443,  619,  821, 1013, 1213, 1429, 1609, 1831,
-   5,  127,  277,  449,  631,  823, 1019, 1217, 1433, 1613, 1847,
-   7,  131,  281,  457,  641,  827, 1021, 1223, 1439, 1619, 1861,
-  11,  137,  283,  461,  643,  829, 1031, 1229, 1447, 1621, 1867,
-  13,  139,  293,  463,  647,  839, 1033, 1231, 1451, 1627, 1871,
-  17,  149,  307,  467,  653,  853, 1039, 1237, 1453, 1637, 1873,
-  19,  151,  311,  479,  659,  857, 1049, 1249, 1459, 1657, 1877,
-  23,  157,  313,  487,  661,  859, 1051, 1259, 1471, 1663, 1879,
-  29,  163,  317,  491,  673,  863, 1061, 1277, 1481, 1667, 1889,
-  31,  167,  331,  499,  677,  877, 1063, 1279, 1483, 1669, 1901,
-  37,  173,  337,  503,  683,  881, 1069, 1283, 1487, 1693, 1907,
-  41,  179,  347,  509,  691,  883, 1087, 1289, 1489, 1697, 1913,
-  43,  181,  349,  521,  701,  887, 1091, 1291, 1493, 1699, 1931,
-  47,  191,  353,  523,  709,  907, 1093, 1297, 1499, 1709, 1933,
-  53,  193,  359,  541,  719,  911, 1097, 1301, 1511, 1721, 1949,
-  59,  197,  367,  547,  727,  919, 1103, 1303, 1523, 1723, 1951,
-  61,  199,  373,  557,  733,  929, 1109, 1307, 1531, 1733, 1973,
-  67,  211,  379,  563,  739,  937, 1117, 1319, 1543, 1741, 1979,
-  71,  223,  383,  569,  743,  941, 1123, 1321, 1549, 1747, 1987,
-  73,  227,  389,  571,  751,  947, 1129, 1327, 1553, 1753, 1993,
-  79,  229,  397,  577,  757,  953, 1151, 1361, 1559, 1759, 1997,
-  83,  233,  401,  587,  761,  967, 1153, 1367, 1567, 1777, 1999,
-  89,  239,  409,  593,  769,  971, 1163, 1373, 1571, 1783, 2003,
-  97,  241,  419,  599,  773,  977, 1171, 1381, 1579, 1787, 2011,
- 101,  251,  421,  601,  787,  983, 1181, 1399, 1583, 1789, 2017,
- 103,  257,  431,  607,  797,  991, 1187, 1409, 1597, 1801, 2027,
- 107,  263,  433,  613,  809,  997, 1193, 1423, 1601, 1811, 2029,
- 109,  269,  439,  617,  811, 1009, 1201, 1427, 1607, 1823, -5 };
+int small_prime[] =
+{
+       3,  113,  271,  443,  619,  821,  1013,  1213,
+       5,  127,  277,  449,  631,  823,  1019,  1217,
+       7,  131,  281,  457,  641,  827,  1021,  1223,
+      11,  137,  283,  461,  643,  829,  1031,  1229,
+      13,  139,  293,  463,  647,  839,  1033,  1231,
+      17,  149,  307,  467,  653,  853,  1039,  1237,
+      19,  151,  311,  479,  659,  857,  1049,  1249,
+      23,  157,  313,  487,  661,  859,  1051,  1259,
+      29,  163,  317,  491,  673,  863,  1061,  1277,
+      31,  167,  331,  499,  677,  877,  1063,  1279,
+      37,  173,  337,  503,  683,  881,  1069,  1283,
+      41,  179,  347,  509,  691,  883,  1087,  1289,
+      43,  181,  349,  521,  701,  887,  1091,  1291,
+      47,  191,  353,  523,  709,  907,  1093,  1297,
+      53,  193,  359,  541,  719,  911,  1097,  1301,
+      59,  197,  367,  547,  727,  919,  1103,  1303,
+      61,  199,  373,  557,  733,  929,  1109,  1307,
+      67,  211,  379,  563,  739,  937,  1117,  1319,
+      71,  223,  383,  569,  743,  941,  1123,  1321,
+      73,  227,  389,  571,  751,  947,  1129,  1327,
+      79,  229,  397,  577,  757,  953,  1151,  1361,
+      83,  233,  401,  587,  761,  967,  1153,  1367,
+      89,  239,  409,  593,  769,  971,  1163,  1373,
+      97,  241,  419,  599,  773,  977,  1171,  1381,
+     101,  251,  421,  601,  787,  983,  1181,  1399,
+     103,  257,  431,  607,  797,  991,  1187,  1409,
+     107,  263,  433,  613,  809,  997,  1193,  1423,
+     109,  269,  439,  617,  811, 1009,  1201,  -110
+};
 
 /*
  * Miller-Rabin primality test  (HAC 4.24)
- *
- * Returns 0 if probably prime
- *         1 if memory allocation failed
- *         ERR_MPI_IS_COMPOSITE if X is not prime
  */
 int mpi_is_prime( mpi *X )
 {
     int ret, i, j, s, xs;
-    mpi W, R, T, A;
+    mpi W, R, T, A, RR;
 
     if( mpi_cmp_int( X, 0 ) == 0 )
         return( 0 );
 
-    mpi_init( &W, &R, &T, &A, NULL );
+    mpi_init( &W, &R, &T, &A, &RR, NULL );
     xs = X->s; X->s = 1;
 
     /*
@@ -1767,7 +1625,7 @@ int mpi_is_prime( mpi *X )
         /*
          * A = A^R mod |X|
          */
-        CHK( mpi_exp_mod( &A, &A, &R, X ) );
+        CHK( mpi_exp_mod( &A, &A, &R, X, &RR ) );
 
         if( mpi_cmp_mpi( &A, &W ) == 0 ||
             mpi_cmp_int( &A,  1 ) == 0 )
@@ -1806,21 +1664,12 @@ cleanup:
 }
 
 /*
- * Generate a prime number of nbits in size -- set
- * need_dh_prime to 1 if (X-1)/2 must also be prime.
- *
- * Function "rng_func" takes one argument (rng_state)
- * and should return a random unsigned long.
- *
- * Returns 0 if generation was successful
- *         1 if memory allocation failed
- *         ERR_MPI_INVALID_PARAMETER if nbits is < 3
+ * Prime number generation
  */
-int mpi_gen_prime( mpi *X, uint nbits, int need_dh_prime,
-                   ulong (*rng_func)(void *), void *rng_state )
+int mpi_gen_prime( mpi *X, int nbits, int dh_flag,
+                   ulong (*rng_fn)(void *), void *rng_st )
 {
-    int ret;
-    uint k, n;
+    int ret, k, n;
     mpi Y;
 
     if( nbits < 3 )
@@ -1834,8 +1683,7 @@ int mpi_gen_prime( mpi *X, uint nbits, int need_dh_prime,
     CHK( mpi_lset( X, 0 ) );
 
     for( k = 0; k < n; k++ )
-        X->p[k] = rng_func( rng_state ) 
-                * rng_func( rng_state );
+        X->p[k] = rng_fn( rng_st );
 
     k = mpi_size( X );
 
@@ -1844,7 +1692,7 @@ int mpi_gen_prime( mpi *X, uint nbits, int need_dh_prime,
 
     X->p[0] |= 3;
 
-    if( need_dh_prime == 0 )
+    if( dh_flag == 0 )
     {
         while( ( ret = mpi_is_prime( X ) ) != 0 )
         {
@@ -1920,8 +1768,6 @@ int mpi_self_test( void )
     printf( "  MPI test #1 (mul_mpi): " );
     if( mpi_cmp_mpi( &X, &U ) != 0 )
     {
-        mpi_show( "X", &X, 16 );
-        mpi_show( "U", &U, 16 );
         printf( "failed\n" );
         return( 1 );
     }
@@ -1942,7 +1788,7 @@ int mpi_self_test( void )
     }
     printf( "passed\n" );
 
-    CHK( mpi_exp_mod( &X, &A, &E, &N ) );
+    CHK( mpi_exp_mod( &X, &A, &E, &N, NULL ) );
     CHK( mpi_read( &U, "36E139AEA55215609D2816998ED020BB" \
                        "BD96C37890F65171D948E9BC7CBAA4D9" \
                        "325D24D6A3C12710F10A09FA08AB87", 16 ) );
@@ -1981,7 +1827,6 @@ cleanup:
 #else
 int mpi_self_test( void )
 {
-    printf( "MPI self-test not available\n\n" );
-    return( 1 );
+    return( 0 );
 }
 #endif

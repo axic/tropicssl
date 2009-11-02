@@ -29,12 +29,13 @@
 #include "ssl_v3.h"
 #include "sha1.h"
 #include "rsa.h"
+#include "dhm.h"
 #include "md5.h"
 
 int ssl_write_client_hello( ssl_context *ssl )
 {
     uchar *buf;
-    uint i, n;
+    int i, n;
     time_t t;
 
      md5_starts( &ssl->hs_md5  );
@@ -43,8 +44,8 @@ int ssl_write_client_hello( ssl_context *ssl )
     ssl->major_version = SSLV3_MAJOR_VERSION;
     ssl->minor_version = SSLV3_MINOR_VERSION;
 
-    ssl->max_client_ver[0] = SSLV3_MAJOR_VERSION;
-    ssl->max_client_ver[1] = TLS10_MINOR_VERSION;
+    ssl->max_ver[0] = SSLV3_MAJOR_VERSION;
+    ssl->max_ver[1] = TLS10_MINOR_VERSION;
 
     /*
      *     0  .   0   handshake type
@@ -55,7 +56,7 @@ int ssl_write_client_hello( ssl_context *ssl )
      */
     buf = ssl->out_msg;
 
-    memcpy( buf + 4, ssl->max_client_ver, 2 );
+    memcpy( buf + 4, ssl->max_ver, 2 );
 
     t = time( NULL );
     buf[6] = (uchar)(t >> 24);
@@ -98,8 +99,7 @@ int ssl_write_client_hello( ssl_context *ssl )
 
 int ssl_parse_server_hello( ssl_context *ssl )
 {
-    int ret;
-    uint i, n;
+    int ret, i, n;
     uchar *buf;
 
     /*
@@ -193,10 +193,75 @@ int ssl_parse_certificate_request( ssl_context *ssl )
 
 int ssl_parse_server_key_exchange( ssl_context *ssl )
 {
+    int ret, n;
+    uchar *p, *end;
+    uchar hash[36];
+    md5_context md5;
+    sha1_context sha1;
+
+    if( ssl->cipher != SSL3_EDH_RSA_DES_168_SHA &&
+        ssl->cipher != TLS1_EDH_RSA_AES_256_SHA )
+        return( 0 );
+
+    if( ssl->in_msg[0] != SSL_HS_SERVER_KEY_EXCHANGE )
+        return( ERR_SSL_BAD_HS_SERVER_KEY_EXCHANGE );
+
     /*
-     * TODO: handle Ephemeral Diffie-Hellman KEX
+     * Ephemeral DH parameters:
+     *
+     * struct {
+     *     opaque dh_p<1..2^16-1>;
+     *     opaque dh_g<1..2^16-1>;
+     *     opaque dh_Ys<1..2^16-1>;
+     * } ServerDHParams;
      */
-    ssl = NULL;
+    p   = ssl->in_msg + 4;
+    end = ssl->in_msg + ssl->hslen;
+
+    if( ( ret = dhm_ssl_read_params( &ssl->dhm_ctx, &p, end ) ) != 0 )
+        return( ret );
+
+    if( (int)( end - p ) != ssl->peer_cert->rsa.len )
+        return( ERR_SSL_BAD_HS_SERVER_KEY_EXCHANGE );
+
+    if( ssl->dhm_ctx.len < 64 || ssl->dhm_ctx.len > 256 )
+        return( ERR_SSL_BAD_HS_SERVER_KEY_EXCHANGE );
+
+    /*
+     * digitally-signed struct {
+     *     opaque md5_hash[16];
+     *     opaque sha_hash[20];
+     * };
+     *
+     * md5_hash
+     *     MD5(ClientHello.random + ServerHello.random
+     *                            + ServerParams);
+     * sha_hash
+     *     SHA(ClientHello.random + ServerHello.random
+     *                            + ServerParams);
+     */
+    n = ssl->hslen - ( end - p ) - 6;
+
+    md5_starts( &md5 );
+    md5_update( &md5, ssl->randbytes, 64 );
+    md5_update( &md5, ssl->in_msg + 4, n );
+    md5_finish( &md5, hash );
+
+    sha1_starts( &sha1 );
+    sha1_update( &sha1, ssl->randbytes, 64 );
+    sha1_update( &sha1, ssl->in_msg + 4, n );
+    sha1_finish( &sha1, hash + 16 );
+
+    n = ssl->peer_cert->rsa.len;
+    if( ( ret = rsa_pkcs1_verify( &ssl->peer_cert->rsa,
+                RSA_NONE, hash, 36, p, n ) ) != 0 )
+        return( ret );
+
+    if( ( ret = ssl_read_record( ssl, 0 ) ) != 0 )
+        return( ret );
+
+    if( ssl->in_msgtype != SSL_MSG_HANDSHAKE )
+        return( ERR_SSL_UNEXPECTED_MESSAGE );
 
     return( 0 );
 }
@@ -212,37 +277,57 @@ int ssl_parse_server_hello_done( ssl_context *ssl )
 
 int ssl_write_client_key_exchange( ssl_context *ssl )
 {
-    int ret;
-    uint i, n;
+    int ret, i, n;
     ulong *p;
 
-    /*
-     * ATM, only straight RSA key exchange is supported.
-     */
-    n = ssl->peer_cert->rsa.len;
-    p = (ulong *) ssl->premaster;
-
-    for( i = 0; i < 48 / sizeof( ulong ); i++ )
-        p[i] = ssl->rng_func( ssl->rng_state )
-             * ssl->rng_func( ssl->rng_state );
-
-    memcpy( ssl->premaster, ssl->max_client_ver, 2 );
-
-    i = 4;
-    if( ssl->minor_version != SSLV3_MINOR_VERSION )
+    if( ssl->cipher == SSL3_EDH_RSA_DES_168_SHA ||
+        ssl->cipher == TLS1_EDH_RSA_AES_256_SHA )
     {
         /*
-         * Thanks to the IETF folks for this useless length field.
+         * DHM key exchange -- send G^X mod P
          */
-        ssl->out_msg[4] = n >> 8;
-        ssl->out_msg[5] = n;
-        i += 2;
-    }
+        n = ssl->dhm_ctx.len;
 
-    if( ( ret = rsa_pkcs1_encrypt( &ssl->peer_cert->rsa,
-                                    ssl->premaster, 48,
-                                    ssl->out_msg + i, n ) ) != 0 )
-        return( ret );
+        ssl->out_msg[4] = (uchar)( n >> 8 );
+        ssl->out_msg[5] = (uchar)  n;
+        i = 6;
+
+        if( ( ret = dhm_make_public(
+                &ssl->dhm_ctx, &ssl->out_msg[i], n,
+                 ssl->rng_func, ssl->rng_state ) ) != 0 )
+            return( ret );
+
+        if( ( ret = dhm_calc_secret( &ssl->dhm_ctx,
+                             ssl->premaster, n ) ) != 0 )
+            return( ret );
+    }
+    else
+    {
+        /*
+         * RSA key exchange -- send rsa_public(premaster)
+         */
+        n = ssl->peer_cert->rsa.len;
+        p = (ulong *) ssl->premaster;
+
+        for( i = 0; i < 48 / (int) sizeof( ulong ); i++ )
+            p[i] = ssl->rng_func( ssl->rng_state );
+
+        memcpy( ssl->premaster, ssl->max_ver, 2 );
+
+        if( ssl->minor_version != SSLV3_MINOR_VERSION )
+        {
+            ssl->out_msg[4] = n >> 8;
+            ssl->out_msg[5] = n;
+            i = 6;
+        }
+        else
+            i = 4;
+
+        if( ( ret = rsa_pkcs1_encrypt( &ssl->peer_cert->rsa,
+                                        ssl->premaster, 48,
+                                        ssl->out_msg + i, n ) ) != 0 )
+            return( ret );
+    }
 
     ssl_derive_keys( ssl );
 
@@ -255,41 +340,32 @@ int ssl_write_client_key_exchange( ssl_context *ssl )
 
 int ssl_write_certificate_verify( ssl_context *ssl )
 {
-    uint n;
-    uchar sig[512];
+    int ret, n;
+    uchar hash[36];
     md5_context md5;
     sha1_context sha1;
 
     if( ssl->client_auth == 0 || ssl->own_key == NULL )
         return( 0 );
 
-    n = ssl->own_key->len;
-
-    if( n < 64 || n > sizeof( sig ) )
-        return( ERR_SSL_INVALID_MODULUS_SIZE );
-
     /*
-     * SSLv3/TLSv1 does not conform to PKCS1v1.5, so rsa_pkcs1_sign
-     * cannot be used directly; we have to take care of hashing and
-     * message padding issues here.
+     * Sign the handshake digests with our private key
      */
-    sig[0] = 0;
-    sig[1] = RSA_SIGN;
-    memset( sig + 2, 0xFF, n - 38 );
-
     memcpy( &md5,  &ssl->hs_md5 , sizeof(  md5_context ) );
     memcpy( &sha1, &ssl->hs_sha1, sizeof( sha1_context ) );
 
-     md5_finish(  &md5, sig + n - 36 );
-    sha1_finish( &sha1, sig + n - 20 );
+     md5_finish(  &md5, hash );
+    sha1_finish( &sha1, hash + 20 );
 
-    if( rsa_private( ssl->own_key, sig, n, sig, n ) != 0 )
-        return( ERR_RSA_SIGN_FAILED );
+    n = ssl->own_key->len;
+
+    if( ( ret = rsa_pkcs1_sign( ssl->own_key, RSA_NONE, hash, 36,
+                                ssl->out_msg + 4, n ) ) != 0 )
+        return( ret );
 
     ssl->out_msglen  = 4 + n;
     ssl->out_msgtype = SSL_MSG_HANDSHAKE;
     ssl->out_msg[0]  = SSL_HS_CERTIFICATE_VERIFY;
-    memcpy( ssl->out_msg + 4, sig, n );
 
     return( ssl_write_record( ssl, 0 ) );
 }

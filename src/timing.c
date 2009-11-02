@@ -42,7 +42,7 @@ struct _hr_time
 };
 #endif
 
-#if defined(_MSC_VER) && defined(_M_IX86) || defined(__WATCOMC__)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || defined(__WATCOMC__)
 
 unsigned long hardclock( void )
 {
@@ -73,9 +73,9 @@ unsigned long hardclock( void )
 
 unsigned long hardclock( void )
 {
-    unsigned long tsc;
-    asm( "rdtsc" : "=a" (tsc) ); 
-    return( tsc );
+    unsigned long lo, hi;
+    asm( "rdtsc" : "=a" (lo), "=d" (hi) ); 
+    return( lo | (hi << 32) );
 }
 
 #else
@@ -145,17 +145,18 @@ unsigned long hardclock( void )
 
 #ifdef WIN32
 
-float set_timer( struct hr_time *val, int reset )
+unsigned long set_timer( struct hr_time *val, int reset )
 {
-    float delta = 0.0f;
+    unsigned long delta;
     LARGE_INTEGER offset, hfreq;
     struct _hr_time *t = (struct _hr_time *) val;
 
     QueryPerformanceCounter(  &offset );
     QueryPerformanceFrequency( &hfreq );
 
-    delta = (float) ( offset.QuadPart - t->start.QuadPart ) /
-            (float) hfreq.QuadPart;
+    delta = (unsigned long)( ( 1000 *
+        ( offset.QuadPart - t->start.QuadPart ) ) /
+           hfreq.QuadPart );
 
     if( reset )
         QueryPerformanceCounter( &t->start );
@@ -165,16 +166,16 @@ float set_timer( struct hr_time *val, int reset )
 
 #else
 
-float set_timer( struct hr_time *val, int reset )
+unsigned long set_timer( struct hr_time *val, int reset )
 {
-    float delta;
+    unsigned long delta;
     struct timeval offset;
     struct _hr_time *t = (struct _hr_time *) val;
 
     gettimeofday( &offset, NULL );
 
-    delta = (float) ( offset.tv_sec  - t->start.tv_sec  )
-          + (float) ( offset.tv_usec - t->start.tv_usec ) / 1.0e6;
+    delta = ( offset.tv_sec  - t->start.tv_sec  ) * 1000
+          + ( offset.tv_usec - t->start.tv_usec ) / 1000;
 
     if( reset )
     {

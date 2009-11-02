@@ -32,7 +32,7 @@
 
 #include "md5.h"
 
-/* 
+/*
  * 32-bit integer manipulation macros (little endian)
  */
 #ifndef GET_UINT32_LE
@@ -55,7 +55,7 @@
 #endif
 
 /*
- * Core MD5 functions
+ * MD5 context setup
  */
 void md5_starts( md5_context *ctx )
 {
@@ -191,42 +191,47 @@ void md5_process( md5_context *ctx, uchar data[64] )
     ctx->state[3] += D;
 }
 
-void md5_update( md5_context *ctx, uchar *input, uint length )
+/*
+ * MD5 process buffer
+ */
+void md5_update( md5_context *ctx, uchar *input, int ilen )
 {
-    ulong left, fill;
+    int fill;
+    ulong left;
 
-    if( ! length ) return;
+    if( ilen <= 0 )
+        return;
 
     left = ctx->total[0] & 0x3F;
     fill = 64 - left;
 
-    ctx->total[0] += length;
+    ctx->total[0] += ilen;
     ctx->total[0] &= 0xFFFFFFFF;
 
-    if( ctx->total[0] < length )
+    if( ctx->total[0] < (ulong) ilen )
         ctx->total[1]++;
 
-    if( left && length >= fill )
+    if( left && ilen >= fill )
     {
         memcpy( (void *) (ctx->buffer + left),
                 (void *) input, fill );
         md5_process( ctx, ctx->buffer );
-        length -= fill;
-        input  += fill;
+        input += fill;
+        ilen  -= fill;
         left = 0;
     }
 
-    while( length >= 64 )
+    while( ilen >= 64 )
     {
         md5_process( ctx, input );
-        length -= 64;
-        input  += 64;
+        input += 64;
+        ilen  -= 64;
     }
 
-    if( length )
+    if( ilen > 0 )
     {
         memcpy( (void *) (ctx->buffer + left),
-                (void *) input, length );
+                (void *) input, ilen );
     }
 }
 
@@ -238,7 +243,10 @@ static uchar md5_padding[64] =
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-void md5_finish( md5_context *ctx, uchar digest[16] )
+/*
+ * MD5 final digest
+ */
+void md5_finish( md5_context *ctx, uchar output[16] )
 {
     ulong last, padn;
     ulong high, low;
@@ -257,55 +265,55 @@ void md5_finish( md5_context *ctx, uchar digest[16] )
     md5_update( ctx, md5_padding, padn );
     md5_update( ctx, msglen, 8 );
 
-    PUT_UINT32_LE( ctx->state[0], digest,  0 );
-    PUT_UINT32_LE( ctx->state[1], digest,  4 );
-    PUT_UINT32_LE( ctx->state[2], digest,  8 );
-    PUT_UINT32_LE( ctx->state[3], digest, 12 );
+    PUT_UINT32_LE( ctx->state[0], output,  0 );
+    PUT_UINT32_LE( ctx->state[1], output,  4 );
+    PUT_UINT32_LE( ctx->state[2], output,  8 );
+    PUT_UINT32_LE( ctx->state[3], output, 12 );
 }
 
 /*
- * Output MD5(file contents), returns 0 if successful.
+ * Output = MD5( file contents )
  */
-int md5_file( char *filename, uchar digest[16] )
+int md5_file( char *path, uchar output[16] )
 {
     FILE *f;
     size_t n;
     md5_context ctx;
     uchar buf[1024];
 
-    if( ( f = fopen( filename, "rb" ) ) == NULL )
+    if( ( f = fopen( path, "rb" ) ) == NULL )
         return( 1 );
 
     md5_starts( &ctx );
 
     while( ( n = fread( buf, 1, sizeof( buf ), f ) ) > 0 )
-        md5_update( &ctx, buf, (uint) n );
+        md5_update( &ctx, buf, n );
 
-    md5_finish( &ctx, digest );
+    md5_finish( &ctx, output );
 
     fclose( f );
     return( 0 );
 }
 
 /*
- * Output MD5(buf)
+ * Output = MD5( input buffer )
  */
-void md5_csum( uchar *buf, uint buflen, uchar digest[16] )
+void md5_csum( uchar *input, int ilen, uchar output[16] )
 {
     md5_context ctx;
 
     md5_starts( &ctx );
-    md5_update( &ctx, buf, buflen );
-    md5_finish( &ctx, digest );
+    md5_update( &ctx, input, ilen );
+    md5_finish( &ctx, output );
 }
 
 /*
- * Output HMAC-MD5(key,buf)
+ * Output = HMAC-MD5( input buffer, hmac key )
  */
-void md5_hmac( uchar *key, uint keylen, uchar *buf, uint buflen,
-               uchar digest[16] )
+void md5_hmac( uchar *key, int klen, uchar *input, int ilen,
+               uchar output[16] )
 {
-    uint i;
+    int i;
     md5_context ctx;
     uchar k_ipad[64];
     uchar k_opad[64];
@@ -314,7 +322,7 @@ void md5_hmac( uchar *key, uint keylen, uchar *buf, uint buflen,
     memset( k_ipad, 0x36, 64 );
     memset( k_opad, 0x5C, 64 );
 
-    for( i = 0; i < keylen; i++ )
+    for( i = 0; i < klen; i++ )
     {
         if( i >= 64 ) break;
 
@@ -324,13 +332,13 @@ void md5_hmac( uchar *key, uint keylen, uchar *buf, uint buflen,
 
     md5_starts( &ctx );
     md5_update( &ctx, k_ipad, 64 );
-    md5_update( &ctx, buf, buflen );
+    md5_update( &ctx, input, ilen );
     md5_finish( &ctx, tmpbuf );
 
     md5_starts( &ctx );
     md5_update( &ctx, k_opad, 64 );
     md5_update( &ctx, tmpbuf, 16 );
-    md5_finish( &ctx, digest );
+    md5_finish( &ctx, output );
 
     memset( k_ipad, 0, 64 );
     memset( k_opad, 0, 64 );
@@ -339,7 +347,7 @@ void md5_hmac( uchar *key, uint keylen, uchar *buf, uint buflen,
 }
 
 #ifdef SELF_TEST
-/* 
+/*
  * RFC 1321 test vectors
  */
 static char *md5_test_str[7] =
@@ -402,7 +410,6 @@ int md5_self_test( void )
 #else
 int md5_self_test( void )
 {
-    printf( "MD5 self-test not available\n\n" );
-    return( 1 );
+    return( 0 );
 }
 #endif

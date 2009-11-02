@@ -27,17 +27,14 @@
 #define _CRT_SECURE_NO_DEPRECATE 1
 #endif
 
-#include <string.h>
-#include <stdio.h>
-
 #include "arc4.h"
 
 /*
  * ARC4 key schedule
  */
-void arc4_setup( arc4_context *ctx, uchar *key, uint length )
+void arc4_setup( arc4_context *ctx, uchar *key, int keylen )
 {
-    uint i, j, k, *m, a;
+    int i, j, k, *m, a;
 
     ctx->x = 0;
     ctx->y = 0;
@@ -51,30 +48,30 @@ void arc4_setup( arc4_context *ctx, uchar *key, uint length )
     for( i = 0; i < 256; i++ )
     {
         a = m[i];
-        j = (uchar) ( j + a + key[k] );
+        j = (uchar)( j + a + key[k] );
         m[i] = m[j]; m[j] = a;
-        if( ++k >= length ) k = 0;
+        if( ++k >= keylen ) k = 0;
     }
 }
 
 /*
  * ARC4 cipher function
  */
-void arc4_crypt( arc4_context *ctx, uchar *data, uint length )
+void arc4_crypt( arc4_context *ctx, uchar *buf, int buflen )
 {
-    uint i, x, y, *m, a, b;
+    int i, x, y, *m, a, b;
 
     x = ctx->x;
     y = ctx->y;
     m = ctx->m;
 
-    for( i = 0; i < length; i++ )
+    for( i = 0; i < buflen; i++ )
     {
-        x = (uchar) ( x + 1 ); a = m[x];
-        y = (uchar) ( y + a );
+        x = (uchar)( x + 1 ); a = m[x];
+        y = (uchar)( y + a );
         m[x] = b = m[y];
         m[y] = a;
-        data[i] ^= m[(uchar) ( a + b )];
+        buf[i] ^= m[(uchar)( a + b )];
     }
 
     ctx->x = x;
@@ -82,7 +79,11 @@ void arc4_crypt( arc4_context *ctx, uchar *data, uint length )
 }
 
 #ifdef SELF_TEST
-/* 
+
+#include <string.h>
+#include <stdio.h>
+
+/*
  * ARC4 tests vectors as posted by Eric Rescorla
  */
 static uchar arc4_test_key[3][8] =
@@ -139,7 +140,6 @@ int arc4_self_test( void )
 #else
 int arc4_self_test( void )
 {
-    printf( "ARC4 self-test not available\n\n" );
-    return( 1 );
+    return( 0 );
 }
 #endif

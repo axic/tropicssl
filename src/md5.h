@@ -1,3 +1,6 @@
+/**
+ * \file md5.h
+ */
 #ifndef _MD5_H
 #define _MD5_H
 
@@ -14,39 +17,75 @@ extern "C" {
 
 #endif
 
+/**
+ * \brief          MD5 context structure
+ */
 typedef struct
 {
-    ulong total[2];
-    ulong state[4];
-    uchar buffer[64];
+    ulong total[2];     /*!< number of bytes processed  */
+    ulong state[4];     /*!< intermediate digest state  */
+    uchar buffer[64];   /*!< data block being processed */
 }
 md5_context;
 
-/*
- * Core MD5 functions
+/**
+ * \brief          MD5 context setup
+ *
+ * \param ctx      MD5 context to be initialized
  */
 void md5_starts( md5_context *ctx );
-void md5_update( md5_context *ctx, uchar *input, uint length );
-void md5_finish( md5_context *ctx, uchar digest[16] );
 
-/*
- * Output MD5(file contents), returns 0 if successful.
+/**
+ * \brief          MD5 process buffer
+ *
+ * \param ctx      MD5 context
+ * \param input    buffer holding the  data
+ * \param ilen     length of the input data
  */
-int md5_file( char *filename, uchar digest[16] );
+void md5_update( md5_context *ctx, uchar *input, int ilen );
 
-/*
- * Output MD5(buf)
+/**
+ * \brief          MD5 final digest
+ *
+ * \param ctx      MD5 context
+ * \param output   MD5 checksum result
  */
-void md5_csum( uchar *buf, uint buflen, uchar digest[16] );
+void md5_finish( md5_context *ctx, uchar output[16] );
 
-/*
- * Output HMAC-MD5(key,buf)
+/**
+ * \brief          Output = MD5( input buffer )
+ *
+ * \param input    buffer holding the  data
+ * \param ilen     length of the input data
+ * \param output   MD5 checksum result
  */
-void md5_hmac( uchar *key, uint keylen, uchar *buf, uint buflen,
-               uchar digest[16] );
+void md5_csum( uchar *input, int ilen, uchar output[16] );
 
-/*
- * Checkup routine
+/**
+ * \brief          Output = MD5( file contents )
+ *
+ * \param path     input file name
+ * \param output   MD5 checksum result
+ * \return         0 if successful, or 1 if fopen failed
+ */
+int md5_file( char *path, uchar output[16] );
+
+/**
+ * \brief          Output = HMAC-MD5( input buffer, hmac key )
+ *
+ * \param key      HMAC secret key
+ * \param klen     length of the HMAC key
+ * \param input    buffer holding the  data
+ * \param ilen     length of the input data
+ * \param output   HMAC-MD5 result
+ */
+void md5_hmac( uchar *key, int klen, uchar *input, int ilen,
+               uchar output[16] );
+
+/**
+ * \brief          Checkup routine
+ *
+ * \return         0 if successful, or 1 if the test failed
  */
 int md5_self_test( void );
 

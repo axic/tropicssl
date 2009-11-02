@@ -1,3 +1,6 @@
+/**
+ * \file rsa.h
+ */
 #ifndef _RSA_H
 #define _RSA_H
 
@@ -26,7 +29,7 @@ extern "C" {
 /*
  * PKCS#1 stuff
  */
-
+#define RSA_NONE            0
 #define RSA_MD2             2
 #define RSA_MD4             3
 #define RSA_MD5             4
@@ -52,138 +55,155 @@ extern "C" {
     "\x30\x21\x30\x09\x06\x05\x2B\x0E\x03"  \
     "\x02\x1A\x05\x00\x04\x14"
 
-#include "mpi.h"
+#include "bignum.h"
 
 typedef struct
 {
-    uint ver;   /* should be 0      */
-    uint len;   /* size(N) in chars */
-    mpi N;      /* public modulus   */
-    mpi E;      /* public exponent  */
-    mpi D;      /* private exponent */
-    mpi P;      /* 1st prime factor */
-    mpi Q;      /* 2nd prime factor */
-    mpi DP;     /* D mod (P - 1)    */
-    mpi DQ;     /* D mod (Q - 1)    */
-    mpi QP;     /* inverse of Q % P */
+    int ver;    /*!<  should be 0       */
+    int len;    /*!<  size(N) in chars  */
+    mpi N;      /*!<  public modulus    */
+    mpi E;      /*!<  public exponent   */
+    mpi D;      /*!<  private exponent  */
+
+    mpi P;      /*!<  1st prime factor  */
+    mpi Q;      /*!<  2nd prime factor  */
+    mpi DP;     /*!<  D mod (P - 1)     */
+    mpi DQ;     /*!<  D mod (Q - 1)     */
+    mpi QP;     /*!<  inverse of Q % P  */
+
+    mpi RN;     /*!<  R^2 mod N         */
+    mpi RP;     /*!<  R^2 mod P         */
+    mpi RQ;     /*!<  R^2 mod Q         */
 }
 rsa_context;
 
-/*
- * Generate a RSA keypair of nbits in size according
- * to the specified public exponent.
+/**
+ * \brief          Generate an RSA keypair
  *
- * Function "rng_func" takes one argument (rng_state)
- * and should return a random unsigned long.
+ * \param ctx      RSA context to be initialized
+ * \param nbits    size of the public key in bits
+ * \param exponent public exponent (e.g., 65537)
+ * \param rng_fn   points to the RNG function
+ * \param rng_st   points to the RNG state
  *
- * Returns 0 if successful, or ERR_RSA_KEYGEN_FAILED.
+ * \return         0 if successful, or ERR_RSA_KEYGEN_FAILED
  */
-int rsa_gen_key( rsa_context *ctx, uint nbits, uint exponent,
-                 ulong (*rng_func)(void *), void *rng_state );
+int rsa_gen_key( rsa_context *ctx, int nbits, int exponent,
+                 ulong (*rng_fn)(void *), void *rng_st );
 
-/*
- * Perform an RSA public key operation. This function
- * does not take care of message padding: both ilen and
- * olen must be equal to the modulus size (ctx->len).
+/**
+ * \brief          Perform an RSA public key operation
  *
- * Returns 0 if successful, or ERR_RSA_PUBLIC_FAILED.
- */
-int rsa_public( rsa_context *ctx, uchar *input,  uint ilen,
-                                  uchar *output, uint olen );
-
-/*
- * Perform an RSA private key operation. This function
- * does not take care of message padding: both ilen an
- * olen must be equal to the modulus size (ctx->len).
+ * \return         0 if successful, or ERR_RSA_PUBLIC_FAILED
  *
- * Returns 0 if successful, or ERR_RSA_PRIVATE_FAILED.
+ * \note           This function does not take care of message
+ *                 padding: both ilen and olen must be equal to
+ *                 the modulus size (ctx->len). Also, be sure
+ *                 to set input[0] = 0.
  */
-int rsa_private( rsa_context *ctx, uchar *input,  uint ilen,
-                                   uchar *output, uint olen );
+int rsa_public( rsa_context *ctx, uchar *input,  int ilen,
+                                  uchar *output, int olen );
 
-/*
- * Returns 0 if the public key is valid,
- * or ERR_RSA_KEY_CHECK_FAILED.
+/**
+ * \brief          Perform an RSA private key operation
+ *
+ * \return         0 if successful, or ERR_RSA_PRIVATE_FAILED
+ *
+ * \note           This function does not take care of message
+ *                 padding: both ilen and olen must be equal to
+ *                 the modulus size (ctx->len). Also, be sure
+ *                 to set input[0] = 0.
+ */
+int rsa_private( rsa_context *ctx, uchar *input,  int ilen,
+                                   uchar *output, int olen );
+
+/**
+ * \brief          Return 0 if the public key is valid,
+ *                 or ERR_RSA_KEY_CHECK_FAILED
  */
 int rsa_check_pubkey( rsa_context *ctx );
 
-/*
- * Returns 0 if the private key is valid,
- * or ERR_RSA_KEY_CHECK_FAILED.
+/**
+ * \brief          Return 0 if the private key is valid,
+ *                 or ERR_RSA_KEY_CHECK_FAILED
  */
 int rsa_check_privkey( rsa_context *ctx );
 
-/*
- * Add the PKCS1 v1.5 padding and perform a public RSA.
+/**
+ * \brief          Add the PKCS1 v1.5 padding and do a public RSA
  *
- *      ctx     points to an RSA public key
- *      input   buffer holding the data to be encrypted
- *      ilen    length of the plaintext; cannot be longer
- *              than the modulus, minus 3+8 for padding
- *      output  buffer that will hold the ciphertext
- *      olen    must be the same as the modulus size
- *              (for example, 128 if RSA-1024 is used)
+ * \param ctx      RSA context
+ * \param input    buffer holding the data to be encrypted
+ * \param ilen     length of the plaintext; cannot be longer
+ *                 than the modulus, minus 3+8 for padding
+ * \param output   buffer that will hold the ciphertext
+ * \param olen     must be the same as the modulus size
+ *                 (for example, 128 if RSA-1024 is used)
  *
- * Returns 0 if successful, or ERR_RSA_ENCRYPT_FAILED
+ * \return         0 if successful, or ERR_RSA_ENCRYPT_FAILED
  */
 int rsa_pkcs1_encrypt( rsa_context *ctx,
-                       uchar *input,  uint ilen,
-                       uchar *output, uint olen );
+                       uchar *input,  int ilen,
+                       uchar *output, int olen );
 
-/*
- * Perform a private RSA and remove the PKCS1 v1.5 padding.
+/**
+ * \brief          Do a private RSA and remove the PKCS1 v1.5 padding
  *
- *      ctx     points to an RSA private key
- *      input   buffer holding the encrypted data
- *      ilen    must be the same as the modulus size
- *      output  buffer that will hold the plaintext
- *      olen    size of output buffer, will be updated
- *              to contain the length of the plaintext
+ * \param ctx      RSA context
+ * \param input    buffer holding the encrypted data
+ * \param ilen     must be the same as the modulus size
+ * \param output   buffer that will hold the plaintext
+ * \param olen     size of output buffer, will be updated
+ *                 to contain the length of the plaintext
  *
- * Returns 0 if successful, or ERR_RSA_DECRYPT_FAILED
+ * \return         0 if successful, or ERR_RSA_DECRYPT_FAILED
  */
 int rsa_pkcs1_decrypt( rsa_context *ctx,
-                       uchar *input,  uint  ilen,
-                       uchar *output, uint *olen );
+                       uchar *input,  int  ilen,
+                       uchar *output, int *olen );
 
-/*
- * Perform a private RSA to sign a message digest
+/**
+ * \brief          Perform a private RSA to sign a message digest
  *
- *      ctx     points to an RSA private key
- *      hash    buffer holding the message digest
- *      alg_id  must be set to RSA_MD2/4/5 or RSA_SHA1
- *      sig     buffer that will hold the ciphertext
- *      siglen  must be the same as the modulus size
- *              (for example, 128 if RSA-1024 is used)
+ * \param ctx      RSA context
+ * \param alg_id   RSA_MD2/4/5, RSA_SHA1 or RSA_NONE
+ * \param hash     buffer holding the message digest
+ * \param hashlen  message digest length (only for RSA_NONE)
+ * \param sig      buffer that will hold the ciphertext
+ * \param siglen   must be the same as the modulus size
+ *                 (for example, 128 if RSA-1024 is used)
  *
- * Returns 0 if successful, or ERR_RSA_SIGN_FAILED
+ * \return         0 if successful, or ERR_RSA_SIGN_FAILED
  */
-int rsa_pkcs1_sign( rsa_context *ctx,
-                    uchar *hash, int alg_id,
-                    uchar *sig, uint siglen );
+int rsa_pkcs1_sign( rsa_context *ctx, int alg_id,
+                    uchar *hash, int hashlen,
+                    uchar *sig,  int siglen );
 
-/*
- * Perform a public RSA and check the message digest.
+/**
+ * \brief          Perform a public RSA and check the message digest
  *
- *      ctx     points to an RSA public key
- *      hash    buffer holding the message digest
- *      alg_id  must be set to RSA_MD{2,4,5} or RSA_SHA1
- *      sig     buffer holding the ciphertext
- *      siglen  must be the same as the modulus size
+ * \param ctx      points to an RSA public key
+ * \param alg_id   RSA_MD2/4/5, RSA_SHA1 or RSA_NONE
+ * \param hash     buffer holding the message digest
+ * \param hashlen  message digest length (only for RSA_NONE)
+ * \param sig      buffer holding the ciphertext
+ * \param siglen   must be the same as the modulus size
  *
  * Returns 0 if successful, or ERR_RSA_VERIFY_FAILED
  */
-int rsa_pkcs1_verify( rsa_context *ctx,
-                      uchar *hash, int alg_id,
-                      uchar *sig, uint siglen );
+int rsa_pkcs1_verify( rsa_context *ctx, int alg_id,
+                      uchar *hash, int hashlen,
+                      uchar *sig,  int siglen );
 
-/*
- * Free the components of an RSA key.
+/**
+ * \brief          Free the components of an RSA key
  */
 void rsa_free( rsa_context *ctx );
 
-/*
- * Checkup routine
+/**
+ * \brief          Checkup routine
+ *
+ * \return         0 if successful, or 1 if the test failed
  */
 int rsa_self_test( void );
 

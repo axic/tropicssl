@@ -22,12 +22,9 @@
 #define _CRT_SECURE_NO_DEPRECATE 1
 #endif
 
-#include <string.h>
-#include <stdio.h>
-
 #include "base64.h"
 
-static uchar base64_enc_map[64] =
+static int base64_enc_map[64] =
 {
     'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
     'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T',
@@ -38,7 +35,7 @@ static uchar base64_enc_map[64] =
     '8', '9', '+', '/'
 };
 
-static uchar base64_dec_map[128] =
+static int base64_dec_map[128] =
 {
     127, 127, 127, 127, 127, 127, 127, 127, 127, 127,
     127, 127, 127, 127, 127, 127, 127, 127, 127, 127,
@@ -56,19 +53,12 @@ static uchar base64_dec_map[128] =
 };
 
 /*
- * Encode buffer src of size slen into dst.
- *
- * Returns 0 if successful (dlen contains the # of bytes written) or
- *         ERR_BASE64_BUFFER_TOO_SMALL if *dlen is not large enough,
- *         in which case it is updated to contain the requested size.
- *
- * You may call this function with dst = NULL to determine how much
- * is needed for the destination buffer.
+ * Encode a buffer into base64 format
  */
-int base64_encode( uchar *dst, uint *dlen, uchar *src, uint slen )
+int base64_encode( uchar *dst, int *dlen, uchar *src, int slen )
 {
-    uint i, n;
-    uint C1, C2, C3;
+    int i, n;
+    int C1, C2, C3;
     uchar *p;
 
     if( slen == 0 )
@@ -83,7 +73,7 @@ int base64_encode( uchar *dst, uint *dlen, uchar *src, uint slen )
         default: break;
     }
 
-    if( *dlen < n + 1 || dst == NULL )
+    if( *dlen < n + 1 )
     {
         *dlen = n + 1;
         return( ERR_BASE64_BUFFER_TOO_SMALL );
@@ -122,19 +112,11 @@ int base64_encode( uchar *dst, uint *dlen, uchar *src, uint slen )
 }
 
 /*
- * Decode buffer src of size slen into dst.
- *
- * Returns 0 if successful (dlen contains the # of bytes written)
- *         ERR_BASE64_INVALID_CHARACTER if an invalid char is found
- *         ERR_BASE64_BUFFER_TOO_SMALL if *dlen is not large enough,
- *         in which case it is updated to contain the requested size.
- *
- * You may call this function with dst = NULL to determine how much
- * is needed for the destination buffer.
+ * Decode a base64-formatted buffer
  */
-int base64_decode( uchar *dst, uint *dlen, uchar *src, uint slen )
+int base64_decode( uchar *dst, int *dlen, uchar *src, int slen )
 {
-    uint i, j, n;
+    int i, j, n;
     ulong x;
     uchar *p;
 
@@ -164,7 +146,7 @@ int base64_decode( uchar *dst, uint *dlen, uchar *src, uint slen )
 
     n = ( ( n * 6 ) + 7 ) >> 3;
 
-    if( *dlen < n || dst == NULL )
+    if( *dlen < n )
     {
         *dlen = n;
         return( ERR_BASE64_BUFFER_TOO_SMALL );
@@ -194,6 +176,9 @@ int base64_decode( uchar *dst, uint *dlen, uchar *src, uint slen )
 
 #ifdef SELF_TEST
 
+#include <string.h>
+#include <stdio.h>
+
 static uchar base64_test_dec[64] =
 {
     0x24, 0x48, 0x6E, 0x56, 0x87, 0x62, 0x5A, 0xBD,
@@ -213,12 +198,12 @@ static uchar base64_test_enc[] =
 /*
  * Checkup routine
  */
-int b64_self_test( void )
+int base64_self_test( void )
 {
-    uint n;
+    int n;
     uchar buffer[128];
 
-    printf( "  base64 encoding test: " );
+    printf( "  Base64 encoding test: " );
 
     n = sizeof( buffer );
 
@@ -231,7 +216,7 @@ int b64_self_test( void )
 
     printf( "passed\n" );
     
-    printf( "  base64 decoding test: " );
+    printf( "  Base64 decoding test: " );
 
     n = sizeof( buffer );
 
@@ -247,9 +232,8 @@ int b64_self_test( void )
     return( 0 );
 }
 #else
-int b64_self_test( void )
+int base64_self_test( void )
 {
-    printf( "base64 self-test not available\n\n" );
-    return( 1 );
+    return( 0 );
 }
 #endif

@@ -43,63 +43,63 @@
 #include "des.h"
 #include "aes.h"
 
-/* 
+/*
  * Key material generation
  */
-void tls1_prf( uchar *secret, uint seclen, char *label,
-               uchar *random, uint rndlen, uchar *out, uint outlen )
+void tls1_prf( uchar *secret, int slen,  char *label,
+               uchar *random, int rlen, uchar *buf, int len )
 {
-    uint nb, hs;
-    uint i, j, k;
+    int nb, hs;
+    int i, j, k;
     uchar *S1, *S2;
-    uchar buf[128];
+    uchar tmp[128];
     uchar h_i[20];
 
-    if( 20 + strlen( label ) + rndlen >= sizeof( buf ) )
+    if( 20 + strlen( label ) + rlen >= sizeof( tmp ) )
         return;
 
-    hs = ( seclen + 1 ) / 2;
+    hs = ( slen + 1 ) / 2;
     S1 = secret;
-    S2 = secret + seclen - hs;
+    S2 = secret + slen - hs;
 
     nb = strlen( label );
-    memcpy( buf + 20, label, nb );
-    memcpy( buf + 20 + nb, random, rndlen );
-    nb += rndlen;
+    memcpy( tmp + 20, label, nb );
+    memcpy( tmp + 20 + nb, random, rlen );
+    nb += rlen;
 
     /*
-     * First compute P_md5(secret,label+random)[0..outlen]
+     * First compute P_md5(secret,label+random)[0..len]
      */
-    md5_hmac( S1, hs, buf + 20, nb, 4 + buf );
+    md5_hmac( S1, hs, tmp + 20, nb, 4 + tmp );
 
-    for( i = 0; i < outlen; i += 16 )
+    for( i = 0; i < len; i += 16 )
     {
-        md5_hmac( S1, hs, 4 + buf, 16 + nb, h_i );
-        md5_hmac( S1, hs, 4 + buf, 16,  4 + buf );
+        md5_hmac( S1, hs, 4 + tmp, 16 + nb, h_i );
+        md5_hmac( S1, hs, 4 + tmp, 16,  4 + tmp );
 
-        k = ( i + 16 <= outlen ) ? 16 : outlen % 16;
-        for( j = 0; j < k; j++ ) out[i + j] = h_i[j];
+        k = ( i + 16 <= len ) ? 16 : len % 16;
+        for( j = 0; j < k; j++ ) buf[i + j] = h_i[j];
 
     }
 
     /*
-     * XOR out with P_sha1(secret,label+random)[0..outlen]
+     * XOR out with P_sha1(secret,label+random)[0..len]
      */
-    sha1_hmac( S2, hs, buf + 20, nb, buf );
+    sha1_hmac( S2, hs, tmp + 20, nb, tmp );
 
-    for( i = 0; i < outlen; i += 20 )
+    for( i = 0; i < len; i += 20 )
     {
-        sha1_hmac( S2, hs, buf, 20 + nb, h_i );
-        sha1_hmac( S2, hs, buf, 20,      buf );
+        sha1_hmac( S2, hs, tmp, 20 + nb, h_i );
+        sha1_hmac( S2, hs, tmp, 20,      tmp );
 
-        k = ( i + 20 <= outlen ) ? 20 : outlen % 20;
-        for( j = 0; j < k; j++ ) out[i + j] ^= h_i[j];
+        k = ( i + 20 <= len ) ? 20 : len % 20;
+        for( j = 0; j < k; j++ ) buf[i + j] ^= h_i[j];
     }
 }
 
 int ssl_derive_keys( ssl_context *ssl )
 {
-    int i;
+    int i, np;
     md5_context md5;
     sha1_context sha1;
     uchar padding[16];
@@ -119,6 +119,10 @@ int ssl_derive_keys( ssl_context *ssl )
      *  TLSv1:
      *    master = PRF( premaster, "master secret", randbytes )[0..47]
      */
+    np = ( ssl->cipher == SSL3_EDH_RSA_DES_168_SHA ||
+           ssl->cipher == TLS1_EDH_RSA_AES_256_SHA ) ?
+           ssl->dhm_ctx.len : 48;
+
     if( ssl->minor_version == SSLV3_MINOR_VERSION )
     {
         for( i = 0; i < 3; i++ )
@@ -127,18 +131,18 @@ int ssl_derive_keys( ssl_context *ssl )
 
             sha1_starts( &sha1 );
             sha1_update( &sha1, padding, i + 1 );
-            sha1_update( &sha1, ssl->premaster, 48 );
+            sha1_update( &sha1, ssl->premaster, np );
             sha1_update( &sha1, ssl->randbytes, 64 );
             sha1_finish( &sha1, sha1sum );
 
             md5_starts( &md5 );
-            md5_update( &md5, ssl->premaster, 48 );
+            md5_update( &md5, ssl->premaster, np );
             md5_update( &md5, sha1sum, 20 );
             md5_finish( &md5, ssl->master + i * 16 );
         }
     }
     else
-        tls1_prf( ssl->premaster, 48, "master secret",
+        tls1_prf( ssl->premaster, np, "master secret",
                   ssl->randbytes, 64, ssl->master, 48 );
 
     memset( ssl->premaster, 0, sizeof( ssl->premaster ) );
@@ -211,12 +215,14 @@ int ssl_derive_keys( ssl_context *ssl )
             ssl->minlen = 20; ctxlen = sizeof( arc4_context );
             break;
 
-        case SSL3_RSA_DES_192_SHA:
+        case SSL3_RSA_DES_168_SHA:
+        case SSL3_EDH_RSA_DES_168_SHA:
             ssl->maclen = 20; keylen = 24; ssl->ivlen =  8;
             ssl->minlen = 24; ctxlen = sizeof( des3_context );
             break;
 
         case TLS1_RSA_AES_256_SHA:
+        case TLS1_EDH_RSA_AES_256_SHA:
             ssl->maclen = 20; keylen = 32; ssl->ivlen = 16;
             ssl->minlen = 32; ctxlen = sizeof( aes_context  );
             break;
@@ -243,12 +249,14 @@ int ssl_derive_keys( ssl_context *ssl )
             arc4_setup( (arc4_context *) ctx2, key2, keylen );
             break;
 
-        case SSL3_RSA_DES_192_SHA:
+        case SSL3_RSA_DES_168_SHA:
+        case SSL3_EDH_RSA_DES_168_SHA:
             des3_set_3keys( (des3_context *) ctx1, key1 );
             des3_set_3keys( (des3_context *) ctx2, key2 );
             break;
 
         case TLS1_RSA_AES_256_SHA:
+        case TLS1_EDH_RSA_AES_256_SHA:
             aes_set_key( (aes_context *) ctx1, key1, 256 );
             aes_set_key( (aes_context *) ctx2, key2, 256 );
             break;
@@ -287,72 +295,71 @@ int ssl_derive_keys( ssl_context *ssl )
     return( 0 );
 }
 
-/* 
+/*
  * SSLv3 MAC functions
  */
-void ssl_mac_md5( uchar *key, uchar *buf, uint len,
-                  uchar *ctr, uint type )
+void ssl_mac_md5( uchar *secret, uchar *buf, int len,
+                  uchar *counter, int type )
 {
     uchar header[11];
     uchar padding[48];
     md5_context md5;
 
-    memcpy( header, ctr, 8 );
+    memcpy( header, counter, 8 );
     header[ 8] = type;
     header[ 9] = (len >> 8);
     header[10] =  len;
 
     memset( padding, 0x36, 48 );
     md5_starts( &md5 );
-    md5_update( &md5, key, 16 );
+    md5_update( &md5, secret,  16 );
     md5_update( &md5, padding, 48 );
-    md5_update( &md5, header, 11 );
-    md5_update( &md5, buf, len );
+    md5_update( &md5, header,  11 );
+    md5_update( &md5, buf,  len );
     md5_finish( &md5, buf + len );
 
     memset( padding, 0x5C, 48 );
     md5_starts( &md5 );
-    md5_update( &md5, key, 16 );
+    md5_update( &md5, secret,  16 );
     md5_update( &md5, padding, 48 );
     md5_update( &md5, buf + len, 16 );
-    md5_finish( &md5, buf + len);
+    md5_finish( &md5, buf + len );
 }
 
-void ssl_mac_sha1( uchar *key, uchar *buf, uint len,
-                   uchar *ctr, uint type )
+void ssl_mac_sha1( uchar *secret, uchar *buf, int len,
+                   uchar *counter, int type )
 {
     uchar header[11];
     uchar padding[40];
     sha1_context sha1;
 
-    memcpy( header, ctr, 8 );
+    memcpy( header, counter, 8 );
     header[ 8] = type;
     header[ 9] = (len >> 8);
     header[10] =  len;
 
     memset( padding, 0x36, 40 );
     sha1_starts( &sha1 );
-    sha1_update( &sha1, key, 20 );
+    sha1_update( &sha1, secret,  20 );
     sha1_update( &sha1, padding, 40 );
     sha1_update( &sha1, header, 11 );
-    sha1_update( &sha1, buf, len );
+    sha1_update( &sha1, buf,  len );
     sha1_finish( &sha1, buf + len );
 
     memset( padding, 0x5C, 40 );
     sha1_starts( &sha1 );
-    sha1_update( &sha1, key, 20 );
+    sha1_update( &sha1, secret,  20 );
     sha1_update( &sha1, padding, 40 );
     sha1_update( &sha1, buf + len, 20 );
-    sha1_finish( &sha1, buf + len);
+    sha1_finish( &sha1, buf + len );
 }
 
-/* 
+/*
  * Message encryption/decryption
  */ 
 int ssl_encrypt_buf( ssl_context *ssl )
 {
-    int i;
-    uint padlen;
+    int i, padlen;
 
     /*
      * Add MAC then encrypt
@@ -395,6 +402,8 @@ int ssl_encrypt_buf( ssl_context *ssl )
     else
     {
         padlen = ssl->ivlen - ( ssl->out_msglen + 1 ) % ssl->ivlen;
+        if( padlen == ssl->ivlen )
+            padlen = 0;
 
         for( i = 0; i <= (int) padlen; i++ )
             ssl->out_msg[ssl->out_msglen + i] = padlen;
@@ -417,8 +426,7 @@ int ssl_encrypt_buf( ssl_context *ssl )
 
 int ssl_decrypt_buf( ssl_context *ssl )
 {
-    int i;
-    uint padlen;
+    int i, padlen;
     uchar tmp[20];
 
     if( ssl->in_msglen < ssl->minlen )
@@ -448,7 +456,7 @@ int ssl_decrypt_buf( ssl_context *ssl )
                               ssl->iv_dec, ssl->in_msg,
                               ssl->in_msg, ssl->in_msglen );
 
-        padlen = 1 + (uint) ssl->in_msg[ssl->in_msglen - 1];
+        padlen = 1 + ssl->in_msg[ssl->in_msglen - 1];
 
         if( ssl->minor_version == SSLV3_MINOR_VERSION )
         {
@@ -521,13 +529,12 @@ int ssl_decrypt_buf( ssl_context *ssl )
     return( 0 );
 }
 
-/* 
+/*
  * Record layer functions
  */
 int ssl_write_record( ssl_context *ssl, int do_crypt )
 {
-    int ret;
-    uint len = ssl->out_msglen;
+    int ret, len = ssl->out_msglen;
 
     ssl->out_hdr[0] = ssl->out_msgtype;
     ssl->out_hdr[1] = ssl->major_version;
@@ -560,8 +567,7 @@ int ssl_write_record( ssl_context *ssl, int do_crypt )
 
 int ssl_read_record( ssl_context *ssl, int do_crypt )
 {
-    int ret;
-    uint i, len;
+    int ret, i, len;
 
     if( ssl->in_msgtype == SSL_MSG_HANDSHAKE &&
         ssl->in_msglen > ssl->hslen )
@@ -660,13 +666,12 @@ int ssl_read_record( ssl_context *ssl, int do_crypt )
     return( 0 );
 }
 
-/* 
+/*
  * Handshake functions
  */
 int ssl_parse_certificate( ssl_context *ssl )
 {
-    int ret;
-    uint i, n;
+    int ret, i, n;
 
     /*
      *     0  .  0    handshake type
@@ -733,7 +738,7 @@ int ssl_parse_certificate( ssl_context *ssl )
 
 int ssl_write_certificate( ssl_context *ssl )
 {
-    uint i, n;
+    int i, n;
     x509_cert *crt;
 
     if( ssl->own_cert == NULL )
@@ -881,9 +886,9 @@ void ssl_calc_finished( ssl_context *ssl, uchar *buf, int from,
 
 int ssl_parse_finished( ssl_context *ssl )
 {
-    int ret;
-    uint hash_len;
+    int ret, hash_len;
     uchar buf[36];
+
      md5_context  md5;
     sha1_context sha1;
 
@@ -914,7 +919,7 @@ int ssl_parse_finished( ssl_context *ssl )
 
 int ssl_write_finished( ssl_context *ssl )
 {
-    uint hash_len;
+    int hash_len;
      md5_context  md5;
     sha1_context sha1;
 
@@ -936,11 +941,9 @@ int ssl_write_finished( ssl_context *ssl )
 }
 
 /*
- * Setup the list of allowed ciphers and the RNG context.
- * Also allocate memory for the input and output buffers;
- * returns 1 if allocation failed, or 0 if successful.
+ * Setup the list of allowed ciphers and the RNG context
  */
-int ssl_init( ssl_context *ssl, uint *cipherlist,
+int ssl_init( ssl_context *ssl, int *cipherlist,
               ulong (*rng_func)(void *), void *rng_state )
 {
     memset( ssl, 0, sizeof( ssl_context ) );
@@ -968,7 +971,7 @@ int ssl_init( ssl_context *ssl, uint *cipherlist,
 }
 
 /*
- * Setup the read and write file descriptors.
+ * Setup the read and write file descriptors
  */
 int ssl_set_io_files( ssl_context *ssl, int read_fd, int write_fd )
 {
@@ -979,7 +982,7 @@ int ssl_set_io_files( ssl_context *ssl, int read_fd, int write_fd )
 }
 
 /*
- * Setup own certificate and private key struct.
+ * Setup own certificate and private key struct
  */
 int ssl_set_own_cert( ssl_context *ssl, x509_cert *own_cert,
                       rsa_context *own_key )
@@ -991,7 +994,7 @@ int ssl_set_own_cert( ssl_context *ssl, x509_cert *own_cert,
 }
 
 /*
- * Setup the CA cert chain used to verify peer cert and expected CN.
+ * Setup the CA cert chain and expected peer CN
  */
 int ssl_set_ca_chain( ssl_context *ssl, x509_cert *ca, char *cn )
 {
@@ -1002,20 +1005,47 @@ int ssl_set_ca_chain( ssl_context *ssl, x509_cert *ca, char *cn )
 }
 
 /*
- * Receive application data decrypted from the SSL layer.
- *
- * If "full" is zero, ssl_real behaves like read(): less
- * than *len bytes may be read. If full is non-zero, the
- * exact amount of data requested is read.
+ * Return the name of the current cipher
  */
-int ssl_read( ssl_context *ssl, uchar *buf, uint *len, int full )
+char *ssl_cipher_name( ssl_context *ssl )
 {
-    int ret;
-    uint q, n = 0;
+    switch( ssl->cipher )
+    {
+        case SSL3_RSA_RC4_128_MD5:
+            return( "SSL3_RSA_RC4_128_MD5" );
+
+        case SSL3_RSA_RC4_128_SHA:
+            return( "SSL3_RSA_RC4_128_SHA" );
+
+        case SSL3_RSA_DES_168_SHA:
+            return( "SSL3_RSA_DES_168_SHA" );
+
+        case SSL3_EDH_RSA_DES_168_SHA:
+            return( "SSL3_EDH_RSA_DES_168_SHA" );
+
+        case TLS1_RSA_AES_256_SHA:
+            return( "TLS1_RSA_AES_256_SHA" );
+
+        case TLS1_EDH_RSA_AES_256_SHA:
+            return( "TLS1_EDH_RSA_AES_256_SHA" );
+
+        default:
+            break;
+    }
+
+    return( "__UNKNOWN_CIPHER__" );
+}
+
+/*
+ * Receive application data decrypted from the SSL layer
+ */
+int ssl_read( ssl_context *ssl, uchar *buf, int *len, int full )
+{
+    int ret, q, n = 0;
 
     while( n < *len )
     {
-        if( ssl->left == 0 )
+        if( ssl->in_left == 0 )
         {
             if( ( ret = ssl_read_record( ssl, 1 ) ) != 0 )
                 return( ret );
@@ -1023,16 +1053,16 @@ int ssl_read( ssl_context *ssl, uchar *buf, uint *len, int full )
             if( ssl->in_msgtype != SSL_MSG_APPLICATION_DATA )
                 return( ERR_SSL_UNEXPECTED_MESSAGE );
 
-            ssl->left = ssl->in_msglen;
+            ssl->in_left = ssl->in_msglen;
         }
 
-        q = ( ( *len - n ) < ssl->left )
-            ? ( *len - n ) : ssl->left;
+        q = ( ( *len - n ) < ssl->in_left )
+            ? ( *len - n ) : ssl->in_left;
 
         memcpy( buf + n, ssl->in_msg +
-                         ssl->in_msglen - ssl->left, q );
+                         ssl->in_msglen - ssl->in_left, q );
         n += q;
-        ssl->left -= q;
+        ssl->in_left -= q;
 
         if( full == 0 && n > 0 )
         {
@@ -1045,13 +1075,11 @@ int ssl_read( ssl_context *ssl, uchar *buf, uint *len, int full )
 }
 
 /*
- * Send application data to be encrypted by the SSL layer;
- * the peer will receive exactly len bytes from ssl_read()
+ * Send application data to be encrypted by the SSL layer
  */
-int ssl_write( ssl_context *ssl, uchar *buf, uint len )
+int ssl_write( ssl_context *ssl, uchar *buf, int len )
 {
-    int ret;
-    uint n;
+    int ret, n;
 
     while( len > 0 )
     {
@@ -1072,7 +1100,7 @@ int ssl_write( ssl_context *ssl, uchar *buf, uint len )
 }
 
 /*
- * Close the SSL connection and cleanup/free all data.
+ * Close the SSL connection and cleanup/free all data
  */
 void ssl_close( ssl_context *ssl )
 {

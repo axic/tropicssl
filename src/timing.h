@@ -1,3 +1,6 @@
+/**
+ * \file timing.h
+ */
 #ifndef _TIMING_H
 #define _TIMING_H
 
@@ -5,21 +8,26 @@
 extern "C" {
 #endif
 
+/**
+ * \brief          timer structure
+ */
 struct hr_time
 {
     unsigned char opaque[32];
 };
 
-/*
- * This function returns the CPU cycle counter value
+/**
+ * \brief          Return the CPU cycle counter value
  */
 unsigned long hardclock( void );
 
-/*
- * If reset != 0, the timer is restarted. Otherwise,
- * the elapsed time in seconds is returned.
+/**
+ * \brief          Return the elapsed time in milliseconds
+ *
+ * \param val      points to a timer structure
+ * \param reset    if set to 1, the timer is restarted
  */
-float set_timer( struct hr_time *val, int reset );
+unsigned long set_timer( struct hr_time *val, int reset );
 
 #ifdef __cplusplus
 }

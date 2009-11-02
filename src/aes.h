@@ -1,3 +1,6 @@
+/**
+ * \file aes.h
+ */
 #ifndef _AES_H
 #define _AES_H
 
@@ -14,43 +17,72 @@ extern "C" {
 
 #endif
 
+/**
+ * \brief          AES context structure
+ */
 typedef struct
 {
-    ulong erk[64];     /* encryption round keys */
-    ulong drk[64];     /* decryption round keys */
-    uint nr;           /* number of rounds      */
+    ulong erk[64];     /*!< encryption round keys */
+    ulong drk[64];     /*!< decryption round keys */
+    int nr;            /*!< number of rounds      */
 }
 aes_context;
 
-/*
- * AES key schedule (keysize can be 128, 192 or 256)
+/**
+ * \brief          AES key schedule
+ *
+ * \param ctx      AES context to be initialized
+ * \param key      the secret key
+ * \param keysize  must be 128, 192 or 256
  */
-void aes_set_key( aes_context *ctx, uchar *key, uint keysize );
+void aes_set_key( aes_context *ctx, uchar *key, int keysize );
 
-/*
- * AES 128-bit block encryption (ECB)
+/**
+ * \brief          AES block encryption (ECB mode)
+ *
+ * \param ctx      AES context
+ * \param input    plaintext  block
+ * \param output   ciphertext block
  */
 void aes_encrypt( aes_context *ctx, uchar input[16], uchar output[16] );
 
-/*
- * AES 128-bit block decryption (ECB)
+/**
+ * \brief          AES block decryption (ECB mode)
+ *
+ * \param ctx      AES context
+ * \param input    ciphertext block
+ * \param output   plaintext  block
  */
 void aes_decrypt( aes_context *ctx, uchar input[16], uchar output[16] );
 
-/*
- * AES-CBC encryption
+/**
+ * \brief          AES-CBC buffer encryption
+ *
+ * \param ctx      AES context
+ * \param iv       initialization vector (modified after use)
+ * \param input    buffer holding the plaintext
+ * \param output   buffer holding the ciphertext
+ * \param len      length of the data to be encrypted
  */
 void aes_cbc_encrypt( aes_context *ctx, uchar iv[16],
-                      uchar *input, uchar *output, uint len );
+                      uchar *input, uchar *output, int len );
 
-/*
- * AES-CBC decryption
+/**
+ * \brief          AES-CBC buffer decryption
+ *
+ * \param ctx      AES context
+ * \param iv       initialization vector (modified after use)
+ * \param input    buffer holding the ciphertext
+ * \param output   buffer holding the plaintext
+ * \param len      length of the data to be decrypted
  */
 void aes_cbc_decrypt( aes_context *ctx, uchar iv[16],
-                      uchar *input, uchar *output, uint len );
+                      uchar *input, uchar *output, int len );
 
-/*
- * Checkup routine
+/**
+ * \brief          Checkup routine
+ *
+ * \return         0 if successful, or 1 if the test failed
  */
 int aes_self_test( void );
 

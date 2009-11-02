@@ -1,3 +1,6 @@
+/**
+ * \file x509.h
+ */
 #ifndef _X509_H
 #define _X509_H
 
@@ -89,8 +92,8 @@ extern "C" {
 
 typedef struct _x509_buf
 {
-    uint tag;
-    uint len;
+    int tag;
+    int len;
     uchar *p;
 }
 x509_buf;
@@ -115,7 +118,7 @@ typedef struct _x509_cert
     x509_buf raw;
     x509_buf tbs;
 
-    uint version;
+    int version;
     x509_buf serial;
     x509_buf sig_oid1;
 
@@ -131,8 +134,8 @@ typedef struct _x509_cert
     x509_buf subject_id;
     x509_buf v3_ext;
 
-    uint ca_istrue;
-    uint max_pathlen;
+    int ca_istrue;
+    int max_pathlen;
 
     x509_buf sig_oid2;
     x509_buf sig;
@@ -141,65 +144,100 @@ typedef struct _x509_cert
 }
 x509_cert;
 
-/*
- * Parse one or more certificate and add them to the chain.
+/**
+ * \brief          Read one or more certificates and add them
+ *                 to the chain
+ *
+ * \param chain    points to the start of the chain
+ * \param buf      buffer holding the certificate data
+ * \param buflen   size of the buffer
+ *
+ * \return         0 if successful, or a specific X509 error code
  */
-int x509_add_certs( x509_cert *chain, uchar *buf, uint buflen );
+int x509_add_certs( x509_cert *chain, uchar *buf, int buflen );
 
-/*
- * Load a certificate from file, returns 0 if successful.
+/**
+ * \brief          Load one or more certificates and add them
+ *                 to the chain
+ *
+ * \param chain    points to the start of the chain
+ * \param path     filename to read the certificates from
+ *
+ * \return         0 if successful, or a specific X509 error code
  */
-int x509_read_crtfile( x509_cert *chain, char *filename );
+int x509_read_crtfile( x509_cert *chain, char *path );
 
-/*
- * Parse a DER-encoded private key file.
+/**
+ * \brief          Parse a private RSA key
+ *
+ * \param rsa      RSA context to be initialized
+ * \param buf      input buffer
+ * \param buflen   size of the buffer
+ * \param pwd      password for decryption (optional)
+ * \param pwdlen   size of the password
+ *
+ * \return         0 if successful, or a specific X509 error code
  */
-int x509_parse_key( rsa_context *rsa, uchar *buf, uint buflen,
-                                      uchar *pwd, uint pwdlen );
+int x509_parse_key( rsa_context *rsa, uchar *buf, int buflen,
+                                      uchar *pwd, int pwdlen );
 
-/*
- * Load a private key from file, optionaly password-protected.
+/**
+ * \brief          Load and parse a private RSA key
+ *
+ * \param rsa      RSA context to be initialized
+ * \param path     filename to read the private key from
+ * \param password to decrypt the file (can be NULL)
+ *
+ * \return         0 if successful, or a specific X509 error code
  */
-int x509_read_keyfile( rsa_context *rsa, char *filename, char *password );
+int x509_read_keyfile( rsa_context *rsa, char *path, char *password );
 
-/*
- * Store the DN in printable form into buf; no more
- * than (end - buf) characters will be written.
+/**
+ * \brief          Store the name in printable form into buf; no more
+ *                 than (end - buf) characters will be written
  */
 int dn_gets( char *buf, char *end, x509_name *dn );
 
-/*
- * Returns an informational string about the certificate,
- * or NULL if memory allocation failed.
+/**
+ * \brief          Return an informational string about the
+ *                 certificate, or NULL if memory allocation failed
  */
 char *x509_cert_info( x509_cert *crt );
 
-/*
- * Returns 0 if certificate is still valid, or BADCERT_HAS_EXPIRED.
+/**
+ * \brief          Return 0 if the certificate is still valid,
+ *                 or BADCERT_HAS_EXPIRED
  */
 int x509_is_cert_expired( x509_cert *crt );
 
-/*
- * Verify the certificate validity; set cn to NULL if the subject
- * CommonName must not be verified.
+/**
+ * \brief          Verify the certificate validity
  *
- * Returns 0 if successful or ERR_X509_SIG_VERIFY_FAILED,
- * in which case *flags will have one or more of the following
- * values set:
- *      BADCERT_HAS_EXPIRED
- *      BADCERT_CN_MISMATCH
- *      BADCERT_NOT_TRUSTED
+ * \param crt      a certificate to be verified
+ * \param trust_ca the trusted CA chain
+ * \param cn       expected Common Name (can be set to
+ *                 NULL if the CN must not be verified)
+ * \param flags    result of the verification
+ *
+ * \return         0 if successful or ERR_X509_SIG_VERIFY_FAILED,
+ *                 in which case *flags will have one or more of
+ *                 the following values set:
+ *                      BADCERT_HAS_EXPIRED -
+ *                      BADCERT_CN_MISMATCH -
+ *                      BADCERT_NOT_TRUSTED
  */
 int x509_verify_cert( x509_cert *crt, x509_cert *trust_ca,
-                      char *cn, uint *flags );
+                      char *cn, int *flags );
 
-/*
- * Unallocate all certificate data
+/**
+ * \brief          Unallocate all certificate data
  */
 void x509_free_cert( x509_cert *crt );
 
-/*
- * Checkup routine
+/**
+ * \brief          Checkup routine
+ *
+ * \return         0 if successful, or 1 if the test failed
  */
 int x509_self_test( void );
 

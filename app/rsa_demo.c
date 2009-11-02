@@ -24,7 +24,7 @@
 
 #include <stdio.h>
 
-#include "mpi.h"
+#include "bignum.h"
 
 int main( void )
 {
@@ -55,13 +55,16 @@ int main( void )
     printf( "\n  RSA operation:\n\n" );
 
     mpi_read( &X, "55555", 10 );
-    mpi_exp_mod( &Y, &X, &E, &M );
-    mpi_exp_mod( &Z, &Y, &D, &M );
+    mpi_exp_mod( &Y, &X, &E, &M, NULL );
+    mpi_exp_mod( &Z, &Y, &D, &M, NULL );
     mpi_show( "  . X =", &X, 10 );
     mpi_show( "  . Y = X^E mod M =", &Y, 10 );
     mpi_show( "  . Z = Y^D mod M =", &X, 10 );
 
     printf( "\n" );
+
+    mpi_init( &Z, &Y, &X, &D, &H,
+              &M, &Q, &P, &E, NULL );
 
 #ifdef WIN32
     printf( "  Press Enter to exit this program.\n" );

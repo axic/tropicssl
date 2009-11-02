@@ -31,8 +31,8 @@ MTL=midl.exe
 
 # PROP BASE Use_MFC 0
 # PROP BASE Use_Debug_Libraries 0
-# PROP BASE Output_Dir "_build_all___Win32_Release"
-# PROP BASE Intermediate_Dir "_build_all___Win32_Release"
+# PROP BASE Output_Dir "Release___build_all"
+# PROP BASE Intermediate_Dir "Release___build_all"
 # PROP BASE Target_Dir ""
 # PROP Use_MFC 0
 # PROP Use_Debug_Libraries 0
@@ -44,8 +44,8 @@ MTL=midl.exe
 
 # PROP BASE Use_MFC 0
 # PROP BASE Use_Debug_Libraries 1
-# PROP BASE Output_Dir "_build_all___Win32_Debug"
-# PROP BASE Intermediate_Dir "_build_all___Win32_Debug"
+# PROP BASE Output_Dir "Debug___build_all"
+# PROP BASE Intermediate_Dir "Debug___build_all"
 # PROP BASE Target_Dir ""
 # PROP Use_MFC 0
 # PROP Use_Debug_Libraries 1

@@ -33,8 +33,6 @@
 #include <netdb.h>
 #include <errno.h>
 
-#define recv(a,b,c,d)   read(a,b,c)
-#define send(a,b,c,d)   write(a,b,c)
 #define closesocket(fd) close(fd)
 
 #else
@@ -99,8 +97,7 @@ int net_connect( int *server_fd, char *hostname, uint port )
 }
 
 /*
- * Create a listening socket on ip:port. Set bind_ip
- * to NULL to listen on all network interfaces.
+ * Create a listening socket on ip:port
  */
 int net_bind( int *server_fd, char *bind_ip, uint port )
 {
@@ -165,28 +162,7 @@ int net_accept( int server_fd, int *client_fd, ulong *client_ip )
 }
 
 /*
- * Return 1 if data is available at the transport layer,
- * or 0 otherwise (in which case read() is blocking).
- */
-int net_is_data_avail( int fd )
-{
-    fd_set rfds;
-    struct timeval tv;
-
-    FD_ZERO( &rfds );
-    FD_SET( (unsigned int) fd, &rfds );
-
-    tv.tv_sec  = 0;
-    tv.tv_usec = 0;
-
-    if( select( fd + 1, &rfds, NULL, NULL, &tv ) <= 0 )
-        return( 1 );
-
-    return( 0 );
-}
-
-/*
- * Loop until "len" characters have been read.
+ * Loop until "len" characters have been read
  */
 int net_read_all( int read_fd, uchar *buf, uint len )
 {
@@ -217,7 +193,7 @@ int net_read_all( int read_fd, uchar *buf, uint len )
 }
 
 /*
- * Loop until "len" characters have been written.
+ * Loop until "len" characters have been written
  */
 int net_write_all( int write_fd, uchar *buf, uint len )
 {

@@ -1,3 +1,6 @@
+/**
+ * \file sha1.h
+ */
 #ifndef _SHA1_H
 #define _SHA1_H
 
@@ -14,39 +17,75 @@ extern "C" {
 
 #endif
 
+/**
+ * \brief          SHA-1 context structure
+ */
 typedef struct
 {
-    ulong total[2];
-    ulong state[5];
-    uchar buffer[64];
+    ulong total[2];     /*!< number of bytes processed  */
+    ulong state[5];     /*!< intermediate digest state  */
+    uchar buffer[64];   /*!< data block being processed */
 }
 sha1_context;
 
-/*
- * Core SHA-1 functions
+/**
+ * \brief          SHA-1 context setup
+ *
+ * \param ctx      SHA-1 context to be initialized
  */
 void sha1_starts( sha1_context *ctx );
-void sha1_update( sha1_context *ctx, uchar *input, uint length );
-void sha1_finish( sha1_context *ctx, uchar digest[20] );
 
-/*
- * Output SHA-1(file contents), returns 0 if successful.
+/**
+ * \brief          SHA-1 process buffer
+ *
+ * \param ctx      SHA-1 context
+ * \param input    buffer holding the  data
+ * \param ilen     length of the input data
  */
-int sha1_file( char *filename, uchar digest[20] );
+void sha1_update( sha1_context *ctx, uchar *input, int ilen );
 
-/*
- * Output SHA-1(buf)
+/**
+ * \brief          SHA-1 final digest
+ *
+ * \param ctx      SHA-1 context
+ * \param output   SHA-1 checksum result
  */
-void sha1_csum( uchar *buf, uint buflen, uchar digest[20] );
+void sha1_finish( sha1_context *ctx, uchar output[20] );
 
-/*
- * Output HMAC-SHA-1(key,buf)
+/**
+ * \brief          Output = SHA-1( input buffer )
+ *
+ * \param input    buffer holding the  data
+ * \param ilen     length of the input data
+ * \param output   SHA-1 checksum result
  */
-void sha1_hmac( uchar *key, uint keylen, uchar *buf, uint buflen,
-                uchar digest[20] );
+void sha1_csum( uchar *input, int ilen, uchar output[20] );
 
-/*
- * Checkup routine
+/**
+ * \brief          Output = SHA-1( file contents )
+ *
+ * \param path     input file name
+ * \param output   SHA-1 checksum result
+ * \return         0 if successful, or 1 if fopen failed
+ */
+int sha1_file( char *path, uchar output[20] );
+
+/**
+ * \brief          Output = HMAC-SHA-1( input buffer, hmac key )
+ *
+ * \param key      HMAC secret key
+ * \param klen     length of the HMAC key
+ * \param input    buffer holding the  data
+ * \param ilen     length of the input data
+ * \param output   HMAC-SHA-1 result
+ */
+void sha1_hmac( uchar *key, int klen, uchar *input, int ilen,
+                uchar output[20] );
+
+/**
+ * \brief          Checkup routine
+ *
+ * \return         0 if successful, or 1 if the test failed
  */
 int sha1_self_test( void );
 

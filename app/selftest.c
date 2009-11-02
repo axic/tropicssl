@@ -32,7 +32,7 @@
 #include "arc4.h"
 #include "des.h"
 #include "aes.h"
-#include "mpi.h"
+#include "bignum.h"
 #include "base64.h"
 #include "rsa.h"
 #include "x509.h"
@@ -43,19 +43,19 @@ int main( void )
 
     printf( "\n" );
 
-    if( ( ret =  md2_self_test() ) == 0 &&
-        ( ret =  md4_self_test() ) == 0 &&
-        ( ret =  md5_self_test() ) == 0 &&
-        ( ret = sha1_self_test() ) == 0 &&
-        ( ret = sha2_self_test() ) == 0 &&
-        ( ret = arc4_self_test() ) == 0 &&
-        ( ret =  des_self_test() ) == 0 &&
-        ( ret =  aes_self_test() ) == 0 &&
-        ( ret =  mpi_self_test() ) == 0 &&
-        ( ret =  b64_self_test() ) == 0 &&
-        ( ret =  rsa_self_test() ) == 0 &&
-        ( ret = x509_self_test() ) == 0 )
-        printf( "  -={ All tests passed }=-\n" );
+    if( ( ret =    md2_self_test() ) == 0 &&
+        ( ret =    md4_self_test() ) == 0 &&
+        ( ret =    md5_self_test() ) == 0 &&
+        ( ret =   sha1_self_test() ) == 0 &&
+        ( ret =   sha2_self_test() ) == 0 &&
+        ( ret =   arc4_self_test() ) == 0 &&
+        ( ret =    des_self_test() ) == 0 &&
+        ( ret =    aes_self_test() ) == 0 &&
+        ( ret =    mpi_self_test() ) == 0 &&
+        ( ret = base64_self_test() ) == 0 &&
+        ( ret =    rsa_self_test() ) == 0 &&
+        ( ret =   x509_self_test() ) == 0 )
+        printf( "  [ All tests passed ]\n" );
 
     printf( "\n" );
 
