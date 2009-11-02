@@ -1,0 +1,18 @@
+
+
+    Stuff that is being worked on:
+    ==============================
+
+        * More documentation!
+        * Server-side SSL/TLS
+        * Ephemeral Diffie-Hellman
+        * SSL/TLS session resuming
+        * X.509 certificate writing
+        * PKCS#1v2 padding (TLS 1.1)
+        * Implementing SSH and IPsec
+        * Elliptic Curve Cryptography
+
+    If you have ideas, patches or bug reports,
+    please contact cd1@xyssl.org
+
+

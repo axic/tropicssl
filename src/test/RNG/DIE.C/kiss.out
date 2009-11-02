@@ -1,0 +1,937 @@
+
+				NOTE
+
+	Most of the tests in DIEHARD return a p-value, which
+	should be uniform on [0,1) if the input file contains truly
+	independent random bits.   Those p-values are obtained by
+	p=1-F(X), where F is the assumed distribution of the sample
+	random variable X---often normal. But that assumed F is often just
+	an asymptotic approximation, for which the fit will be worst
+	in the tails. Thus you should not be surprised with  occasion-
+	al p-values near 0 or 1, such as .0012 or .9983. When a bit
+	stream really FAILS BIG, you will get p`s of 0 or 1 to six 
+	or more places.  By all means, do not, as a Statistician 
+	might, think that a p < .025 or p> .975 means that the RNG
+	has "failed the test at the .05 level".  Such p`s happen
+	among the hundreds that DIEHARD produces, even with good RNGs.
+	 So keep in mind that "p happens"
+
+	Enter the name of the file to be tested.
+	This must be a form="unformatted",access="direct" binary
+	file of about 10-12 million bytes. Enter file name: 
+
+
+		HERE ARE YOUR CHOICES:
+
+		1   Birthday Spacings
+		2   Overlapping Permutations
+		3   Ranks of 31x31 and 32x32 matrices
+		4   Ranks of 6x8 Matrices
+		5   Monkey Tests on 20-bit Words
+		6   Monkey Tests OPSO,OQSO,DNA
+		7   Count the 1`s in a Stream of Bytes
+		8   Count the 1`s in Specific Bytes
+		9   Parking Lot Test
+		10  Minimum Distance Test
+		11  Random Spheres Test
+		12  The Sqeeze Test
+		13  Overlapping Sums Test
+		14  Runs Test
+		15  The Craps Test
+		16  All of the above
+
+	To choose any particular tests, enter corresponding numbers.
+	Enter 16 for all tests. If you want to perform all but a few
+	tests, enter corresponding numbers preceded by "-" sign.
+	Tests are executed in the order they are entered.
+
+	Enter your choices.
+
+	|-------------------------------------------------------------|
+	|           This is the BIRTHDAY SPACINGS TEST                |
+	|Choose m birthdays in a "year" of n days.  List the spacings |
+	|between the birthdays.  Let j be the number of values that   |
+	|occur more than once in that list, then j is asymptotically  |
+	|Poisson distributed with mean m^3/(4n).  Experience shows n  |
+	|must be quite large, say n>=2^18, for comparing the results  |
+	|to the Poisson distribution with that mean.  This test uses  |
+	|n=2^24 and m=2^10, so that the underlying distribution for j |
+	|is taken to be Poisson with lambda=2^30/(2^26)=16. A sample  |
+	|of 200 j''s is taken, and a chi-square goodness of fit test  |
+	|provides a p value.  The first test uses bits 1-24 (counting |
+	|from the left) from integers in the specified file.  Then the|
+	|file is closed and reopened, then bits 2-25 of the same inte-|
+	|gers are used to provide birthdays, and so on to bits 9-32.  |
+	|Each set of bits provides a p-value, and the nine p-values   |
+	|provide a sample for a KSTEST.                               |
+	|------------------------------------------------------------ |
+
+		RESULTS OF BIRTHDAY SPACINGS TEST FOR kiss.32
+	(no_bdays=1024, no_days/yr=2^24, lambda=16.00, sample size=500)
+
+	Bits used	mean		chisqr		p-value
+	 1 to 24	15.59		29.9601		0.026634
+	 2 to 25	15.79		17.3824		0.428760
+	 3 to 26	15.72		20.1714		0.265557
+	 4 to 27	15.58		14.1076		0.659469
+	 5 to 28	15.86		21.2774		0.214128
+	 6 to 29	15.74		18.5951		0.352263
+	 7 to 30	15.65		18.1323		0.380544
+	 8 to 31	15.46		29.2788		0.032041
+	 9 to 32	15.45		16.3663		0.498032
+
+			degree of freedoms is: 17
+	---------------------------------------------------------------
+		p-value for KStest on those 9 p-values: 0.077945
+
+
+	|-------------------------------------------------------------|
+	|This is the BINARY RANK TEST for 31x31 matrices. The leftmost|
+	|31 bits of 31 random integers from the test sequence are used|
+	|to form a 31x31 binary matrix over the field {0,1}. The rank |
+	|is determined. That rank can be from 0 to 31, but ranks< 28  |
+	|are rare, and their counts are pooled with those for rank 28.|
+	|Ranks are found for 40,000 such random matrices and a chisqu-|
+	|are test is performed on counts for ranks 31,30,28 and <=28. |
+	|-------------------------------------------------------------|
+		Rank test for binary matrices (31x31) from kiss.32
+
+	RANK	OBSERVED	EXPECTED	(O-E)^2/E	SUM
+
+	r<=28	233         	211.4       	2.203       	2.203       
+	r=29	5108        	5134.0      	0.132       	2.335       
+	r=30	23234       	23103.0     	0.742       	3.077       
+	r=31	11425       	11551.5     	1.386       	4.463       
+
+		chi-square = 4.463 with df = 3;  p-value = 0.216
+	--------------------------------------------------------------
+
+	|-------------------------------------------------------------|
+	|This is the BINARY RANK TEST for 32x32 matrices. A random 32x|
+	|32 binary matrix is formed, each row a 32-bit random integer.|
+	|The rank is determined. That rank can be from 0 to 32, ranks |
+	|less than 29 are rare, and their counts are pooled with those|
+	|for rank 29.  Ranks are found for 40,000 such random matrices|
+	|and a chisquare test is performed on counts for ranks  32,31,|
+	|30 and <=29.                                                 |
+	|-------------------------------------------------------------|
+		Rank test for binary matrices (32x32) from kiss.32
+
+	RANK	OBSERVED	EXPECTED	(O-E)^2/E	SUM
+
+	r<=29	191         	211.4       	1.972       	1.972       
+	r=30	5062        	5134.0      	1.010       	2.982       
+	r=31	23092       	23103.0     	0.005       	2.987       
+	r=32	11655       	11551.5     	0.927       	3.914       
+
+		chi-square = 3.914 with df = 3;  p-value = 0.271
+	--------------------------------------------------------------
+
+	|-------------------------------------------------------------|
+	|This is the BINARY RANK TEST for 6x8 matrices.  From each of |
+	|six random 32-bit integers from the generator under test, a  |
+	|specified byte is chosen, and the resulting six bytes form a |
+	|6x8 binary matrix whose rank is determined.  That rank can be|
+	|from 0 to 6, but ranks 0,1,2,3 are rare; their counts are    |
+	|pooled with those for rank 4. Ranks are found for 100,000    |
+	|random matrices, and a chi-square test is performed on       |
+	|counts for ranks 6,5 and (0,...,4) (pooled together).        |
+	|-------------------------------------------------------------|
+
+		Rank test for binary matrices (6x8) from kiss.32
+
+			      bits  1 to  8
+
+	RANK	OBSERVED	EXPECTED	(O-E)^2/E	SUM
+
+	r<=4	1009        	944.3       	4.433       	4.433       
+	r=5	21688       	21743.9     	0.144       	4.577       
+	r=6	77303       	77311.8     	0.001       	4.578       
+
+		chi-square = 4.578 with df = 2;  p-value = 0.101
+	--------------------------------------------------------------
+
+			      bits  2 to  9
+
+	RANK	OBSERVED	EXPECTED	(O-E)^2/E	SUM
+
+	r<=4	1027        	944.3       	7.243       	7.243       
+	r=5	21587       	21743.9     	1.132       	8.375       
+	r=6	77386       	77311.8     	0.071       	8.446       
+
+		chi-square = 8.446 with df = 2;  p-value = 0.015
+	--------------------------------------------------------------
+
+			      bits  3 to 10
+
+	RANK	OBSERVED	EXPECTED	(O-E)^2/E	SUM
+
+	r<=4	964         	944.3       	0.411       	0.411       
+	r=5	21581       	21743.9     	1.220       	1.631       
+	r=6	77455       	77311.8     	0.265       	1.897       
+
+		chi-square = 1.897 with df = 2;  p-value = 0.387
+	--------------------------------------------------------------
+
+			      bits  4 to 11
+
+	RANK	OBSERVED	EXPECTED	(O-E)^2/E	SUM
+
+	r<=4	936         	944.3       	0.073       	0.073       
+	r=5	21456       	21743.9     	3.812       	3.885       
+	r=6	77608       	77311.8     	1.135       	5.020       
+
+		chi-square = 5.020 with df = 2;  p-value = 0.081
+	--------------------------------------------------------------
+
+			      bits  5 to 12
+
+	RANK	OBSERVED	EXPECTED	(O-E)^2/E	SUM
+
+	r<=4	922         	944.3       	0.527       	0.527       
+	r=5	21616       	21743.9     	0.752       	1.279       
+	r=6	77462       	77311.8     	0.292       	1.571       
+
+		chi-square = 1.571 with df = 2;  p-value = 0.456
+	--------------------------------------------------------------
+
+			      bits  6 to 13
+
+	RANK	OBSERVED	EXPECTED	(O-E)^2/E	SUM
+
+	r<=4	966         	944.3       	0.499       	0.499       
+	r=5	21782       	21743.9     	0.067       	0.565       
+	r=6	77252       	77311.8     	0.046       	0.612       
+
+		chi-square = 0.612 with df = 2;  p-value = 0.737
+	--------------------------------------------------------------
+
+			      bits  7 to 14
+
+	RANK	OBSERVED	EXPECTED	(O-E)^2/E	SUM
+
+	r<=4	919         	944.3       	0.678       	0.678       
+	r=5	21661       	21743.9     	0.316       	0.994       
+	r=6	77420       	77311.8     	0.151       	1.145       
+
+		chi-square = 1.145 with df = 2;  p-value = 0.564
+	--------------------------------------------------------------
+
+			      bits  8 to 15
+
+	RANK	OBSERVED	EXPECTED	(O-E)^2/E	SUM
+
+	r<=4	940         	944.3       	0.020       	0.020       
+	r=5	21627       	21743.9     	0.628       	0.648       
+	r=6	77433       	77311.8     	0.190       	0.838       
+
+		chi-square = 0.838 with df = 2;  p-value = 0.658
+	--------------------------------------------------------------
+
+			      bits  9 to 16
+
+	RANK	OBSERVED	EXPECTED	(O-E)^2/E	SUM
+
+	r<=4	909         	944.3       	1.320       	1.320       
+	r=5	21710       	21743.9     	0.053       	1.372       
+	r=6	77381       	77311.8     	0.062       	1.434       
+
+		chi-square = 1.434 with df = 2;  p-value = 0.488
+	--------------------------------------------------------------
+
+			      bits 10 to 17
+
+	RANK	OBSERVED	EXPECTED	(O-E)^2/E	SUM
+
+	r<=4	952         	944.3       	0.063       	0.063       
+	r=5	21721       	21743.9     	0.024       	0.087       
+	r=6	77327       	77311.8     	0.003       	0.090       
+
+		chi-square = 0.090 with df = 2;  p-value = 0.956
+	--------------------------------------------------------------
+
+			      bits 11 to 18
+
+	RANK	OBSERVED	EXPECTED	(O-E)^2/E	SUM
+
+	r<=4	938         	944.3       	0.042       	0.042       
+	r=5	21754       	21743.9     	0.005       	0.047       
+	r=6	77308       	77311.8     	0.000       	0.047       
+
+		chi-square = 0.047 with df = 2;  p-value = 0.977
+	--------------------------------------------------------------
+
+			      bits 12 to 19
+
+	RANK	OBSERVED	EXPECTED	(O-E)^2/E	SUM
+
+	r<=4	910         	944.3       	1.246       	1.246       
+	r=5	21982       	21743.9     	2.607       	3.853       
+	r=6	77108       	77311.8     	0.537       	4.390       
+
+		chi-square = 4.390 with df = 2;  p-value = 0.111
+	--------------------------------------------------------------
+
+			      bits 13 to 20
+
+	RANK	OBSERVED	EXPECTED	(O-E)^2/E	SUM
+
+	r<=4	900         	944.3       	2.078       	2.078       
+	r=5	21874       	21743.9     	0.778       	2.857       
+	r=6	77226       	77311.8     	0.095       	2.952       
+
+		chi-square = 2.952 with df = 2;  p-value = 0.229
+	--------------------------------------------------------------
+
+			      bits 14 to 21
+
+	RANK	OBSERVED	EXPECTED	(O-E)^2/E	SUM
+
+	r<=4	969         	944.3       	0.646       	0.646       
+	r=5	21666       	21743.9     	0.279       	0.925       
+	r=6	77365       	77311.8     	0.037       	0.962       
+
+		chi-square = 0.962 with df = 2;  p-value = 0.618
+	--------------------------------------------------------------
+
+			      bits 15 to 22
+
+	RANK	OBSERVED	EXPECTED	(O-E)^2/E	SUM
+
+	r<=4	963         	944.3       	0.370       	0.370       
+	r=5	21622       	21743.9     	0.683       	1.054       
+	r=6	77415       	77311.8     	0.138       	1.191       
+
+		chi-square = 1.191 with df = 2;  p-value = 0.551
+	--------------------------------------------------------------
+
+			      bits 16 to 23
+
+	RANK	OBSERVED	EXPECTED	(O-E)^2/E	SUM
+
+	r<=4	931         	944.3       	0.187       	0.187       
+	r=5	22021       	21743.9     	3.531       	3.719       
+	r=6	77048       	77311.8     	0.900       	4.619       
+
+		chi-square = 4.619 with df = 2;  p-value = 0.099
+	--------------------------------------------------------------
+
+			      bits 17 to 24
+
+	RANK	OBSERVED	EXPECTED	(O-E)^2/E	SUM
+
+	r<=4	910         	944.3       	1.246       	1.246       
+	r=5	21817       	21743.9     	0.246       	1.492       
+	r=6	77273       	77311.8     	0.019       	1.511       
+
+		chi-square = 1.511 with df = 2;  p-value = 0.470
+	--------------------------------------------------------------
+
+			      bits 18 to 25
+
+	RANK	OBSERVED	EXPECTED	(O-E)^2/E	SUM
+
+	r<=4	964         	944.3       	0.411       	0.411       
+	r=5	21683       	21743.9     	0.171       	0.582       
+	r=6	77353       	77311.8     	0.022       	0.604       
+
+		chi-square = 0.604 with df = 2;  p-value = 0.740
+	--------------------------------------------------------------
+
+			      bits 19 to 26
+
+	RANK	OBSERVED	EXPECTED	(O-E)^2/E	SUM
+
+	r<=4	923         	944.3       	0.480       	0.480       
+	r=5	21521       	21743.9     	2.285       	2.765       
+	r=6	77556       	77311.8     	0.771       	3.537       
+
+		chi-square = 3.537 with df = 2;  p-value = 0.171
+	--------------------------------------------------------------
+
+			      bits 20 to 27
+
+	RANK	OBSERVED	EXPECTED	(O-E)^2/E	SUM
+
+	r<=4	960         	944.3       	0.261       	0.261       
+	r=5	21616       	21743.9     	0.752       	1.013       
+	r=6	77424       	77311.8     	0.163       	1.176       
+
+		chi-square = 1.176 with df = 2;  p-value = 0.555
+	--------------------------------------------------------------
+
+			      bits 21 to 28
+
+	RANK	OBSERVED	EXPECTED	(O-E)^2/E	SUM
+
+	r<=4	947         	944.3       	0.008       	0.008       
+	r=5	21665       	21743.9     	0.286       	0.294       
+	r=6	77388       	77311.8     	0.075       	0.369       
+
+		chi-square = 0.369 with df = 2;  p-value = 0.831
+	--------------------------------------------------------------
+
+			      bits 22 to 29
+
+	RANK	OBSERVED	EXPECTED	(O-E)^2/E	SUM
+
+	r<=4	921         	944.3       	0.575       	0.575       
+	r=5	21678       	21743.9     	0.200       	0.775       
+	r=6	77401       	77311.8     	0.103       	0.878       
+
+		chi-square = 0.878 with df = 2;  p-value = 0.645
+	--------------------------------------------------------------
+
+			      bits 23 to 30
+
+	RANK	OBSERVED	EXPECTED	(O-E)^2/E	SUM
+
+	r<=4	906         	944.3       	1.553       	1.553       
+	r=5	21807       	21743.9     	0.183       	1.737       
+	r=6	77287       	77311.8     	0.008       	1.744       
+
+		chi-square = 1.744 with df = 2;  p-value = 0.418
+	--------------------------------------------------------------
+
+			      bits 24 to 31
+
+	RANK	OBSERVED	EXPECTED	(O-E)^2/E	SUM
+
+	r<=4	875         	944.3       	5.086       	5.086       
+	r=5	21445       	21743.9     	4.109       	9.195       
+	r=6	77680       	77311.8     	1.754       	10.948      
+
+		chi-square = 10.948 with df = 2;  p-value = 0.004
+	--------------------------------------------------------------
+
+			      bits 25 to 32
+
+	RANK	OBSERVED	EXPECTED	(O-E)^2/E	SUM
+
+	r<=4	905         	944.3       	1.636       	1.636       
+	r=5	21645       	21743.9     	0.450       	2.085       
+	r=6	77450       	77311.8     	0.247       	2.332       
+
+		chi-square = 2.332 with df = 2;  p-value = 0.312
+	--------------------------------------------------------------
+	    TEST SUMMARY, 25 tests on 100,000 random 6x8 matrices
+	    These should be 25 uniform [0,1] random variates:
+ 
+	0.101382    	0.014654    	0.387393    	0.081280    	0.455949     
+	0.736504    	0.564019    	0.657683    	0.488121    	0.956049     
+	0.976818    	0.111338    	0.228562    	0.618236    	0.551158     
+	0.099323    	0.469750    	0.739521    	0.170608    	0.555386     
+	0.831470    	0.644824    	0.418013    	0.004194    	0.311537    
+		The KS test for those 25 supposed UNI's yields
+			KS p-value = 0.489549
+
+	|-------------------------------------------------------------|
+	|                  THE BITSTREAM TEST                         |
+	|The file under test is viewed as a stream of bits. Call them |
+	|b1,b2,... .  Consider an alphabet with two "letters", 0 and 1|
+	|and think of the stream of bits as a succession of 20-letter |
+	|"words", overlapping.  Thus the first word is b1b2...b20, the|
+	|second is b2b3...b21, and so on.  The bitstream test counts  |
+	|the number of missing 20-letter (20-bit) words in a string of|
+	|2^21 overlapping 20-letter words.  There are 2^20 possible 20|
+	|letter words.  For a truly random string of 2^21+19 bits, the|
+	|number of missing words j should be (very close to) normally |
+	|distributed with mean 141,909 and sigma 428.  Thus           |
+	| (j-141909)/428 should be a standard normal variate (z score)|
+	|that leads to a uniform [0,1) p value.  The test is repeated |
+	|twenty times.                                                |
+	|-------------------------------------------------------------|
+
+		THE OVERLAPPING 20-TUPLES BITSTREAM  TEST for kiss.32
+	 (20 bits/word, 2097152 words 20 bitstreams. No. missing words 
+	  should average 141909.33 with sigma=428.00.)
+	----------------------------------------------------------------
+		   BITSTREAM test results for kiss.32.
+
+	Bitstream	No. missing words	z-score		p-value
+	   1		142021 			 0.26		0.397080
+	   2		141511 			-0.93		0.823990
+	   3		141928 			 0.04		0.482603
+	   4		142357 			 1.05		0.147790
+	   5		141199 			-1.66		0.951508
+	   6		141894 			-0.04		0.514286
+	   7		142279 			 0.86		0.193872
+	   8		141488 			-0.98		0.837544
+	   9		141864 			-0.11		0.542174
+	   10		141879 			-0.07		0.528247
+	   11		142351 			 1.03		0.151050
+	   12		141600 			-0.72		0.765078
+	   13		142388 			 1.12		0.131701
+	   14		142755 			 1.98		0.024085
+	   15		141585 			-0.76		0.775709
+	   16		142181 			 0.63		0.262798
+	   17		141703 			-0.48		0.685125
+	   18		141505 			-0.94		0.827593
+	   19		141867 			-0.10		0.539392
+	   20		141233 			-1.58		0.942971
+	----------------------------------------------------------------
+
+	|-------------------------------------------------------------|
+	|        OPSO means Overlapping-Pairs-Sparse-Occupancy        |
+	|The OPSO test considers 2-letter words from an alphabet of   |
+	|1024 letters.  Each letter is determined by a specified ten  |
+	|bits from a 32-bit integer in the sequence to be tested. OPSO|
+	|generates  2^21 (overlapping) 2-letter words  (from 2^21+1   |
+	|"keystrokes")  and counts the number of missing words---that |
+	|is 2-letter words which do not appear in the entire sequence.|
+	|That count should be very close to normally distributed with |
+	|mean 141,909, sigma 290. Thus (missingwrds-141909)/290 should|
+	|be a standard normal variable. The OPSO test takes 32 bits at|
+	|a time from the test file and uses a designated set of ten   |
+	|consecutive bits. It then restarts the file for the next de- |
+	|signated 10 bits, and so on.                                 |
+	|------------------------------------------------------------ |
+
+			   OPSO test for file kiss.32
+
+	Bits used	No. missing words	z-score		p-value
+	23 to 32  		142347 		 1.5092		0.065623
+	22 to 31  		142167 		 0.8885		0.187131
+	21 to 30  		142216 		 1.0575		0.145146
+	20 to 29  		141554 		-1.2253		0.889764
+	19 to 28  		141714 		-0.6736		0.749702
+	18 to 27  		141849 		-0.2080		0.582399
+	17 to 26  		141945 		 0.1230		0.451053
+	16 to 25  		141561 		-1.2011		0.885151
+	15 to 24  		141540 		-1.2736		0.898589
+	14 to 23  		142495 		 2.0196		0.021715
+	13 to 22  		142211 		 1.0402		0.149114
+	12 to 21  		141891 		-0.0632		0.525199
+	11 to 20  		142050 		 0.4851		0.313814
+	10 to 19  		142234 		 1.1196		0.131452
+	9 to 18  		142198 		 0.9954		0.159767
+	8 to 17  		142386 		 1.6437		0.050120
+	7 to 16  		141407 		-1.7322		0.958379
+	6 to 15  		141815 		-0.3253		0.627514
+	5 to 14  		141349 		-1.9322		0.973331
+	4 to 13  		142062 		 0.5264		0.299288
+	3 to 12  		141779 		-0.4494		0.673433
+	2 to 11  		142258 		 1.2023		0.114622
+	1 to 10  		141886 		-0.0804		0.532060
+	-----------------------------------------------------------------
+
+	|------------------------------------------------------------ |
+	|    OQSO means Overlapping-Quadruples-Sparse-Occupancy       |
+	|  The test OQSO is similar, except that it considers 4-letter|
+	|words from an alphabet of 32 letters, each letter determined |
+	|by a designated string of 5 consecutive bits from the test   |
+	|file, elements of which are assumed 32-bit random integers.  |
+	|The mean number of missing words in a sequence of 2^21 four- |
+	|letter words,  (2^21+3 "keystrokes"), is again 141909, with  |
+	|sigma = 295.  The mean is based on theory; sigma comes from  |
+	|extensive simulation.                                        |
+	|------------------------------------------------------------ |
+
+			   OQSO test for file kiss.32
+
+	Bits used	No. missing words	z-score		p-value
+	28 to 32  		142130 		 0.7480		0.227220
+	27 to 31  		141728 		-0.6147		0.730616
+	26 to 30  		142201 		 0.9887		0.161402
+	25 to 29  		141944 		 0.1175		0.453222
+	24 to 28  		142036 		 0.4294		0.333820
+	23 to 27  		142191 		 0.9548		0.169836
+	22 to 26  		142269 		 1.2192		0.111380
+	21 to 25  		142139 		 0.7785		0.218125
+	20 to 24  		141985 		 0.2565		0.398779
+	19 to 23  		141656 		-0.8587		0.804760
+	18 to 22  		142345 		 1.4768		0.069858
+	17 to 21  		141705 		-0.6926		0.755733
+	16 to 20  		142035 		 0.4260		0.335054
+	15 to 19  		141747 		-0.5503		0.708933
+	14 to 18  		141801 		-0.3672		0.643273
+	13 to 17  		142143 		 0.7921		0.214151
+	12 to 16  		141632 		-0.9401		0.826417
+	11 to 15  		142222 		 1.0599		0.144595
+	10 to 14  		141931 		 0.0735		0.470721
+	9 to 13  		141655 		-0.8621		0.805694
+	8 to 12  		142335 		 1.4429		0.074517
+	7 to 11  		142287 		 1.2802		0.100231
+	6 to 10  		141418 		-1.6655		0.952096
+	5 to 9  		141776 		-0.4520		0.674353
+	4 to 8  		142705 		 2.6972		0.003496
+	3 to 7  		142123 		 0.7243		0.234439
+	2 to 6  		141943 		 0.1141		0.454565
+	1 to 5  		141793 		-0.3943		0.653335
+	-----------------------------------------------------------------
+
+	|------------------------------------------------------------ |
+	|    The DNA test considers an alphabet of 4 letters: C,G,A,T,|
+	|determined by two designated bits in the sequence of random  |
+	|integers being tested.  It considers 10-letter words, so that|
+	|as in OPSO and OQSO, there are 2^20 possible words, and the  |
+	|mean number of missing words from a string of 2^21  (over-   |
+	|lapping)  10-letter  words (2^21+9 "keystrokes") is 141909.  |
+	|The standard deviation sigma=339 was determined as for OQSO  |
+	|by simulation.  (Sigma for OPSO, 290, is the true value (to  |
+	|three places), not determined by simulation.                 |
+	|------------------------------------------------------------ |
+
+			   DNA test for file kiss.32
+
+	Bits used	No. missing words	z-score		p-value
+	31 to 32  		141360 		-1.6204		0.947431
+	30 to 31  		141725 		-0.5437		0.706692
+	29 to 30  		142363 		 1.3383		0.090406
+	28 to 29  		142059 		 0.4415		0.329424
+	27 to 28  		141591 		-0.9390		0.826141
+	26 to 27  		141979 		 0.2055		0.418584
+	25 to 26  		141941 		 0.0934		0.462784
+	24 to 25  		142561 		 1.9223		0.027282
+	23 to 24  		142089 		 0.5300		0.298056
+	22 to 23  		141811 		-0.2901		0.614114
+	21 to 22  		141635 		-0.8092		0.790809
+	20 to 21  		141844 		-0.1927		0.576408
+	19 to 20  		141838 		-0.2104		0.583327
+	18 to 19  		142043 		 0.3943		0.346677
+	17 to 18  		141965 		 0.1642		0.434780
+	16 to 17  		142265 		 1.0492		0.147049
+	15 to 16  		142192 		 0.8338		0.202187
+	14 to 15  		141683 		-0.6676		0.747818
+	13 to 14  		142092 		 0.5388		0.294995
+	12 to 13  		142582 		 1.9843		0.023612
+	11 to 12  		142434 		 1.5477		0.060847
+	10 to 11  		141887 		-0.0659		0.526259
+	9 to 10  		141593 		-0.9331		0.824623
+	8 to 9  		141763 		-0.4317		0.667003
+	7 to 8  		141691 		-0.6440		0.740226
+	6 to 7  		141992 		 0.2439		0.403668
+	5 to 6  		142153 		 0.7188		0.236135
+	4 to 5  		141575 		-0.9862		0.837988
+	3 to 4  		142069 		 0.4710		0.318819
+	2 to 3  		142127 		 0.6421		0.260406
+	1 to 2  		142371 		 1.3619		0.086621
+	-----------------------------------------------------------------
+
+	|-------------------------------------------------------------|
+	|    This is the COUNT-THE-1''s TEST on a stream of bytes.    |
+	|Consider the file under test as a stream of bytes (four per  |
+	|32 bit integer).  Each byte can contain from 0 to 8 1''s,    |
+	|with probabilities 1,8,28,56,70,56,28,8,1 over 256.  Now let |
+	|the stream of bytes provide a string of overlapping  5-letter|
+	|words, each "letter" taking values A,B,C,D,E. The letters are|
+	|determined by the number of 1''s in a byte: 0,1,or 2 yield A,|
+	|3 yields B, 4 yields C, 5 yields D and 6,7 or 8 yield E. Thus|
+	|we have a monkey at a typewriter hitting five keys with vari-|
+	|ous probabilities (37,56,70,56,37 over 256).  There are 5^5  |
+	|possible 5-letter words, and from a string of 256,000 (over- |
+	|lapping) 5-letter words, counts are made on the frequencies  |
+	|for each word.   The quadratic form in the weak inverse of   |
+	|the covariance matrix of the cell counts provides a chisquare|
+	|test: Q5-Q4, the difference of the naive Pearson sums of     |
+	|(OBS-EXP)^2/EXP on counts for 5- and 4-letter cell counts.   |
+	|-------------------------------------------------------------|
+
+		Test result for the byte stream from kiss.32
+	  (Degrees of freedom: 5^4-5^3=2500; sample size: 2560000)
+
+			chisquare	z-score		p-value
+			2569.63		 0.985		0.162389
+
+	|-------------------------------------------------------------|
+	|    This is the COUNT-THE-1''s TEST for specific bytes.      |
+	|Consider the file under test as a stream of 32-bit integers. |
+	|From each integer, a specific byte is chosen , say the left- |
+	|most: bits 1 to 8. Each byte can contain from 0 to 8 1''s,   |
+	|with probabilitie 1,8,28,56,70,56,28,8,1 over 256.  Now let  |
+	|the specified bytes from successive integers provide a string|
+	|of (overlapping) 5-letter words, each "letter" taking values |
+	|A,B,C,D,E. The letters are determined  by the number of 1''s,|
+	|in that byte: 0,1,or 2 ---> A, 3 ---> B, 4 ---> C, 5 ---> D, |
+	|and  6,7 or 8 ---> E.  Thus we have a monkey at a typewriter |
+	|hitting five keys with with various probabilities: 37,56,70, |
+	|56,37 over 256. There are 5^5 possible 5-letter words, and   |
+	|from a string of 256,000 (overlapping) 5-letter words, counts|
+	|are made on the frequencies for each word. The quadratic form|
+	|in the weak inverse of the covariance matrix of the cell     |
+	|counts provides a chisquare test: Q5-Q4, the difference of   |
+	|the naive Pearson  sums of (OBS-EXP)^2/EXP on counts for 5-  |
+	|and 4-letter cell  counts.                                   |
+	|-------------------------------------------------------------|
+
+		Test results for specific bytes from kiss.32
+	  (Degrees of freedom: 5^4-5^3=2500; sample size: 256000)
+
+	bits used	chisquare	z-score		p-value
+	1 to 8  	2534.09		 0.482		0.314881
+	2 to 9  	2579.59		 1.126		0.130163
+	3 to 10  	2454.72		-0.640		0.739022
+	4 to 11  	2421.58		-1.109		0.866290
+	5 to 12  	2388.23		-1.581		0.943023
+	6 to 13  	2392.09		-1.526		0.936499
+	7 to 14  	2658.54		 2.242		0.012476
+	8 to 15  	2475.71		-0.344		0.634403
+	9 to 16  	2389.81		-1.558		0.940419
+	10 to 17  	2626.24		 1.785		0.037108
+	11 to 18  	2448.12		-0.734		0.768427
+	12 to 19  	2478.40		-0.305		0.620006
+	13 to 20  	2409.81		-1.276		0.898937
+	14 to 21  	2526.94		 0.381		0.351593
+	15 to 22  	2519.69		 0.278		0.390349
+	16 to 23  	2495.75		-0.060		0.523965
+	17 to 24  	2698.18		 2.803		0.002534
+	18 to 25  	2562.83		 0.889		0.187107
+	19 to 26  	2472.54		-0.388		0.651141
+	20 to 27  	2450.04		-0.706		0.760057
+	21 to 28  	2511.11		 0.157		0.437590
+	22 to 29  	2430.02		-0.990		0.838847
+	23 to 30  	2678.79		 2.529		0.005727
+	24 to 31  	2422.40		-1.097		0.863774
+	25 to 32  	2558.90		 0.833		0.202414
+	|-------------------------------------------------------------|
+	|              THIS IS A PARKING LOT TEST                     |
+	|In a square of side 100, randomly "park" a car---a circle of |
+	|radius 1.   Then try to park a 2nd, a 3rd, and so on, each   |
+	|time parking "by ear".  That is, if an attempt to park a car |
+	|causes a crash with one already parked, try again at a new   |
+	|random location. (To avoid path problems, consider parking   |
+	|helicopters rather than cars.)   Each attempt leads to either|
+	|a crash or a success, the latter followed by an increment to |
+	|the list of cars already parked. If we plot n: the number of |
+	|attempts, versus k: the number successfully parked, we get a |
+	|curve that should be similar to those provided by a perfect  |
+	|random number generator.  Theory for the behavior of such a  |
+	|random curve seems beyond reach, and as graphics displays are|
+	|not available for this battery of tests, a simple characteriz|
+	|ation of the random experiment is used: k, the number of cars|
+	|successfully parked after n=12,000 attempts. Simulation shows|
+	|that k should average 3523 with sigma 21.9 and is very close |
+	|to normally distributed.  Thus (k-3523)/21.9 should be a st- |
+	|andard normal variable, which, converted to a uniform varia- |
+	|ble, provides input to a KSTEST based on a sample of 10.     |
+	|-------------------------------------------------------------|
+
+		CDPARK: result of 10 tests on file kiss.32
+	  (Of 12000 tries, the average no. of successes should be 
+	   3523.0 with sigma=21.9)
+
+	   No. succeses		z-score		p-value
+		3522		-0.0457		0.518210
+		3523		 0.0000		0.500000
+		3528		 0.2283		0.409702
+		3552		 1.3242		0.092718
+		3495		-1.2785		0.899470
+		3497		-1.1872		0.882429
+		3517		-0.2740		0.607947
+		3524		 0.0457		0.481790
+		3518		-0.2283		0.590298
+		3558		 1.5982		0.055002
+	  Square side=100, avg. no. parked=3523.40 sample std.=19.01
+	     p-value of the KSTEST for those 10 p-values: 0.791810
+
+
+	|-------------------------------------------------------------|
+	|              THE MINIMUM DISTANCE TEST                      |
+	|It does this 100 times:  choose n=8000 random points in a    |
+	|square of side 10000.  Find d, the minimum distance between  |
+	|the (n^2-n)/2 pairs of points.  If the points are truly inde-|
+	|pendent uniform, then d^2, the square of the minimum distance|
+	|should be (very close to) exponentially distributed with mean|
+	|.995 .  Thus 1-exp(-d^2/.995) should be uniform on [0,1) and |
+	|a KSTEST on the resulting 100 values serves as a test of uni-|
+	|formity for random points in the square. Test numbers=0 mod 5|
+	|are printed but the KSTEST is based on the full set of 100   |
+	|random choices of 8000 points in the 10000x10000 square.     |
+	|-------------------------------------------------------------|
+
+		This is the MINIMUM DISTANCE test for file kiss.32
+
+	Sample no.	 d^2		 mean		equiv uni
+	   5		0.2407		0.6853		0.214846
+	   10		0.2691		1.3127		0.236941
+	   15		0.5289		1.0430		0.412292
+	   20		2.6530		1.2501		0.930494
+	   25		1.1462		1.1289		0.683971
+	   30		0.5493		1.1258		0.424251
+	   35		1.0378		1.1293		0.647593
+	   40		1.3810		1.0513		0.750398
+	   45		0.0568		0.9854		0.055528
+	   50		0.2866		0.9918		0.250301
+	   55		1.4535		0.9500		0.767949
+	   60		0.3224		0.9427		0.276778
+	   65		0.2098		0.9488		0.190091
+	   70		1.2683		0.9188		0.720464
+	   75		0.4661		0.8860		0.374017
+	   80		0.1541		0.8685		0.143476
+	   85		2.1244		0.9002		0.881767
+	   90		0.5448		0.8727		0.421622
+	   95		0.8266		0.8758		0.564282
+	   100		0.9794		0.8981		0.626309
+	--------------------------------------------------------------
+	Result of KS test on 100 transformed mindist^2's: p-value=0.339825
+
+
+	|-------------------------------------------------------------|
+	|             THE 3DSPHERES TEST                              |
+	|Choose  4000 random points in a cube of edge 1000.  At each  |
+	|point, center a sphere large enough to reach the next closest|
+	|point. Then the volume of the smallest such sphere is (very  |
+	|close to) exponentially distributed with mean 120pi/3.  Thus |
+	|the radius cubed is exponential with mean 30. (The mean is   |
+	|obtained by extensive simulation).  The 3DSPHERES test gener-|
+	|ates 4000 such spheres 20 times.  Each min radius cubed leads|
+	|to a uniform variable by means of 1-exp(-r^3/30.), then a    |
+	| KSTEST is done on the 20 p-values.                          |
+	|-------------------------------------------------------------|
+
+		    The 3DSPHERES test for file kiss.32
+
+		sample no	r^3		equiv. uni.
+		   1		13.084		0.353465
+		   2		36.078		0.699590
+		   3		13.449		0.361279
+		   4		2.501		0.079978
+		   5		8.187		0.238822
+		   6		31.268		0.647350
+		   7		7.178		0.212801
+		   8		1.237		0.040411
+		   9		8.990		0.258923
+		   10		22.029		0.520155
+		   11		0.985		0.032315
+		   12		29.327		0.623777
+		   13		25.061		0.566286
+		   14		18.910		0.467589
+		   15		6.227		0.187435
+		   16		34.239		0.680600
+		   17		3.653		0.114642
+		   18		25.439		0.571711
+		   19		4.945		0.151976
+		   20		9.214		0.264445
+	--------------------------------------------------------------
+		p-value for KS test on those 20 p-values: 0.033280
+
+
+	|-------------------------------------------------------------|
+	|                 This is the SQUEEZE test                    |
+	| Random integers are floated to get uniforms on [0,1). Start-|
+	| ing with k=2^31=2147483647, the test finds j, the number of |
+	| iterations necessary to reduce k to 1, using the reduction  |
+	| k=ceiling(k*U), with U provided by floating integers from   |
+	| the file being tested.  Such j''s are found 100,000 times,  |
+	| then counts for the number of times j was <=6,7,...,47,>=48 |
+	| are used to provide a chi-square test for cell frequencies. |
+	|-------------------------------------------------------------|
+
+			RESULTS OF SQUEEZE TEST FOR kiss.32
+
+		    Table of standardized frequency counts
+		(obs-exp)^2/exp  for j=(1,..,6), 7,...,47,(48,...)
+		-1.5  	-0.7  	 0.6  	-0.3  	-0.7  	 1.6  
+		 1.4  	 1.0  	-0.7  	 0.9  	 0.3  	-0.3  
+		 1.3  	 1.5  	 2.0  	-1.1  	-0.7  	-0.9  
+		-0.6  	-1.1  	-0.9  	 0.1  	 0.4  	-0.2  
+		-0.9  	-0.8  	 0.7  	-0.1  	 0.3  	-1.1  
+		-0.3  	 0.6  	 0.7  	 2.0  	-0.2  	 1.0  
+		-0.2  	 1.1  	 1.7  	 1.0  	 0.9  	-1.0  
+		 0.8  
+		Chi-square with 42 degrees of freedom:40.358142
+		z-score=-0.179141, p-value=0.543189
+	_____________________________________________________________
+
+
+	|-------------------------------------------------------------|
+	|            The  OVERLAPPING SUMS test                       |
+	|Integers are floated to get a sequence U(1),U(2),... of uni- |
+	|form [0,1) variables.  Then overlapping sums,                |
+	|  S(1)=U(1)+...+U(100), S2=U(2)+...+U(101),... are formed.   |
+	|The S''s are virtually normal with a certain covariance mat- |
+	|rix.  A linear transformation of the S''s converts them to a |
+	|sequence of independent standard normals, which are converted|
+	|to uniform variables for a KSTEST.                           |
+	|-------------------------------------------------------------|
+
+			Results of the OSUM test for kiss.32
+
+			Test no			p-value
+			  1 			0.360690
+			  2 			0.206068
+			  3 			0.290307
+			  4 			0.769668
+			  5 			0.445720
+			  6 			0.279731
+			  7 			0.729134
+			  8 			0.948065
+			  9 			0.169536
+			  10 			0.538107
+	_____________________________________________________________
+
+		p-value for 10 kstests on 100 kstests:0.825647
+
+	|-------------------------------------------------------------|
+	|    This is the RUNS test.  It counts runs up, and runs down,|
+	|in a sequence of uniform [0,1) variables, obtained by float- |
+	|ing the 32-bit integers in the specified file. This example  |
+	|shows how runs are counted: .123,.357,.789,.425,.224,.416,.95|
+	|contains an up-run of length 3, a down-run of length 2 and an|
+	|up-run of (at least) 2, depending on the next values.  The   |
+	|covariance matrices for the runs-up and runs-down are well   |
+	|known, leading to chisquare tests for quadratic forms in the |
+	|weak inverses of the covariance matrices.  Runs are counted  |
+	|for sequences of length 10,000.  This is done ten times. Then|
+	|another three sets of ten.                                   |
+	|-------------------------------------------------------------|
+
+			The RUNS test for file kiss.32
+		(Up and down runs in a sequence of 10000 numbers)
+				Set 1
+		 runs up; ks test for 10 p's: 0.067228
+		 runs down; ks test for 10 p's: 0.333222
+				Set 2
+		 runs up; ks test for 10 p's: 0.581523
+		 runs down; ks test for 10 p's: 0.217533
+
+	|-------------------------------------------------------------|
+	|This the CRAPS TEST.  It plays 200,000 games of craps, counts|
+	|the number of wins and the number of throws necessary to end |
+	|each game.  The number of wins should be (very close to) a   |
+	|normal with mean 200000p and variance 200000p(1-p), and      |
+	|p=244/495.  Throws necessary to complete the game can vary   |
+	|from 1 to infinity, but counts for all>21 are lumped with 21.|
+	|A chi-square test is made on the no.-of-throws cell counts.  |
+	|Each 32-bit integer from the test file provides the value for|
+	|the throw of a die, by floating to [0,1), multiplying by 6   |
+	|and taking 1 plus the integer part of the result.            |
+	|-------------------------------------------------------------|
+
+		RESULTS OF CRAPS TEST FOR kiss.32 
+	No. of wins:  Observed	Expected
+	                 98760        98585.858586
+		z-score= 0.779, pvalue=0.21803
+
+	Analysis of Throws-per-Game:
+
+	Throws	Observed	Expected	Chisq	 Sum of (O-E)^2/E
+	1	66445		66666.7		0.737		0.737
+	2	37506		37654.3		0.584		1.321
+	3	27179		26954.7		1.866		3.187
+	4	19499		19313.5		1.782		4.970
+	5	13788		13851.4		0.290		5.260
+	6	9821		9943.5		1.510		6.770
+	7	7173		7145.0		0.110		6.880
+	8	5329		5139.1		7.019		13.899
+	9	3686		3699.9		0.052		13.951
+	10	2690		2666.3		0.211		14.162
+	11	1887		1923.3		0.686		14.848
+	12	1370		1388.7		0.253		15.101
+	13	982		1003.7		0.470		15.571
+	14	751		726.1		0.851		16.422
+	15	523		525.8		0.015		16.437
+	16	368		381.2		0.454		16.891
+	17	273		276.5		0.045		16.936
+	18	175		200.8		3.322		20.258
+	19	143		146.0		0.061		20.319
+	20	138		106.2		9.512		29.831
+	21	274		287.1		0.599		30.430
+
+	Chisq=  30.43 for 20 degrees of freedom, p= 0.06318
+
+		SUMMARY of craptest on kiss.32
+	 p-value for no. of wins: 0.218031
+	 p-value for throws/game: 0.063185
+	_____________________________________________________________
+
