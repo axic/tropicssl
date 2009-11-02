@@ -1,32 +1,32 @@
 
-# SSE2 support is disabled -- add /DHAVE_SSE2 to enable it
+CFLAGS=/O2 /W3 /MT /nologo /Fo$@ /DWIN32 /DSELF_TEST #/DHAVE_SSE2
+LDFLAGS=xyssl.lib kernel32.lib shell32.lib user32.lib
 
-CFLAGS=/O2 /W3 /MT /nologo /Fo$@ /DWIN32 /DSELF_TEST
+LIB_OBJ=library/aes.obj           library/arc4.obj          \
+        library/base64.obj        library/bignum.obj        \
+        library/certs.obj         library/dhm.obj           \
+        library/des.obj           library/havege.obj        \
+        library/md2.obj           library/md4.obj           \
+        library/md5.obj           library/net.obj           \
+        library/rsa.obj           library/sha1.obj          \
+        library/sha2.obj          library/ssl_cli.obj       \
+        library/ssl_srv.obj       library/ssl_tls.obj       \
+        library/timing.obj        library/x509_read.obj
 
-LIB_OBJ=src/aes.obj        src/arc4.obj       src/base64.obj     \
-        src/bignum.obj     src/dhm.obj        src/des.obj        \
-        src/havege.obj     src/md2.obj        src/md4.obj        \
-        src/md5.obj        src/net.obj        src/rsa.obj        \
-        src/sha1.obj       src/sha2.obj       src/ssl_v3.obj     \
-        src/ssl_cli.obj    src/ssl_srv.obj    src/testcert.obj   \
-        src/timing.obj     src/x509_in.obj
+PRG_OBJ=programs/benchmark.exe    programs/hello.exe        \
+        programs/filecrypt.exe    programs/rsa_demo.exe     \
+        programs/selftest.exe     programs/ssl_client1.exe  \
+        programs/ssl_client2.exe  programs/ssl_server.exe
 
-APP_OBJ=app/benchmark.exe  app/hello.exe      app/filecrypt.exe  \
-        app/rsa_demo.exe   app/selftest.exe   app/ssl_client.exe \
-        app/ssl_server.exe
+default: lib prg
 
-LIBS=xyssl.lib kernel32.lib shell32.lib user32.lib
-
-default: xyssl.lib apps
-
-xyssl.lib: $(LIB_OBJ) ; @echo.
+lib:  $(LIB_OBJ) ; @echo.
 	@lib /out:xyssl.lib $(LIB_OBJ)
-	@del src\*.obj
+	@del library\*.obj
 
-apps: $(APP_OBJ) ; @echo.
-	@del app\*.exe
+prg:  $(PRG_OBJ) ; @echo.
+	@del programs\*.exe
 
-.c.obj: ; @$(CC) $(CFLAGS) /c $<
+.c.obj: ; @$(CC) $(CFLAGS) /I"include/xyssl/"  /c $<
 
-.c.exe: ; @$(CC) $(CFLAGS) /Isrc $(LIBS) $<
-
+.c.exe: ; @$(CC) $(CFLAGS) /I"include" $(LDFLAGS) $<

@@ -1,4 +1,15 @@
 
+= Version 0.5 released on 2007-03-01
+
+    * Added multiply assembly code for SPARC and Alpha
+    * Added (beta) support for non-blocking I/O operations
+    * Implemented session resuming and client authentication
+    * Fixed some portability issues on WinCE, MINIX 3, Plan9
+      (thanks to Benjamin Newman), HP-UX, FreeBSD and Solaris
+    * Improved the performance of the EDH key exchange
+    * Fixed a bug that caused valid packets with of payload
+      size of 16384 to be rejected
+
 = Version 0.4 released on 2007-02-01
 
     * Added support for Ephemeral Diffie-Hellman key exchange
@@ -10,7 +21,7 @@
       version was not properly set), thanks to Didier Rebeix
     * Fixed another bug in ssl_parse_client_hello: clients with
       cipherlists larger than 96 bytes were incorrectly rejected
-    * Fixed a couple memory leak in x509_in.c
+    * Fixed a couple memory leak in x509_read.c
 
 = Version 0.3 released on 2007-01-01
 

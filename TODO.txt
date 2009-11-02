@@ -3,10 +3,10 @@
     Stuff that is being worked on:
     ==============================
 
-        * Client authentication
-        * SSL/TLS session resuming
+        * Load/stress tests, code audit
         * X.509 certificate writing
-        * PKCS#1v2 padding (TLS 1.1)
+        * SSL session renegotiation
+        * PKCS#1 v2 padding (TLS 1.1)
         * Implementing SSH and IPsec
         * Elliptic Curve Cryptography
 

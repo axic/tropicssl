@@ -1,50 +1,35 @@
 
-DEFINES=-DSELF_TEST -DHAVE_RDTSC #-DHAVE_SSE2
-CFLAGS=-Isrc -O2 -W -Wall $(DEFINES)
-LDFLAGS=-L. -lxyssl
 DESTDIR=/usr/local
 
-LIB_OBJ=src/aes.o          src/arc4.o         src/base64.o       \
-        src/bignum.o       src/des.o          src/dhm.o          \
-        src/havege.o       src/md2.o          src/md4.o          \
-        src/md5.o          src/net.o          src/rsa.o          \
-        src/sha1.o         src/sha2.o         src/ssl_v3.o       \
-        src/ssl_cli.o      src/ssl_srv.o      src/testcert.o     \
-        src/timing.o       src/x509_in.o
+.SILENT:
 
-APP_OBJ=app/benchmark      app/hello          app/filecrypt      \
-        app/rsa_demo       app/selftest       app/ssl_client     \
-        app/ssl_server
+all: static progs
 
-all: libxyssl.a apps
+static:
+	cd library  && make static && cd ..
 
-libxyssl.a: $(LIB_OBJ)
-	@echo "  AR      $@"; ar r $@ $(LIB_OBJ); ranlib $@
+shared:
+	cd library  && make shared && cd ..
 
-%.o: %.c
-	@echo "  CC      $<"; $(CC) $(CFLAGS) -c $< -o $@
+progs:
+	cd programs && make all && cd ..
 
-apps: $(APP_OBJ)
-
-app/%:  app/%.c  libxyssl.a
-	@echo "  CC      $<"; $(CC) $(CFLAGS) $< -o $@ $(LDFLAGS)
-
-docs:
-	@rm -rf doc
-	@cd src && doxygen ; cd ..
-	@mv html doc
+doc:
+	rm -rf docs
+	cd library && doxygen && cd ..
+	mv html docs
 
 install:
 	mkdir -p $(DESTDIR)/{include/xyssl,lib}
-	cp src/*.h $(DESTDIR)/include/xyssl
-	cp libxyssl.a $(DESTDIR)/lib
-
-install-apps:
+	cp -v -r include $(DESTDIR)/include
+	cp -v library/libxyssl.a $(DESTDIR)/lib
+	
 	mkdir -p $(DESTDIR)/bin
-	for i in $(APP_OBJ); do         \
-	    cp $i $(DESTDIR)/xyssl_$i;  \
+	for i in programs/*; do test -x $i && \
+	    cp -v $i $(DESTDIR)/xyssl_$i;   \
 	done
 
 clean:
-	@rm -f libxyssl.a src/*.o app/*.o $(APP_OBJ)
+	cd library  && make clean && cd ..
+	cd programs && make clean && cd ..
 
