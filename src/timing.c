@@ -64,13 +64,13 @@ uint64 hardclock( void )
 
 #endif
 
-#if defined(__i386__)
+#if defined(__i386__) || defined(__x86_64__)
 
 uint64 hardclock( void )
 {
-    volatile uint64 tsc;
-    asm volatile( "rdtsc" : "=A" (tsc) );
-    return( tsc );
+    unsigned long a, d;
+    asm volatile( "rdtsc" : "=a" (a), "=d" (d) ); 
+    return( ( (uint64) d ) << 32 | a );
 }
 
 #endif
@@ -93,17 +93,6 @@ uint64 hardclock( void )
     unsigned long cc;
     asm volatile( "rpcc %0" : "=r" (cc) );
     return( cc & 0xFFFFFFFF );
-}
-
-#endif
-
-#if defined(__x86_64__)
-
-uint64 hardclock( void )
-{
-    unsigned long a, d;
-    asm volatile( "rdtsc" : "=a" (a), "=d" (d) ); 
-    return( ( (uint64) d ) << 32 | a );
 }
 
 #endif
@@ -134,6 +123,28 @@ uint64 hardclock( void )
     while( tbu0 != tbu1 );
 
     return( ( (uint64) tbu0 ) << 32 | tbl );
+}
+
+#endif
+
+#if defined(__mips__)
+
+uint64 hardclock( void )
+{
+    unsigned long t;
+    asm volatile( "mfc0 %0, $9; nop" : "=r" (t) );
+    return( t );
+}
+
+#endif
+
+#if defined(__arm__)
+
+uint64 hardclock( void )
+{
+    struct timeval tv;
+    gettimeofday( &tv, NULL );
+    return( tv.tv_usec );
 }
 
 #endif

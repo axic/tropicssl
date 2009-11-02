@@ -35,20 +35,7 @@
 
 #include "mpi.h"
 
-/* 
- * Define llong twice the size of the base limb type
- */
-#ifdef _MSC_VER
-#define llong __int64
-#else
-#ifdef __amd64__
-typedef unsigned int llong __attribute__((mode(TI)));
-#else
-#define llong unsigned long long
-#endif
-#endif
-
-#define ciL    sizeof(ulong)    /* chars in limb  */
+#define ciL    sizeof(t_int)    /* chars in limb  */
 #define biL    (ciL << 3)       /* bits  in limb  */
 #define biH    (ciL << 2)       /* half limb size */
 
@@ -115,7 +102,7 @@ int mpi_grow( mpi *X, int nblimbs )
             X->s = 1;
 
         X->n = nblimbs;
-        X->p = (ulong *) realloc( X->p, X->n * ciL );
+        X->p = (t_int *) realloc( X->p, X->n * ciL );
 
         if( X->p == NULL )
             return( 1 );
@@ -132,7 +119,7 @@ int mpi_grow( mpi *X, int nblimbs )
  * Returns 0 if successful
  *         1 if memory allocation failed
  */
-int mpi_lset( mpi *X, long int z )
+int mpi_lset( mpi *X, int z )
 {
     int ret;
 
@@ -194,7 +181,7 @@ void mpi_swap( mpi *X, mpi *Y )
  * Returns 0 if successful
  *         ERR_MPI_INVALID_CHARACTER if conversion to digit failed
  */
-int mpi_get_digit( ulong *d, int radix, char c )
+int mpi_get_digit( t_int *d, int radix, char c )
 {
     *d = 16;
 
@@ -202,7 +189,7 @@ int mpi_get_digit( ulong *d, int radix, char c )
     if( c >= 0x41 && c <= 0x46 ) *d = c - 0x37;
     if( c >= 0x61 && c <= 0x66 ) *d = c - 0x57;
 
-    if( *d >= (ulong) radix )
+    if( *d >= (t_int) radix )
         return( ERR_MPI_INVALID_CHARACTER );
 
     return( 0 );
@@ -219,7 +206,7 @@ int mpi_get_digit( ulong *d, int radix, char c )
 int mpi_read( mpi *X, char *s, int radix )
 {
     int ret, i, j, n;
-    ulong d;
+    t_int d;
     mpi T;
 
     if( radix < 2 || radix > 16 )
@@ -272,16 +259,16 @@ cleanup:
 
 /* 
  * Helper to display the digits high-order first
- * (don't call this function directly, use mpi_show)
+ * (don't call this function directly, use mpi_showf)
  *
  * Returns 0 if successful
  *         1 if memory allocation failed
  *         ERR_MPI_INVALID_PARAMETER if base is not between 2 and 16
  */
-int mpi_recurse_show( mpi *X, int radix )
+int mpi_recurse_showf( FILE *fout, mpi *X, int radix )
 {
     int ret;
-    ulong r;
+    t_int r;
 
     if( radix < 2 || radix > 16 )
         return( ERR_MPI_INVALID_PARAMETER );
@@ -290,10 +277,10 @@ int mpi_recurse_show( mpi *X, int radix )
     CHK( mpi_div_int( X, NULL, X, radix ) );
 
     if( mpi_cmp_int( X, 0 ) != 0 )
-        CHK( mpi_recurse_show( X, radix ) );
+        CHK( mpi_recurse_showf( fout, X, radix ) );
 
-    printf( "%c", ( r < 10 ) ? ( (char) r + 0x30 )
-                             : ( (char) r + 0x37 ) );
+    fprintf( fout, "%c", ( r < 10 ) ? ( (char) r + 0x30 )
+                                    : ( (char) r + 0x37 ) );
 
 cleanup:
 
@@ -301,13 +288,13 @@ cleanup:
 }
 
 /*
- * Print value in the given numeric base
+ * Print value in the given numeric base (into fout)
  *
  * Returns 0 if successful
  *         1 if memory allocation failed
  *         ERR_MPI_INVALID_PARAMETER if base is not between 2 and 16
  */
-int mpi_show( char *name, mpi *X, int radix )
+int mpi_showf( FILE *fout, char *name, mpi *X, int radix )
 {
     int ret, i, j, k, l;
     mpi T;
@@ -317,7 +304,7 @@ int mpi_show( char *name, mpi *X, int radix )
 
     mpi_init( &T, NULL );
 
-    printf( "%s%c", name, ( X->s == -1 ) ? '-' : ' ' );
+    fprintf( fout, "%s%c", name, ( X->s == -1 ) ? '-' : ' ' );
 
     if( radix == 16 )
     {
@@ -332,7 +319,7 @@ int mpi_show( char *name, mpi *X, int radix )
                 if( k == 0 && l == 0 && (i + j) != 0 )
                     continue;
 
-                printf( "%02X", k );
+                fprintf( fout, "%02X", k );
                 l = 1;
             }
         }
@@ -340,15 +327,27 @@ int mpi_show( char *name, mpi *X, int radix )
     else
     {
         CHK( mpi_copy( &T, X ) );
-        CHK( mpi_recurse_show( &T, radix ) );
+        CHK( mpi_recurse_showf( fout, &T, radix ) );
     }
 
-    printf( "\n" );
+    fprintf( fout, "\n" );
 
 cleanup:
 
     mpi_free( &T, NULL );
     return( ret );
+}
+
+/*
+ * Print value in the given numeric base (into stdout)
+ *
+ * Returns 0 if successful
+ *         1 if memory allocation failed
+ *         ERR_MPI_INVALID_PARAMETER if base is not between 2 and 16
+ */
+int mpi_show( char *name, mpi *X, int radix )
+{
+    return( mpi_showf( stdout, name, X, radix ) );
 }
 
 /*
@@ -370,7 +369,7 @@ int mpi_import( mpi *X, unsigned char *buf, uint buflen )
     CHK( mpi_lset( X, 0 ) );
 
     for( i = buflen - 1, j = 0; i >= (int) n; i--, j++ )
-        X->p[j / ciL] |= (ulong) buf[i] << ((j % ciL ) << 3);
+        X->p[j / ciL] |= (t_int) buf[i] << ((j % ciL ) << 3);
 
 cleanup:
 
@@ -450,7 +449,7 @@ uint mpi_lsb( mpi *X )
 int mpi_shift_l( mpi *X, uint count )
 {
     int ret, i, v0, t1;
-    ulong r0 = 0, r1;
+    t_int r0 = 0, r1;
 
     v0 = count /  biL;
     t1 = count & (biL - 1);
@@ -501,7 +500,7 @@ cleanup:
 int mpi_shift_r( mpi *X, uint count )
 {
     int i, v0, v1;
-    ulong r0 = 0, r1;
+    t_int r0 = 0, r1;
 
     v0 = count /  biL;
     v1 = count & (biL - 1);
@@ -613,10 +612,10 @@ int mpi_cmp_mpi( mpi *X, mpi *Y )
  *        -1 if X is lesser  than z
  *         0 if X is equal to z
  */
-int mpi_cmp_int( mpi *X, long int z )
+int mpi_cmp_int( mpi *X, int z )
 {
     mpi Y;
-    ulong p[1];
+    t_int p[1];
 
     *p  = ( z < 0 ) ? -z : z;
     Y.s = ( z < 0 ) ? -1 : 1;
@@ -635,7 +634,7 @@ int mpi_cmp_int( mpi *X, long int z )
 int mpi_add_abs( mpi *X, mpi *A, mpi *B )
 {
     int ret, i, j;
-    ulong *o, *p, c;
+    t_int *o, *p, c;
 
     if( X == B )
     {
@@ -685,7 +684,7 @@ int mpi_sub_abs( mpi *X, mpi *A, mpi *B )
 {
     mpi TB;
     int ret, i, j;
-    ulong *o, *p, c, z;
+    t_int *o, *p, c, z;
 
     if( mpi_cmp_abs( A, B ) < 0 )
         return( ERR_MPI_NEGATIVE_VALUE );
@@ -801,10 +800,10 @@ cleanup:
  * Returns 0 if successful
  *         1 if memory allocation failed
  */
-int mpi_add_int( mpi *X, mpi *A, long int b )
+int mpi_add_int( mpi *X, mpi *A, int b )
 {
     mpi _B;
-    ulong p[1];
+    t_int p[1];
 
     p[0] = ( b < 0 ) ? -b : b;
     _B.s = ( b < 0 ) ? -1 : 1;
@@ -820,10 +819,10 @@ int mpi_add_int( mpi *X, mpi *A, long int b )
  * Returns 0 if successful,
  *         1 if memory allocation failed
  */
-int mpi_sub_int( mpi *X, mpi *A, long int b )
+int mpi_sub_int( mpi *X, mpi *A, int b )
 {
     mpi _B;
-    ulong p[1];
+    t_int p[1];
 
     p[0] = ( b < 0 ) ? -b : b;
     _B.s = ( b < 0 ) ? -1 : 1;
@@ -917,11 +916,11 @@ int mpi_sub_int( mpi *X, mpi *A, long int b )
 
 #define MULADDC_INIT                    \
 {                                       \
-    llong r;                            \
-    ulong r0, r1;
+    t_dbl r;                            \
+    t_int r0, r1;
 
 #define MULADDC_CORE                    \
-    r   = *(s++) * (llong) b;           \
+    r   = *(s++) * (t_dbl) b;           \
     r0  = r;                            \
     r1  = r >> biL;                     \
     r0 += c;  r1 += (r0 <  c);          \
@@ -935,9 +934,9 @@ int mpi_sub_int( mpi *X, mpi *A, long int b )
 #endif
 #endif
 
-void MULADDC( int i, ulong *s, ulong *d, ulong b )
+void MULADDC( int i, t_int *s, t_int *d, t_int b )
 {
-    ulong c = 0;
+    t_int c = 0;
 
     for( ; i >= 16; i -= 16 )
     {
@@ -1018,10 +1017,10 @@ cleanup:
  * Returns 0 if successful
  *         1 if memory allocation failed
  */
-int mpi_mul_int( mpi *X, mpi *A, ulong b )
+int mpi_mul_int( mpi *X, mpi *A, t_int b )
 {
     mpi _B;
-    ulong p[1];
+    t_int p[1];
 
     _B.s = 1;
     _B.n = 1;
@@ -1042,7 +1041,7 @@ int mpi_div_mpi( mpi *Q, mpi *R, mpi *A, mpi *B )
 {
     int ret, i, n, t, k;
     mpi X, Y, Z, T1, T2;
-    llong r;
+    t_dbl r;
 
     if( mpi_cmp_int( B, 0 ) == 0 )
         return( ERR_MPI_DIVISION_BY_ZERO );
@@ -1090,12 +1089,12 @@ int mpi_div_mpi( mpi *Q, mpi *R, mpi *A, mpi *B )
             Z.p[i - t - 1] = ~0;
         else
         {
-            r  = (llong) X.p[i] << biL;
-            r |= (llong) X.p[i - 1];
+            r  = (t_dbl) X.p[i] << biL;
+            r |= (t_dbl) X.p[i - 1];
             r /= Y.p[t];
-            if( r > ((llong) 1 << biL) - 1)
-                r = ((llong) 1 << biL) - 1;
-            Z.p[i - t - 1] = (ulong) r;
+            if( r > ((t_dbl) 1 << biL) - 1)
+                r = ((t_dbl) 1 << biL) - 1;
+            Z.p[i - t - 1] = (t_int) r;
         }
 
         Z.p[i - t - 1]++;
@@ -1157,10 +1156,10 @@ cleanup:
  *         1 if memory allocation failed
  *         ERR_MPI_DIVISION_BY_ZERO if b == 0
  */
-int mpi_div_int( mpi *Q, mpi *R, mpi *A, long int b )
+int mpi_div_int( mpi *Q, mpi *R, mpi *A, int b )
 {
     mpi _B;
-    ulong p[1];
+    t_int p[1];
 
     p[0] = ( b < 0 ) ? -b : b;
     _B.s = ( b < 0 ) ? -1 : 1;
@@ -1202,10 +1201,10 @@ cleanup:
  *         ERR_MPI_DIVISION_BY_ZERO if b == 0
  *         ERR_MPI_INVALID_PARAMETER if |sign| != 1
  */
-int mpi_mod_int( ulong *r, mpi *A, long int b )
+int mpi_mod_int( t_int *r, mpi *A, int b )
 {
     int i;
-    ulong x, y, z;
+    t_int x, y, z;
 
     if( b == 0 )
         return( ERR_MPI_DIVISION_BY_ZERO );
@@ -1243,9 +1242,9 @@ int mpi_mod_int( ulong *r, mpi *A, long int b )
 /* 
  * Fast Montgomery initialization (thanks to Tom St Denis)
  */
-void mpi_montg_init( ulong *mm, mpi *N )
+void mpi_montg_init( t_int *mm, mpi *N )
 {
-    ulong x, m0 = N->p[0];
+    t_int x, m0 = N->p[0];
 
     x  = m0;
     x += ((m0 + 2) & 4) << 1;
@@ -1265,12 +1264,12 @@ void mpi_montg_init( ulong *mm, mpi *N )
  * Returns 0 if successful
  *         1 if memory allocation failed
  */
-int mpi_montgomery( mpi *X, mpi *A, mpi *B, mpi *N, mpi *Z, ulong mm )
+int mpi_montgomery( mpi *X, mpi *A, mpi *B, mpi *N, mpi *Z, t_int mm )
 {
     int ret, i, maxB;
-    ulong j;
-    ulong u0, *x0, z = 1;
-    ulong u1, *x1;
+    t_int j;
+    t_int u0, *x0, z = 1;
+    t_int u1, *x1;
     mpi U;
 
     U.s = U.n = 1; U.p = &z;
@@ -1330,7 +1329,7 @@ int mpi_exp_mod( mpi *X, mpi *A, mpi *E, mpi *N )
     int ret, i, j, wsize, wbits, nbits;
     int bufsize, nblimbs, state;
     mpi R, S, T, W[64], Z;
-    ulong mm, ei;
+    t_int mm, ei;
 
     if( mpi_cmp_int( N, 0 ) < 0 || ( N->p[0] & 1 ) == 0 )
         return( ERR_MPI_INVALID_PARAMETER );
@@ -1399,7 +1398,7 @@ int mpi_exp_mod( mpi *X, mpi *A, mpi *E, mpi *N )
             if( nblimbs-- == 0 )
                 break;
 
-            bufsize = sizeof( ulong ) << 3;
+            bufsize = sizeof( t_int ) << 3;
         }
 
         bufsize--;
@@ -1637,7 +1636,7 @@ cleanup:
     return( ret );
 }
 
-long int small_prime[] = {
+int small_prime[] = {
    3,  113,  271,  443,  619,  821, 1013, 1213, 1429, 1609, 1831,
    5,  127,  277,  449,  631,  823, 1019, 1217, 1433, 1613, 1847,
    7,  131,  281,  457,  641,  827, 1021, 1223, 1439, 1619, 1861,
@@ -1693,7 +1692,7 @@ int mpi_is_prime( mpi *X )
 
     for( i = 0; small_prime[i] > 0; i++ )
     {
-        ulong r;
+        t_int r;
 
         if( mpi_cmp_int( X, small_prime[i] ) <= 0 )
             return( 0 );
@@ -1712,7 +1711,7 @@ int mpi_is_prime( mpi *X )
     CHK( mpi_copy( &R, &W ) );
     CHK( mpi_shift_r( &R, s = mpi_lsb( &W ) ) );
 
-    for( i = 0, j = 1; i < 8; i++ )
+    for( i = 0; i < 8; i++ )
     {
         /*
          * pick a random A, 1 < A < |X| - 1
@@ -1720,7 +1719,7 @@ int mpi_is_prime( mpi *X )
         CHK( mpi_grow( &A, X->n ) );
 
         for( j = 0; j < A.n; j++ )
-            A.p[j] = (ulong) rand() * rand();
+            A.p[j] = (t_int) rand() * rand();
 
         CHK( mpi_shift_r( &A, mpi_size( &A ) -
                               mpi_size( &W ) + 1 ) );
@@ -1735,6 +1734,7 @@ int mpi_is_prime( mpi *X )
             mpi_cmp_int( &A,  1 ) == 0 )
             continue;
 
+        j = 1;
         while( j < s && mpi_cmp_mpi( &A, &W ) != 0 )
         {
             /*

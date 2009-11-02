@@ -549,8 +549,6 @@ int ssl_write_record( ssl_context *ssl )
 
          md5_update( &ssl-> md5_handshake, ssl->out_msg, len );
         sha1_update( &ssl->sha1_handshake, ssl->out_msg, len );
-
-        ssl->hslen = len;
     }
 
     if( ( ret = ssl_encrypt_buf( ssl ) ) != 0 )
@@ -582,7 +580,7 @@ int ssl_read_record( ssl_context *ssl )
         if( ssl->in_msglen < 4 || ssl->in_msg[1] != 0 )
             return( ERR_SSL_INVALID_RECORD );
 
-        ssl->hslen = 4 + ( ( ssl->in_msg[2] << 16 )
+        ssl->hslen = 4 + ( ( ssl->in_msg[2] << 8 )
                            | ssl->in_msg[3] );
 
         if( ssl->in_msglen < ssl->hslen )
@@ -652,6 +650,8 @@ int ssl_read_record( ssl_context *ssl )
                           ssl->in_msglen );
         }
     }
+    else
+        ssl->hslen = ~0;
 
     if( ssl->in_msgtype == SSL_MSG_ALERT )
     {

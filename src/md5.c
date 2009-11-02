@@ -316,6 +316,8 @@ void md5_hmac( uchar *key, uint keylen, uchar *buf, uint buflen,
 
     for( i = 0; i < keylen; i++ )
     {
+        if( i >= 64 ) break;
+
         k_ipad[i] ^= key[i];
         k_opad[i] ^= key[i];
     }

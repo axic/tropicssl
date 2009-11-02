@@ -10,6 +10,25 @@
 
 #endif
 
+/*
+ * Define the base limb type (t_int) and double (t_dbl)
+  */
+#if defined _MSC_VER && _MSC_VER <= 800
+  #define t_int unsigned int
+  #define t_dbl unsigned long
+#else
+  #define t_int unsigned long
+#if defined _MSC_VER
+  #define t_dbl __int64
+#else
+#if defined __amd64__
+  typedef unsigned int t_dbl __attribute__((mode(TI)));
+#else
+  #define t_dbl unsigned long long
+#endif
+#endif
+#endif
+
 #define ERR_MPI_INVALID_CHARACTER               0x0006
 #define ERR_MPI_INVALID_PARAMETER               0x0008
 #define ERR_MPI_BUFFER_TOO_SMALL                0x000A
@@ -19,6 +38,8 @@
 #define ERR_MPI_IS_COMPOSITE                    0x0012
 
 #define CHK(fc) if( ( ret = fc ) != 0 ) goto cleanup
+
+#include <stdio.h>
 
 typedef struct
 {
@@ -52,7 +73,7 @@ int mpi_grow( mpi *X, int nblimbs );
  * Returns 0 if successful
  *         1 if memory allocation failed
  */
-int mpi_lset( mpi *X, long int z );
+int mpi_lset( mpi *X, int z );
 
 /*
  * Copy the contents of Y into X
@@ -78,7 +99,16 @@ void mpi_swap( mpi *X, mpi *Y );
 int mpi_read( mpi *X, char *s, int radix );
 
 /*
- * Print value in the given numeric base
+ * Print value in the given numeric base (into fout)
+ *
+ * Returns 0 if successful
+ *         1 if memory allocation failed
+ *         ERR_MPI_INVALID_PARAMETER if base is not between 2 and 16
+ */
+int mpi_showf( FILE *fout, char *name, mpi *X, int radix );
+
+/*
+ * Print value in the given numeric base (into stdout)
  *
  * Returns 0 if successful
  *         1 if memory allocation failed
@@ -155,7 +185,7 @@ int mpi_cmp_mpi( mpi *X, mpi *Y );
  *        -1 if X is lesser  than z
  *         0 if X is equal to z
  */
-int mpi_cmp_int( mpi *X, long int z );
+int mpi_cmp_int( mpi *X, int z );
 
 /*
  * Unsigned addition: X = |A| + |B|  (HAC 14.7)
@@ -195,7 +225,7 @@ int mpi_sub_mpi( mpi *X, mpi *A, mpi *B );
  * Returns 0 if successful
  *         1 if memory allocation failed
  */
-int mpi_add_int( mpi *X, mpi *A, long int b );
+int mpi_add_int( mpi *X, mpi *A, int b );
 
 /*
  * Signed substraction: X = A - b
@@ -203,7 +233,7 @@ int mpi_add_int( mpi *X, mpi *A, long int b );
  * Returns 0 if successful,
  *         1 if memory allocation failed
  */
-int mpi_sub_int( mpi *X, mpi *A, long int b );
+int mpi_sub_int( mpi *X, mpi *A, int b );
 
 /*
  * Baseline multiplication: X = A * B  (HAC 14.12)
@@ -219,7 +249,7 @@ int mpi_mul_mpi( mpi *X, mpi *A, mpi *B );
  * Returns 0 if successful
  *         1 if memory allocation failed
  */
-int mpi_mul_int( mpi *X, mpi *A, ulong b );
+int mpi_mul_int( mpi *X, mpi *A, t_int b );
 
 /*
  * Division by mpi: A = Q * B + R  (HAC 14.20)
@@ -237,7 +267,7 @@ int mpi_div_mpi( mpi *Q, mpi *R, mpi *A, mpi *B );
  *         1 if memory allocation failed
  *         ERR_MPI_DIVISION_BY_ZERO if b == 0
  */
-int mpi_div_int( mpi *Q, mpi *R, mpi *A, long int b );
+int mpi_div_int( mpi *Q, mpi *R, mpi *A, int b );
 
 /*
  * Modulo: X = A mod N
@@ -256,7 +286,7 @@ int mpi_mod_mpi( mpi *R, mpi *A, mpi *B );
  *         ERR_MPI_DIVISION_BY_ZERO if b == 0
  *         ERR_MPI_INVALID_PARAMETER if |sign| != 1
  */
-int mpi_mod_int( ulong *r, mpi *A, long int b );
+int mpi_mod_int( t_int *r, mpi *A, int b );
 
 /*
  * Sliding-window exponentiation: X = A^E mod N  (HAC 14.85)

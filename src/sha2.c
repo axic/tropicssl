@@ -327,11 +327,13 @@ void sha2_hmac( uchar *buf, uint buflen, uchar *key, uint keylen,
     uchar k_opad[64];
     uchar tmpbuf[32];
 
-    memcpy( k_ipad, key, keylen );
-    memcpy( k_opad, key, keylen );
+    memset( k_ipad, 0x36, 64 );
+    memset( k_opad, 0x5C, 64 );
 
     for( i = 0; i < keylen; i++ )
     {
+        if( i >= 64 ) break;
+
         k_ipad[i] ^= key[i];
         k_opad[i] ^= key[i];
     }

@@ -1,6 +1,6 @@
 
-CFLAGS=-O2 -W -Wall -D_FILE_OFFSET_BITS=64 -DSELF_TEST
-
+CFLAGS=-Isrc -O2 -W -Wall -DSELF_TEST
+LDFLAGS=-L. -lxyssl
 DESTDIR=/usr/local
 
 LIB_OBJ=src/aes.o          src/arc4.o         src/base64.o       \
@@ -24,8 +24,8 @@ apps: $(APP_OBJ)
 %.o: %.c
 	@echo "  CC      $<"; $(CC) $(CFLAGS) -c $< -o $@
 
-%.x: %.c libxyssl.a
-	@echo "  CC      $<"; $(CC) $(CFLAGS) -Isrc $< -o $@ -L. -lxyssl
+%.x: %.o libxyssl.a
+	@echo "  LD      $<"; $(CC) $< -o $@ $(LDFLAGS)
 
 install:
 	mkdir -p  $(DESTDIR)/{include/xyssl,lib}

@@ -192,6 +192,8 @@ void md2_hmac( uchar *buf, uint buflen, uchar *key, uint keylen,
 
     for( i = 0; i < keylen; i++ )
     {
+        if( i >= 64 ) break;
+
         k_ipad[i] ^= key[i];
         k_opad[i] ^= key[i];
     }

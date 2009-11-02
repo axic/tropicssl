@@ -83,14 +83,11 @@ int rsa_gen_key( rsa_context *ctx, uint nbits, uint exponent,
     while( mpi_cmp_int( &G, 1 ) != 0 );
 
     /*
-     * H  = lcm((P-1)*(Q-1))
-     * D  = E^-1 mod H
+     * D  = E^-1 mod ((P-1)*(Q-1))
      * DP = D mod (P - 1)
      * DQ = D mod (Q - 1)
      * QP = Q^-1 mod P
      */
-    CHK( mpi_gcd( &G, &P1, &Q1 ) );
-    CHK( mpi_div_mpi( &H, NULL, &H, &G ) );
     CHK( mpi_inv_mod( &ctx->D , &ctx->E, &H  ) );
     CHK( mpi_mod_mpi( &ctx->DP, &ctx->D, &P1 ) );
     CHK( mpi_mod_mpi( &ctx->DQ, &ctx->D, &Q1 ) );
@@ -243,47 +240,26 @@ int rsa_check_pubkey( rsa_context *ctx )
 int rsa_check_privkey( rsa_context *ctx )
 {
     int ret = 0;
-    mpi P1, Q1, H, G, TN, TD, TDP, TDQ, TQP;
+    mpi TN, P1, Q1, H, G;
 
-    mpi_init( &P1, &Q1, &H, &G, &TN,
-              &TD, &TDP, &TDQ, &TQP, NULL );
+    mpi_init( &TN, &P1, &Q1, &H, &G, NULL );
 
-    CHK( mpi_is_prime( &ctx->P ) );
-    CHK( mpi_is_prime( &ctx->Q ) );
     CHK( mpi_mul_mpi( &TN, &ctx->P, &ctx->Q ) );
-
     CHK( mpi_sub_int( &P1, &ctx->P, 1 ) );
     CHK( mpi_sub_int( &Q1, &ctx->Q, 1 ) );
     CHK( mpi_mul_mpi( &H, &P1, &Q1 ) );
+    CHK( mpi_gcd( &G, &ctx->E, &H  ) );
 
-    CHK( mpi_gcd( &G, &P1, &Q1 ) );
-    CHK( mpi_div_mpi( &H, NULL, &H, &G ) );
-    CHK( mpi_inv_mod( &TD, &ctx->E, &H ) );
-
-    CHK( mpi_mod_mpi( &TDP, &TD, &P1 ) );
-    CHK( mpi_mod_mpi( &TDQ, &TD, &Q1 ) );
-    CHK( mpi_inv_mod( &TQP, &ctx->Q, &ctx->P ) );
-
-    CHK( mpi_gcd( &G, &ctx->E, &H ) );
-
-    if( mpi_cmp_int( &G, 1 )          == 0 &&
-        mpi_cmp_mpi( &TN,  &ctx->N  ) == 0 &&
-        mpi_cmp_mpi( &TD,  &ctx->D  ) == 0 &&
-        mpi_cmp_mpi( &TDP, &ctx->DP ) == 0 &&
-        mpi_cmp_mpi( &TDQ, &ctx->DQ ) == 0 &&
-        mpi_cmp_mpi( &TQP, &ctx->QP ) == 0 )
+    if( mpi_cmp_mpi( &TN, &ctx->N ) == 0 &&
+        mpi_cmp_int( &G, 1 ) == 0 )
     {
-        mpi_free( &P1, &Q1, &H, &G, &TN,
-                  &TD, &TDP, &TDQ, &TQP, NULL );
-
+        mpi_free( &TN, &P1, &Q1, &H, &G, NULL );
         return( 0 );
     }
 
 cleanup:
 
-    mpi_free( &P1, &Q1, &H, &G, &TN,
-              &TD, &TDP, &TDQ, &TQP, NULL );
-
+    mpi_free( &TN, &P1, &Q1, &H, &G, NULL );
     return( ERR_RSA_KEY_CHECK_FAILED | ret );
 }
 

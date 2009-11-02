@@ -943,12 +943,11 @@ int x509_read_crtfile( x509_cert *chain, char *filename )
     if( ( f = fopen( filename, "rb" ) ) == NULL )
         return( 1 );
 
-    len = fseek( f, 0, SEEK_END );
-
-    if( ( buf = (uchar *) malloc( len ) ) == NULL )
-        return( 1 );
-
+    fseek( f, 0, SEEK_END ); len = ftell( f );
     fseek( f, 0, SEEK_SET );
+
+    if( ( buf = (uchar *) malloc( len + 1 ) ) == NULL )
+        return( 1 );
 
     if( fread( buf, 1, len, f ) != len )
     {
@@ -956,6 +955,8 @@ int x509_read_crtfile( x509_cert *chain, char *filename )
         free( buf );
         return( 1 );
     }
+
+    buf[len] = '\0';
 
     ret = x509_add_certs( chain, buf, len );
 
@@ -1216,12 +1217,11 @@ int x509_read_keyfile( rsa_context *rsa, char *filename, char *password )
     if( ( f = fopen( filename, "rb" ) ) == NULL )
         return( 1 );
 
-    len = fseek( f, 0, SEEK_END );
-
-    if( ( buf = (uchar *) malloc( len ) ) == NULL )
-        return( 1 );
-
+    fseek( f, 0, SEEK_END ); len = ftell( f );
     fseek( f, 0, SEEK_SET );
+
+    if( ( buf = (uchar *) malloc( len + 1 ) ) == NULL )
+        return( 1 );
 
     if( fread( buf, 1, len, f ) != len )
     {
@@ -1230,8 +1230,13 @@ int x509_read_keyfile( rsa_context *rsa, char *filename, char *password )
         return( 1 );
     }
 
-    ret = x509_parse_key( rsa, buf, len,
-            (uchar *) password, strlen( password ) );
+    buf[len] = '\0';
+
+    if( password == NULL )
+        ret = x509_parse_key( rsa, buf, len, NULL, 0 );
+    else
+        ret = x509_parse_key( rsa, buf, len,
+                (uchar *) password, strlen( password ) );
 
     fclose( f );
     free( buf );

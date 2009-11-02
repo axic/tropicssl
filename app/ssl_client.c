@@ -35,6 +35,11 @@
 #include "net.h"
 
 /*
+ * change the following to connect to another server
+ */
+#define SERVER_CN "xyssl.org"
+
+/*
  * XySSL.org CA certificate
  */
 char xyssl_crt[] =
@@ -63,21 +68,20 @@ char xyssl_crt[] =
 "-----END CERTIFICATE-----\r\n";
 
 #define GET_REQUEST \
-    "HEAD /hello/ HTTP/1.1\r\n" \
-    "Host: xyssl.org\r\n\r\n"
+    "HEAD /hello/ HTTP/1.1\r\nHost: %s\r\n\r\n"
 
 int main( void )
 {
     int ret;
     uint len;
-    uint ciphers[3];
+    uint ciphers[4];
     uchar buf[1024];
     havege_state hs;
     ssl_context ssl;
     x509_cert cacert;
 
     /*
-     * ===== Init RNG & Ciphersuites =====
+     * ==== Init RNG & Ciphersuites ====
      */
     printf( "\n  . Setting up the RNG and SSL state..." );
     fflush( stdout );
@@ -86,7 +90,8 @@ int main( void )
 
     ciphers[0] = TLS1_RSA_AES_256_SHA;
     ciphers[1] = SSL3_RSA_DES_192_SHA;
-    ciphers[2] = 0;
+    ciphers[1] = SSL3_RSA_RC4_128_SHA;
+    ciphers[3] = 0;
 
     ret = ssl_init( &ssl, ciphers, havege_rand, &hs );
     if( ret != 0 )
@@ -98,7 +103,7 @@ int main( void )
     printf( " ok\n" );
 
     /*
-     * ===== Load Trusted CA =====
+     * ==== Load trusted CA ====
      */
     printf( "  . Loading the CA root  certificate..." );
     fflush( stdout );
@@ -113,17 +118,17 @@ int main( void )
         goto exit;
     }
 
-    ssl_set_ca_chain( &ssl, &cacert, "xyssl.org" );
+    ssl_set_ca_chain( &ssl, &cacert, SERVER_CN );
 
     printf( " ok\n" );
 
     /*
      * ===== TCP Connect =====
      */
-    printf( "  . Connecting  to tcp/xyssl.org/443..." );
+    printf( "  . Connecting  to tcp/%s/443...", SERVER_CN );
     fflush( stdout );
 
-    ret = net_connect( &ssl.read_fd, "xyssl.org", 443 );
+    ret = net_connect( &ssl.read_fd, SERVER_CN, 443 );
     if( ret != 0 )
     {
         printf( " failed\n  ! net_connect returned %08x\n\n", ret );
@@ -135,7 +140,7 @@ int main( void )
     printf( " ok\n" );
 
     /*
-     * ===== Handshake =====
+     * ==== Handshake ====
      */
     printf( "  . Performing the SSL/TLS handshake..." );
     fflush( stdout );
@@ -150,12 +155,12 @@ int main( void )
     printf( " ok\n" );
 
     printf( "    [ Cipher is %s ]\n",
-            ( ssl.cipher == TLS1_RSA_AES_256_SHA )
-            ? "TLS1_RSA_AES_256_SHA"
-            : "SSL3_RSA_DES_192_SHA" );
+        ( ssl.cipher == TLS1_RSA_AES_256_SHA ) ? "TLS1_RSA_AES_256_SHA" :
+        ( ssl.cipher == SSL3_RSA_DES_192_SHA ) ? "SSL3_RSA_DES_192_SHA" :
+                                                 "SSL3_RSA_RC4_128_SHA" );
 
     /*
-     * ===== X509 Cert. Verify =====
+     * ==== X509 Cert. Verify ====
      */
     printf( "  . Verifying peer X.509 certificate..." );
 
@@ -167,7 +172,7 @@ int main( void )
             printf( "  ! server certificate has expired\n" );
 
         if( ( ssl.verify_result & BADCERT_CN_MISMATCH ) != 0 )
-            printf( "  ! CN mismatch (expected CN=xyssl.org)\n" );
+            printf( "  ! CN mismatch (expected CN=%s)\n", SERVER_CN );
 
         if( ( ssl.verify_result & BADCERT_NOT_TRUSTED ) != 0 )
             printf( "  ! server signature is invalid\n" );
@@ -178,22 +183,22 @@ int main( void )
         printf( " ok\n" );
 
     /*
-     * ===== Write the GET Request =====
+     * ==== Write the GET Request ====
      */
     printf( "  > Write to server:" );
 
-    ret = ssl_write( &ssl, (uchar *) GET_REQUEST,
-                             strlen( GET_REQUEST ) );
+    len = sprintf( (char *) buf, GET_REQUEST, SERVER_CN );
+    ret = ssl_write( &ssl, buf, len );
     if( ret != 0 )
     {
         printf( " failed\n  ! ssl_write returned %08x\n\n", ret );
         goto exit2;
     }
 
-    printf( "\n\n%s", GET_REQUEST );
+    printf( "\n\n%s", buf );
 
     /*
-     * ====== Read the HTTP Response =====
+     * ==== Read the HTTP Response ====
      */
     printf( "  < Read from server:" );
 

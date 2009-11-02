@@ -1,3 +1,20 @@
 
-    * Version 0.1 released on 2006-11-01
+= Version 0.2 released on 2006-12-01
+
+    * Updated timing.c to support ARM and MIPS arch
+    * Updated the MPI code to support 8086 on MSVC 1.5
+    * Added the copyright notice at the top of havege.h
+    * Fixed a bug in sha2_hmac, thanks to newsoft/Wenfang Zhang
+    * Fixed a bug reported by Adrian Rüegsegger in x509_read_key
+    * Fixed a bug reported by Torsten Lauter in ssl_read_record
+    * Fixed a bug in rsa_check_privkey that would wrongly cause
+      valid RSA keys to be dismissed (thanks to oldwolf)
+    * Fixed a bug in mpi_is_prime that caused some primes to fail
+      the Miller-Rabin primality test
+
+    I'd also like to thank Younès Hafri for the CRUX linux port,
+    Khalil Petit who added XySSL into pkgsrc and Arnaud Cornet
+    who maintains the Debian package :-)
+
+= Version 0.1 released on 2006-11-01
 
