@@ -1,5 +1,6 @@
 
-CFLAGS=-Isrc -O2 -W -Wall -DSELF_TEST
+DEFINES=-DSELF_TEST -DHAVE_RDTSC
+CFLAGS=-Isrc -O2 -W -Wall $(DEFINES)
 LDFLAGS=-L. -lxyssl
 DESTDIR=/usr/local
 
@@ -8,7 +9,8 @@ LIB_OBJ=src/aes.o          src/arc4.o         src/base64.o       \
         src/md4.o          src/md5.o          src/mpi.o          \
         src/net.o          src/rsa.o          src/sha1.o         \
         src/sha2.o         src/ssl_v3.o       src/ssl_cli.o      \
-        src/ssl_srv.o      src/timing.o       src/x509_in.o
+        src/ssl_srv.o      src/testcert.o     src/timing.o       \
+        src/x509_in.o
 
 APP_OBJ=app/benchmark.x    app/hello.x        app/filecrypt.x    \
         app/rsa_demo.x     app/selftest.x     app/ssl_client.x   \
@@ -21,11 +23,11 @@ libxyssl.a: $(LIB_OBJ)
 
 apps: $(APP_OBJ)
 
-%.o: %.c
-	@echo "  CC      $<"; $(CC) $(CFLAGS) -c $< -o $@
-
 %.x: %.o libxyssl.a
 	@echo "  LD      $<"; $(CC) $< -o $@ $(LDFLAGS)
+
+%.o: %.c
+	@echo "  CC      $<"; $(CC) $(CFLAGS) -c $< -o $@
 
 install:
 	mkdir -p  $(DESTDIR)/{include/xyssl,lib}

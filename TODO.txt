@@ -4,7 +4,7 @@
     ==============================
 
         * More documentation!
-        * Server-side SSL/TLS
+        * Client authentication
         * Ephemeral Diffie-Hellman
         * SSL/TLS session resuming
         * X.509 certificate writing

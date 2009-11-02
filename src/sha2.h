@@ -1,6 +1,10 @@
 #ifndef _SHA2_H
 #define _SHA2_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef _STD_TYPES
 #define _STD_TYPES
 
@@ -46,25 +50,8 @@ void sha2_hmac( uchar *buf, uint buflen, uchar *key, uint keylen,
  */
 int sha2_self_test( void );
 
-/*
- * Output SHA-256(file contents), returns 0 if successful.
- */
-int sha2_file( char *filename, uchar digest[32] );
-
-/*
- * Output SHA-256(buf)
- */
-void sha2_csum( uchar *buf, uint buflen, uchar digest[32] );
-
-/*
- * Output HMAC-SHA-256(buf,key)
- */
-void sha2_hmac( uchar *buf, uint buflen, uchar *key, uint keylen,
-                uchar digest[32] );
-
-/*
- * Checkup routine
- */
-int sha2_self_test( void );
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* sha2.h */

@@ -122,7 +122,7 @@ int net_bind( int *server_fd, char *bind_ip, uint port )
     if( *server_fd < 0 )
         return( ERR_NET_SOCKET_FAILED );
 
-    server_addr.sin_addr.s_addr = ( bind_ip == NULL ) ?
+    server_addr.sin_addr.s_addr = ( bind_ip != NULL ) ?
                          inet_addr( bind_ip ) : INADDR_ANY;
 
     server_addr.sin_family = AF_INET;
@@ -152,23 +152,23 @@ int net_accept( int server_fd, int *client_fd, ulong *client_ip )
     struct sockaddr_in client_addr;
     uint n = sizeof( client_addr );
 
-    *client_ip = 0;
     *client_fd = accept( server_fd, (struct sockaddr *)
                          &client_addr, &n );
 
     if( *client_fd < 0 )
         return( ERR_NET_ACCEPT_FAILED );
 
-    memcpy( client_ip, &client_addr.sin_addr.s_addr, 4 );
+    if( client_ip != NULL )
+        memcpy( client_ip, &client_addr.sin_addr.s_addr, 4 );
 
     return( 0 );
 }
 
 /*
- * Return 0 if data is available at the transport layer,
- * or 1 otherwise (in which case read() will block).
+ * Return 1 if data is available at the transport layer,
+ * or 0 otherwise (in which case read() is blocking).
  */
-int net_is_read_blocking( int fd )
+int net_is_data_avail( int fd )
 {
     fd_set rfds;
     struct timeval tv;
@@ -195,7 +195,7 @@ int net_read_all( int read_fd, uchar *buf, uint len )
 
     while( n < len )
     {
-        if( ( ret = recv( read_fd, buf + n, len - n, 0 ) ) < 0 )
+        if( ( ret = recv( read_fd, buf + n, len - n, 0 ) ) <= 0 )
         {
 #ifndef WIN32
             if( errno == EAGAIN || errno == EINTR )

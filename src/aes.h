@@ -1,6 +1,10 @@
 #ifndef _AES_H
 #define _AES_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef _STD_TYPES
 #define _STD_TYPES
 
@@ -49,5 +53,9 @@ void aes_cbc_decrypt( aes_context *ctx, uchar iv[16],
  * Checkup routine
  */
 int aes_self_test( void );
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* aes.h */

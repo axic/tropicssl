@@ -1,6 +1,10 @@
 #ifndef _NET_H
 #define _NET_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef _STD_TYPES
 #define _STD_TYPES
 
@@ -37,10 +41,10 @@ int net_bind( int *server_fd, char *bind_ip, uint port );
 int net_accept( int server_fd, int *client_fd, ulong *client_ip );
 
 /*
- * Return 0 if data is available at the transport layer,
- * or 1 otherwise (in which case read() will block).
+ * Return 1 if data is available at the transport layer,
+ * or 0 otherwise (in which case read() is blocking).
  */
-int net_is_read_blocking( int fd );
+int net_is_data_avail( int fd );
 
 /*
  * Loop until "len" characters have been read.
@@ -56,5 +60,9 @@ int net_write_all( int write_fd, uchar *buf, uint len );
  * Gracefully shutdown the connection
  */
 void net_close( int sock_fd );
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* net.h */

@@ -22,10 +22,6 @@
 #define _CRT_SECURE_NO_DEPRECATE 1
 #endif
 
-#ifdef _MSC_VER
-#pragma comment(lib, "xyssl.lib")
-#endif
-
 #include <stdio.h>
 
 #include "md2.h"

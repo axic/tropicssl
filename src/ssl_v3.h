@@ -1,6 +1,10 @@
 #ifndef _SSL_V3_H
 #define _SSL_V3_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef _STD_TYPES
 #define _STD_TYPES
 
@@ -14,21 +18,22 @@
 #define ERR_SSL_INVALID_RECORD                  0x0420
 #define ERR_SSL_INVALID_MODULUS_SIZE            0x0440
 #define ERR_SSL_UNKNOWN_CIPHER                  0x0460
-#define ERR_SSL_CERTIFICATE_TOO_LARGE           0x0480
-#define ERR_SSL_CERTIFICATE_REQUIRED            0x04A0
-#define ERR_SSL_PRIVATE_KEY_REQUIRED            0x04C0
-#define ERR_SSL_CA_CHAIN_REQUIRED               0x04E0
-#define ERR_SSL_UNEXPECTED_MESSAGE              0x0500
-#define ERR_SSL_FATAL_ALERT_MESSAGE             0x0520
-#define ERR_SSL_PEER_VERIFY_FAILED              0x0540
-#define ERR_SSL_PEER_CLOSE_NOTIFY               0x0560
-#define ERR_SSL_BAD_HS_CLIENT_HELLO             0x0580
-#define ERR_SSL_BAD_HS_SERVER_HELLO             0x05A0
-#define ERR_SSL_BAD_HS_CERTIFICATE              0x05C0
-#define ERR_SSL_BAD_HS_CERTIFICATE_REQUEST      0x05E0
-#define ERR_SSL_BAD_HS_SERVER_KEY_EXCHANGE      0x0600
-#define ERR_SSL_BAD_HS_SERVER_HELLO_DONE        0x0620
-#define ERR_SSL_BAD_HS_CLIENT_KEY_EXCHANGE      0x0640
+#define ERR_SSL_NO_CIPHER_ACCEPTABLE            0x0480
+#define ERR_SSL_CERTIFICATE_TOO_LARGE           0x04A0
+#define ERR_SSL_CERTIFICATE_REQUIRED            0x04C0
+#define ERR_SSL_PRIVATE_KEY_REQUIRED            0x04E0
+#define ERR_SSL_CA_CHAIN_REQUIRED               0x0500
+#define ERR_SSL_UNEXPECTED_MESSAGE              0x0520
+#define ERR_SSL_FATAL_ALERT_MESSAGE             0x0540
+#define ERR_SSL_PEER_VERIFY_FAILED              0x0560
+#define ERR_SSL_PEER_CLOSE_NOTIFY               0x0580
+#define ERR_SSL_BAD_HS_CLIENT_HELLO             0x05A0
+#define ERR_SSL_BAD_HS_SERVER_HELLO             0x05C0
+#define ERR_SSL_BAD_HS_CERTIFICATE              0x05E0
+#define ERR_SSL_BAD_HS_CERTIFICATE_REQUEST      0x0600
+#define ERR_SSL_BAD_HS_SERVER_KEY_EXCHANGE      0x0620
+#define ERR_SSL_BAD_HS_SERVER_HELLO_DONE        0x0640
+#define ERR_SSL_BAD_HS_CLIENT_KEY_EXCHANGE      0x0660
 #define ERR_SSL_BAD_HS_CERTIFICATE_VERIFY       0x0680
 #define ERR_SSL_BAD_HS_CHANGE_CIPHER_SPEC       0x06A0
 #define ERR_SSL_BAD_HS_FINISHED                 0x06C0
@@ -96,137 +101,100 @@
 typedef struct
 {
     /*
-     * Negotiated protocol version
+     * Highest version from client (to detect rollback attacks)
      */
-    uint major_version;
-    uint minor_version;
+    uchar max_client_ver[2];
 
     /*
-     * Session ID, and pointer to session table (server only).
+     * Negotiated protocol version
      */
-    uint sidlen;
-    uchar sid[64];
-    void *sidtbl;
+    uint major_version; /* always equal to SSLV3_MAJOR_VERSION */
+    uint minor_version; /* either 0 (SSL v3.0) or 1 (TLS v1.0) */
 
     /*
      * Record layer -- incoming data
      */
-    int read_fd;
+    int read_fd;        /* descriptor for read operations   */
 
-    uint in_msgtype;
-    uint in_msglen;
-    uint in_prvlen;
+    uint  in_msgtype;   /* record header: message type      */
+    uint  in_msglen;    /* record header: message length    */
+    uint  in_prvlen;    /* previous message length          */
+    uchar in_alert[2];  /* incoming alert level and descr.  */  
 
-    uchar *in_ctr; /* msg counter */
-    uchar *in_hdr; /* in_ctr + 8  */
-    uchar *in_msg; /* in_hdr + 5  */
+    uchar *in_ctr;      /* 64-bit incoming message counter  */
+    uchar *in_hdr;      /* 5-byte record header (in_ctr+8)  */
+    uchar *in_msg;      /* the message payload  (in_hdr+5)  */
 
-    uint left;
+    uint  left;         /* amount of appl. data not read    */
 
     /*
      * Record layer -- outgoing data
      */
-    int write_fd;
+    int write_fd;       /* descriptor for write operations  */
 
-    uint out_msgtype;
-    uint out_msglen;
+    uint  out_msgtype;  /* record header: message type      */
+    uint  out_msglen;   /* record header: message length    */
 
-    uchar *out_ctr; /* msg counter */
-    uchar *out_hdr; /* out_ctr + 8 */
-    uchar *out_msg; /* out_hdr + 5 */
-
-    /*
-     * Incoming alert messages from peer
-     * (byte 0: level, byte 1: description)
-     */
-    uchar in_alert[2];
+    uchar *out_ctr;     /* 64-bit outgoing message counter  */
+    uchar *out_hdr;     /* 5-byte record header (out_ctr+8) */
+    uchar *out_msg;     /* the message payload  (out_hdr+5) */
 
     /*
-     * MD5 and SHA1 hashes of all Handshake messages so far,
-     * and length of current handshake message (multiple HS
-     * messages may be contained in a single record).
+     * PKI stuff
      */
-     md5_context  md5_handshake;
-    sha1_context sha1_handshake;
-    uint hslen;
+    uint endpoint;              /* 0: client, 1: server   */
+    rsa_context *own_key;       /* own RSA private key    */
+    x509_cert *own_cert;        /* own X.509 certificate  */
+    x509_cert *ca_chain;        /* own trusted CA chain   */
+    x509_cert *peer_cert;       /* peer X.509 cert. chain */
+    char *peer_cn;              /* expected peer CN       */
+    uint client_auth;           /* flag for client auth.  */
+    uint verify_mode;           /* verification mode      */
+    uint verify_result;         /* verification result    */
 
     /*
-     * Flag for client authentication.
+     * Crypto stuff
      */
-    uint client_auth;
+     md5_context hs_md5;        /*  MD5( Handshake msgs ) */
+    sha1_context hs_sha1;       /* SHA1( Handshake msgs ) */
+    uint hslen;                 /* handshake message len. */
 
-    /*
-     * Own RSA key and X.509 certificate.
-     */
-    rsa_context *own_key;
-    x509_cert *own_cert;
+    ulong (*rng_func)(void *);  /* RNG function           */
+    void *rng_state;            /* RNG state              */
+    uchar randbytes[64];        /* random bytes           */
+    uchar premaster[48];        /* premaster secret       */
+    uchar master[48];           /* master secret          */
 
-    /*
-     * Trusted CA chain, expected peer CN and verify mode.
-     */
-    x509_cert *ca_chain;
-    char *peer_cn;
-    uint verify_mode;
+    uint *cipherlist;           /* accepted ciphersuites  */
+    uint cipher;                /* current chosen cipher  */
+    uint minlen;                /* min. ciphertext len    */
+    uint ctxlen;                /* cipher context length  */
+    void *encrypt_ctx;          /* encryption context     */
+    void *decrypt_ctx;          /* decryption context     */
 
-    /*
-     * Cert. chain from peer and result of x509_verify_cert.
-     */
-    x509_cert *peer_cert;
-    uint verify_result;
+    uint ivlen;                 /* IV length              */
+    uchar iv_enc[16];           /* IV (encryption)        */
+    uchar iv_dec[16];           /* IV (decryption)        */
 
-    /*
-     * RNG used to generate the premaster secret
-     */
-    ulong (*rng_func)(void *);
-    void *rng_state;
-
-    /*
-     * premaster + random bytes -> master -> key block
-     */
-    uchar randbytes[64];
-    uchar premaster[48];
-    uchar master[48];
-
-    /*
-     * Encryption flag, operation mode and minimum ciphertext len.
-     */
-    uint do_crypt;
-    uint endpoint;
-    uint minlen;
-
-    /*
-     * Accepted ciphersuites and chosen cipher.
-     */
-    uint *cipherlist, cipher;
-
-    /*
-     * Cipher encrypt/decrypt context & IVs, MAC secrets.
-     */
-    uint ctxlen;
-    void *encrypt_ctx;
-    void *decrypt_ctx;
-
-    uint ivlen;
-    uchar iv_enc[16];
-    uchar iv_dec[16];
-
-    uint maclen;
-    uchar mac_enc[32];
-    uchar mac_dec[32];
+    uint maclen;                /* MAC length             */
+    uchar mac_enc[32];          /* MAC (encryption)       */
+    uchar mac_dec[32];          /* MAC (decryption)       */
 }
 ssl_context;
 
 /*
  * Internal functions (do not call directly)
  */
-int ssl_read_record(  ssl_context *ssl );
-int ssl_write_record( ssl_context *ssl );
+int ssl_read_record(  ssl_context *ssl, int do_crypt );
+int ssl_write_record( ssl_context *ssl, int do_crypt );
 
 int ssl_parse_certificate( ssl_context *ssl );
 int ssl_write_certificate( ssl_context *ssl );
 
 int ssl_parse_change_cipher_spec( ssl_context *ssl );
 int ssl_write_change_cipher_spec( ssl_context *ssl );
+
+int ssl_derive_keys( ssl_context *ssl );
 
 int ssl_parse_finished( ssl_context *ssl );
 int ssl_write_finished( ssl_context *ssl );
@@ -240,10 +208,15 @@ int ssl_init( ssl_context *ssl, uint *cipherlist,
               ulong (*rng_func)(void *), void *rng_state );
 
 /*
- * Setup own certificate and private key struct, returns 0.
+ * Setup the read and write file descriptors.
  */
-int ssl_set_owncert( ssl_context *ssl, x509_cert *own_cert,
-                     rsa_context *own_key );
+int ssl_set_io_files( ssl_context *ssl, int read_fd, int write_fd );
+
+/*
+ * Setup own certificate and private key struct.
+ */
+int ssl_set_own_cert( ssl_context *ssl, x509_cert *own_cert,
+                      rsa_context *own_key );
 
 /*
  * Setup the CA cert chain used to verify peer cert and expected CN.
@@ -267,32 +240,43 @@ int ssl_set_ca_chain( ssl_context *ssl, x509_cert *ca, char *cn );
 int ssl_client_start( ssl_context *ssl, int server_verify );
 
 /*
- * Receive application data decrypted from the SSL layer.
- * If "full" is not null, exactly *len bytes will be read;
- * otherwise the result of the read (stored in *len) may
- * be lesser than the requested size.
+ * Perform an SSL handshake with the client; client_verify may be:
  *
- * In both cases, this function will block until data is
- * received at the record layer.
+ *  SSL_VERIFY_NONE: no client certificates are asked
+ *
+ *  SSL_VERIFY_OPTIONAL: client certificate is checked, however the
+ *                       handshake continues even if verification failed
+ *                       (you may want to check ssl->verify_result after)
+ *
+ *  SSL_VERIFY_REQUIRED: client *must* present a valid certificate,
+ *                       handshake is aborted if verification failed.
+ *
+ * This function returns 0 when successful, or an SSL error code.
+ */
+int ssl_server_start( ssl_context *ssl, int client_verify );
+
+/*
+ * Receive application data decrypted from the SSL layer.
+ *
+ * If "full" is zero, ssl_real behaves like read(): less
+ * than *len bytes may be read. If full is non-zero, the
+ * exact amount of data requested is read.
  */
 int ssl_read( ssl_context *ssl, uchar *buf, uint *len, int full );
 
 /*
  * Send application data to be encrypted by the SSL layer;
- * peer will receive exactly len bytes.
+ * the peer will receive exactly len bytes from ssl_read()
  */
 int ssl_write( ssl_context *ssl, uchar *buf, uint len );
 
 /*
- * Close the SSL connection. The context can be reused
- * afterwards (no need to call ssl_init again).
+ * Close the SSL connection and cleanup/free all data.
  */
 void ssl_close( ssl_context *ssl );
 
-/*
- * Cleanup the secrets and free all data; context cannot be used
- * anymore without calling ssl_init() first.
- */
-void ssl_free( ssl_context *ssl );
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* ssl_v3.h */

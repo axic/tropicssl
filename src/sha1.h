@@ -1,6 +1,10 @@
 #ifndef _SHA1_H
 #define _SHA1_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef _STD_TYPES
 #define _STD_TYPES
 
@@ -45,5 +49,9 @@ void sha1_hmac( uchar *key, uint keylen, uchar *buf, uint buflen,
  * Checkup routine
  */
 int sha1_self_test( void );
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* sha1.h */

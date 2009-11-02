@@ -1,4 +1,15 @@
 
+= Version 0.3 released on 2007-01-01
+
+    * Added server-side SSLv3 and TLSv1.0 support
+    * Multiple fixes to enhance the compatibility with g++,
+      thanks to Xosé Antón Otero Ferreira
+    * Fixed a bug in the CBC code, thanks to dowst; also,
+      the bignum code is no longer dependant on long long
+    * Updated rsa_pkcs1_sign to handle arbitrary large inputs
+    * Updated timing.c for improved compatibility with i386
+      and 486 processors, thanks to Arnaud Cornet
+
 = Version 0.2 released on 2006-12-01
 
     * Updated timing.c to support ARM and MIPS arch

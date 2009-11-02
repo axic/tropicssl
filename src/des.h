@@ -1,6 +1,10 @@
 #ifndef _DES_H
 #define _DES_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef _STD_TYPES
 #define _STD_TYPES
 
@@ -87,5 +91,9 @@ void des3_cbc_decrypt( des3_context *ctx, uchar iv[8],
  * Checkup routine
  */
 int des_self_test( void );
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* des.h */

@@ -22,10 +22,6 @@
 #define _CRT_SECURE_NO_DEPRECATE 1
 #endif
 
-#ifdef _MSC_VER
-#pragma comment(lib, "xyssl.lib")
-#endif
-
 #ifndef WIN32
 #include <sys/types.h>
 #include <unistd.h>
@@ -49,7 +45,7 @@ void scanf_argv( char *prompt, char **arg )
 {
     printf( "%s", prompt );
     fflush( stdout );
-    *arg = malloc( 1024 );
+    *arg = (char *) malloc( 1024 );
     scanf( "%1023s", *arg );
 }
 

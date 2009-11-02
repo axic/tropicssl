@@ -1,6 +1,10 @@
 #ifndef _BIGNUM_H
 #define _BIGNUM_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef _STD_TYPES
 #define _STD_TYPES
 
@@ -11,22 +15,13 @@
 #endif
 
 /*
- * Define the base limb type (t_int) and double (t_dbl)
-  */
+ * Default to unsigned long for the base limb type,
+ * except 8086 where uint is to be used instead.
+ */
 #if defined _MSC_VER && _MSC_VER <= 800
-  #define t_int unsigned int
-  #define t_dbl unsigned long
+#define t_int uint
 #else
-  #define t_int unsigned long
-#if defined _MSC_VER
-  #define t_dbl __int64
-#else
-#if defined __amd64__
-  typedef unsigned int t_dbl __attribute__((mode(TI)));
-#else
-  #define t_dbl unsigned long long
-#endif
-#endif
+#define t_int ulong
 #endif
 
 #define ERR_MPI_INVALID_CHARACTER               0x0006
@@ -45,7 +40,7 @@ typedef struct
 {
     int s;              /* integer sign     */
     int n;              /* total # of limbs */
-    ulong *p;           /* pointer to limbs */
+    t_int *p;           /* pointer to limbs */
 }
 mpi;
 
@@ -342,5 +337,9 @@ int mpi_gen_prime( mpi *X, uint nbits, int need_dh_prime,
  * Checkup routine
  */
 int mpi_self_test( void );
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* mpi.h */

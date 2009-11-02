@@ -41,7 +41,10 @@
 #include "x509.h"
 #include "rsa.h"
 #include "mpi.h"
+#include "md2.h"
+#include "md4.h"
 #include "md5.h"
+#include "sha1.h"
 #include "des.h"
 #include "base64.h"
 
@@ -1180,7 +1183,7 @@ int x509_parse_key( rsa_context *rsa, uchar *buf, uint buflen,
         return( ret | ERR_X509_KEY_INVALID_FORMAT );
     }
 
-    rsa->len = rsa->N.n * sizeof( ulong );
+    rsa->len = ( mpi_size( &rsa->N ) + 7 ) >> 3;
 
     if( p != end )
     {
@@ -1419,6 +1422,18 @@ int x509_is_cert_expired( x509_cert *crt )
     return( 0 );
 }
 
+void x509_hash( uchar *in, uint len, uchar *out, int alg )
+{
+    switch( alg )
+    {
+        case RSA_MD2  :  md2_csum( in, len, out ); break;
+        case RSA_MD4  :  md4_csum( in, len, out ); break;
+        case RSA_MD5  :  md5_csum( in, len, out ); break;
+        case RSA_SHA1 : sha1_csum( in, len, out ); break;
+        default:
+            break;
+    }
+}
 
 /*
  * Verify the certificate validity; set cn to NULL if the subject
@@ -1434,9 +1449,11 @@ int x509_is_cert_expired( x509_cert *crt )
 int x509_verify_cert( x509_cert *crt, x509_cert *trust_ca,
                       char *cn, uint *flags )
 {
+    int alg_id;
     char *dn_end;
     char crt_dn[256];
     char ca_dn[256];
+    uchar hash[20];
     x509_cert *cur;
     x509_name *name;
     uint pathlen = 1;
@@ -1484,9 +1501,10 @@ int x509_verify_cert( x509_cert *crt, x509_cert *trust_ca,
             continue;
         }
 
-        if( rsa_pkcs1_verify( &cur->rsa, crt->sig_oid1.p[8],
-                               crt->tbs.p, crt->tbs.len,
-                               crt->sig.p, crt->sig.len ) != 0 )
+        alg_id = crt->sig_oid1.p[8];
+        x509_hash( crt->tbs.p, crt->tbs.len, hash, alg_id );
+        if( rsa_pkcs1_verify( &cur->rsa, hash, alg_id,
+                              crt->sig.p, crt->sig.len ) != 0 )
             return( ERR_X509_SIG_VERIFY_FAILED );
 
         pathlen++;
@@ -1518,9 +1536,10 @@ int x509_verify_cert( x509_cert *crt, x509_cert *trust_ca,
             trust_ca->max_pathlen < pathlen )
             return( ERR_X509_SIG_VERIFY_FAILED );
 
-        if( rsa_pkcs1_verify( &trust_ca->rsa, crt->sig_oid1.p[8],
-                               crt->tbs.p, crt->tbs.len,
-                               crt->sig.p, crt->sig.len ) != 0 )
+        alg_id = crt->sig_oid1.p[8];
+        x509_hash( crt->tbs.p,  crt->tbs.len, hash, alg_id );
+        if( rsa_pkcs1_verify( &trust_ca->rsa, hash, alg_id,
+                              crt->sig.p, crt->sig.len ) != 0 )
             return( ERR_X509_SIG_VERIFY_FAILED );
 
         break;
@@ -1567,83 +1586,7 @@ void x509_free_cert( x509_cert *crt )
 
 #ifdef SELF_TEST
 
-char ca_crt[] =
-"-----BEGIN CERTIFICATE-----\r\n" \
-"MIIDtTCCAp2gAwIBAgIJAMqzUV2oEqS0MA0GCSqGSIb3DQEBBQUAMEUxCzAJBgNV\r\n" \
-"BAYTAkZSMQ4wDAYDVQQIEwVQYXJpczEOMAwGA1UEChMFWHlTU0wxFjAUBgNVBAMT\r\n" \
-"DVh5U1NMIFRlc3QgQ0EwHhcNMDYwOTA3MTAwNjQ1WhcNMTYwOTA3MTAwNjQ1WjBF\r\n" \
-"MQswCQYDVQQGEwJGUjEOMAwGA1UECBMFUGFyaXMxDjAMBgNVBAoTBVh5U1NMMRYw\r\n" \
-"FAYDVQQDEw1YeVNTTCBUZXN0IENBMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIB\r\n" \
-"CgKCAQEA0G35JaBcnjqkYahLLO5bHIcviLkY9fXW8bqkwP4YgCyzWyEWnr1Rs8vU\r\n" \
-"uZQHwZBi/RqAL3SNL08cLUg/rEbvrieGXn0EXQCndKnrHr+xT6WSC2q897caqYei\r\n" \
-"WNbZ92w5wiHjaxDwJZJ9IOvgzxP4T+IDgbc5nOHOfcdSnoF/56wX36xnyMwoRFS5\r\n" \
-"Iy8iSnYDhsoMk1KKVxq9JVVHTSn7CpnnSD3ttsZCxyutQTNY0Bj13tlPFjBmlRf/\r\n" \
-"ZkzS9JuzDVM35FnD5YD3ifVVNyyJhG3svdPUyzgXY8kfFWAkW/L2u0xJULlACnyd\r\n" \
-"gLKevD+p7AUTvK9zCv+IZPYU7aLWwQIDAQABo4GnMIGkMB0GA1UdDgQWBBSSjays\r\n" \
-"p1RiK3AwCxXuY6PVx2NxmTB1BgNVHSMEbjBsgBSSjaysp1RiK3AwCxXuY6PVx2Nx\r\n" \
-"maFJpEcwRTELMAkGA1UEBhMCRlIxDjAMBgNVBAgTBVBhcmlzMQ4wDAYDVQQKEwVY\r\n" \
-"eVNTTDEWMBQGA1UEAxMNWHlTU0wgVGVzdCBDQYIJAMqzUV2oEqS0MAwGA1UdEwQF\r\n" \
-"MAMBAf8wDQYJKoZIhvcNAQEFBQADggEBAIZwds/iFDj1FeQxAxCUrPHz6LwyoLQQ\r\n" \
-"/5rfBj5xecl1v0ImjtDXR7+Oetw1JIiIC+0JFsq5POCQ9XYFj/4CnZafX544q97Z\r\n" \
-"DeN7uSw7Xclgp8KlssCXEDs8WvK8kc7klzshsLgKsgI3/oQ4JOI2erqkzYjh8PCg\r\n" \
-"l47EVJz/j/B2lh9FwZb+VwZ2ERYGrFNy9AiyzUZHYj1C0DAzThwfwSuQ4mxZPKaC\r\n" \
-"qrEB8MeVYi5rUfuk34Ly0eTFgFW65ISl9P81VENtHSypshww4s5Kpnk3lTNm5NcQ\r\n" \
-"xEfM98D7jE5uZ2KDELFjGE7sviVcmfTzg7oKmE8NevUBJQQC974qjYA=\r\n" \
-"-----END CERTIFICATE-----\r\n";
-
-char ca_key[] =
-"-----BEGIN RSA PRIVATE KEY-----\r\n" \
-"Proc-Type: 4,ENCRYPTED\r\n" \
-"DEK-Info: DES-EDE3-CBC,598E2069A441E75F\r\n\r\n" \
-"T2K5wBKsPQ8fgHMreYy2MMk7wKNcgbdt1Vwu1CFP8tDEarkpif7BKJInwLzptZK/\r\n" \
-"5MQbaKe+y/SBL/SNbiI9Z4mCrsVLU5qlm/E/Hf1rlNCoEpD3o59uovv3EOPm2bSz\r\n" \
-"JMge+sO8uRaHiOz+QSZpwhn+Wfh0a9g1IYSO8tcVCbyzBeXb5QD5dNgBR/n3vHs+\r\n" \
-"Rg67+6A4o1I6B8xx746l/rNkbV2PvyqbgSoCIpc2v5g1QMIZsQ6JZe5pgWFrFLNt\r\n" \
-"eHPKjxEIr/o8DyZ+bJGN09V8WkxG0/gMfSvPvPJ1IC0JYzpT1oQzce5zdYt9adnF\r\n" \
-"vpWu1eHbWuC9cIUl690Dv8+r8IxDU9NfGqk79nH9hlC7RJ8geka+3MoBFtyhsILD\r\n" \
-"GJWcgkeJRRahCwWqqWgd4YJxiL/CKksJZBQpqu1r822VkpoyRgFftPGnnZHrJEfc\r\n" \
-"LQoKeDC8TFDnPC59KTFfmDIQzrfaK1gf+OoUiE+JGZIWNG1DyfX4M3qfFXpQtojn\r\n" \
-"kUrmAODFCqKm7TKe7Y6O7zLHufH4NGPe30AjLB7R0cIKy93V35PlARNNqNeJKK4J\r\n" \
-"5KzYp1xXN+1OOrAgaz7DfWR969SKM469QJalRIuXTw+42SoA5/Ol+JPMkx3uIl68\r\n" \
-"22nTKF8JPwMTxfaHwtTPSn9q+IIjm1g9EGtfPn8fzwYw8hWjGq8UeR2kpFMKViia\r\n" \
-"y3iQwCNU+D65DDMzVNflBZo49de1el43uh4FaF8ilkeX9dudLG3p9eA8DEvbNT8M\r\n" \
-"J3TxTaQpQGrN27MMQjTJGF+LFb9xHaN7S9SCGAk5iPkpucFni5L8udm8mrLHggWo\r\n" \
-"CQHHIippQ2PC7sQeXrZbgcnK2hc0sq9zLqI4CyxBjr05oaAWj0lVzWW2VA0G62eq\r\n" \
-"p2gUc473t+d3VS+cV7JcjZdF8hopxf8KD/YFEYvNuWPOoYzMzCwmpdaLqhtz7zzp\r\n" \
-"qxiTFajupMFqHckobo/C7+WJSFxvaYZNNqTj+Pf0TPbVuEXkr8LDXi7XnSJCyj9B\r\n" \
-"UZzZSlZj0cpnmnkBAhs67vZZR75kz3p/31ZbHvadeQOBOQ+X8QLlBkU3FDxgsy2r\r\n" \
-"fdnPaDP8MXi5+WfkSlhhsdmBhOllQ0IYOkhgmiSA0N3v2xqAesC4uJY1pUvvNTjA\r\n" \
-"gkxAfhzOOxq8kYiBZ9MXKiLoWltLhWqEnnorGSs9yPV9+nvnLf2pJ2XeLLv8KDux\r\n" \
-"q0BAmkTqt9imMBNP4KDvTg//OzdIFuNN1z7ux8fqcIUhi2/KH3N5U5vnKBGktwJ6\r\n" \
-"jIohUThQjNw2AHpuwj4jvyZBnm+9KaFVwmKGB6bpa0rMzW0q8eOqHcdzkELfBDNB\r\n" \
-"3PM8a9HZj8gxbVl7ydrM6lhkermQuejjt1fO26nmOT9Ycogcel7JWGBWreBNKbPD\r\n" \
-"KV2LsVv1SGU2RYN5CrHsqjvLS4wlNL+nXxwBhJkF870FeTcNBnrIRKh9zJth/F6r\r\n" \
-"fJEtqLt8ue/q7insHFm+Rlo2nTqBzoz3vxt5tmU4Bke9x1+ZtVULj0ZUv3eQoVlo\r\n" \
-"ZTnzYwWzo32ZsLFIbQZuUw682o/cOpi02QRgeEEGikhWY8IQknEcMLnUoQ5/GuRn\r\n" \
-"-----END RSA PRIVATE KEY-----\r\n";
-
-char ca_pwd[] = "test";
-
-char clt_crt[] =
-"-----BEGIN CERTIFICATE-----\r\n" \
-"MIIDATCCAekCCQDTl3duLhemVjANBgkqhkiG9w0BAQUFADBFMQswCQYDVQQGEwJG\r\n" \
-"UjEOMAwGA1UECBMFUGFyaXMxDjAMBgNVBAoTBVh5U1NMMRYwFAYDVQQDEw1YeVNT\r\n" \
-"TCBUZXN0IENBMB4XDTA2MDkwNzEwMDczM1oXDTA3MDkwNzEwMDczM1owQDELMAkG\r\n" \
-"A1UEBhMCRlIxDjAMBgNVBAgTBVBhcmlzMQ4wDAYDVQQKEwVYeVNTTDERMA8GA1UE\r\n" \
-"AxMISm9lIFVzZXIwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCuDKrr\r\n" \
-"1pVTmwZ7aexKE7okTbJb1M/h9k79fYiZGulOmomrEDO0YIm8mqyPakPGKPRO/95F\r\n" \
-"PrfVyJckb4M58oYhAXpLLnq8+tqKnJgUQmQOrSKmzteN+RaGeqYnxeuwIYIxSjeR\r\n" \
-"9S5vfKo5j0KeKakDQtrE0qaK4+QiQry9mwg1PHiErxnFqVypXkpMbN7rcjIjFNSq\r\n" \
-"AVYcxgZ3oJmfqX+FITaOY1EIeQnMBNQokHXSZ4gLN5O0VF0YoUA+lWojdBJtT8CB\r\n" \
-"Q12/cxJC59ctJi5xMvcdgjbNvxj33jwvOy+TksxRO4jg2v2it7s4GL3fbVRk/RzP\r\n" \
-"/EoGrwtKeNbp0iq5AgMBAAEwDQYJKoZIhvcNAQEFBQADggEBAAIeRXGDO6vlVgIz\r\n" \
-"+XNeIAv5JgX7FxpCnmEajf/lKGuDFDqEsXcHtvEjOZLBn8kHGCUC2+LaVSC4y5xd\r\n" \
-"twGyliU1/t5PjgrkeaNxZ7jXy5+UYBsQmA33F+AX/I4laJ8IvLc4D+6U34HJ33Az\r\n" \
-"nLBf4xG8ClQWyRXG8PNh5N4XWmT6iSdRrogEF/ez0+LX/Dv4F66HAXLZNkci3a7k\r\n" \
-"SN7GtTEPa3A9wFM0R9eodz78uqG6bGRMXVkw1YUe/8gqgRWdv0lLczM8TZdeXeIw\r\n" \
-"Ho8f29A2P6F2T8frrt+dtuq8ehPKDIE8pbVg6GGvUTrSdiVxLeXCCvT3/Cfvr3Gi\r\n" \
-"p8z9/ks=\r\n" \
-"-----END CERTIFICATE-----\r\n";
+#include "testcert.h"
 
 /*
  * Checkup routine
@@ -1660,8 +1603,8 @@ int x509_self_test( void )
 
     memset( &cltcert, 0, sizeof( x509_cert ) );
 
-    ret = x509_add_certs( &cltcert, (uchar *) clt_crt,
-                                      strlen( clt_crt ) );
+    ret = x509_add_certs( &cltcert, (uchar *) test_clt_crt,
+                                      strlen( test_clt_crt ) );
     if( ret != 0 )
     {
         printf( "failed\n" );
@@ -1670,8 +1613,8 @@ int x509_self_test( void )
 
     memset( &cacert, 0, sizeof( x509_cert ) );
 
-    ret = x509_add_certs( &cacert, (uchar *) ca_crt,
-                                     strlen( ca_crt ) );
+    ret = x509_add_certs( &cacert, (uchar *) test_ca_crt,
+                                     strlen( test_ca_crt ) );
     if( ret != 0 )
     {
         printf( "failed\n" );
@@ -1680,8 +1623,10 @@ int x509_self_test( void )
 
     printf( "passed\n  X.509 private key load: " );
 
-    ret = x509_parse_key( &rsa, (uchar *) ca_key, strlen( ca_key ),
-                                (uchar *) ca_pwd, strlen( ca_pwd ) );
+    ret = x509_parse_key( &rsa,
+        (uchar *) test_ca_key, strlen( test_ca_key ),
+        (uchar *) test_ca_pwd, strlen( test_ca_pwd ) );
+
     if( ret != 0 )
     {
         printf( "failed\n" );

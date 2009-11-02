@@ -797,9 +797,8 @@ void aes_decrypt( aes_context *ctx, uchar input[16], uchar output[16] )
 void aes_cbc_encrypt( aes_context *ctx, uchar iv[16],
                       uchar *input, uchar *output, uint len )
 {
-    int i;
-
-    while( len > 0 )
+    int i, n = len;
+    while( n > 0 )
     {
         for( i = 0; i < 16; i++ )
             output[i] = input[i] ^ iv[i];
@@ -809,7 +808,7 @@ void aes_cbc_encrypt( aes_context *ctx, uchar iv[16],
 
         input  += 16;
         output += 16;
-        len    -= 16;
+        n -= 16;
     }
 }
 
@@ -819,10 +818,9 @@ void aes_cbc_encrypt( aes_context *ctx, uchar iv[16],
 void aes_cbc_decrypt( aes_context *ctx, uchar iv[16],
                       uchar *input, uchar *output, uint len )
 {
-    int i;
     uchar temp[16];
-
-    while( len > 0 )
+    int i, n = len;
+    while( n > 0 )
     {
         memcpy( temp, input, 16 );
         aes_decrypt( ctx, input, output );
@@ -834,7 +832,7 @@ void aes_cbc_decrypt( aes_context *ctx, uchar iv[16],
 
         input  += 16;
         output += 16;
-        len    -= 16;
+        n -= 16;
     }
 }
 

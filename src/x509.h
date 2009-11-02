@@ -1,6 +1,10 @@
 #ifndef _X509_H
 #define _X509_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef _STD_TYPES
 #define _STD_TYPES
 
@@ -83,7 +87,7 @@
 #define OID_PKCS1_RSA           "\x2A\x86\x48\x86\xF7\x0D\x01\x01\x01"
 #define OID_PKCS9               "\x2A\x86\x48\x86\xF7\x0D\x01\x09"
 
-typedef struct
+typedef struct _x509_buf
 {
     uint tag;
     uint len;
@@ -91,22 +95,22 @@ typedef struct
 }
 x509_buf;
 
-typedef struct
+typedef struct _x509_name
 {
     x509_buf oid;
     x509_buf val;
-    void *next;
+    struct _x509_name *next;
 }
 x509_name;
 
-typedef struct
+typedef struct _x509_time
 {
     int year, mon, day;
     int hour, min, sec;
 }
 x509_time;
 
-typedef struct
+typedef struct _x509_cert
 {
     x509_buf raw;
     x509_buf tbs;
@@ -133,7 +137,7 @@ typedef struct
     x509_buf sig_oid2;
     x509_buf sig;
 
-    void *next; 
+    struct _x509_cert *next; 
 }
 x509_cert;
 
@@ -198,5 +202,9 @@ void x509_free_cert( x509_cert *crt );
  * Checkup routine
  */
 int x509_self_test( void );
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* x509.h */

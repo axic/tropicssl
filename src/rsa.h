@@ -1,6 +1,10 @@
 #ifndef _RSA_H
 #define _RSA_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef _STD_TYPES
 #define _STD_TYPES
 
@@ -143,37 +147,34 @@ int rsa_pkcs1_decrypt( rsa_context *ctx,
                        uchar *output, uint *olen );
 
 /*
- * Hash a message and perform a private RSA.
+ * Perform a private RSA to sign a message digest
  *
  *      ctx     points to an RSA private key
- *      alg     must be set to RSA_MD2/4/5 or RSA_SHA1
- *      buf     buffer holding the data to be hashed
- *      buflen  length of the data
+ *      hash    buffer holding the message digest
+ *      alg_id  must be set to RSA_MD2/4/5 or RSA_SHA1
  *      sig     buffer that will hold the ciphertext
  *      siglen  must be the same as the modulus size
  *              (for example, 128 if RSA-1024 is used)
  *
  * Returns 0 if successful, or ERR_RSA_SIGN_FAILED
  */
-int rsa_pkcs1_sign( rsa_context *ctx, int alg,
-                    uchar *buf, uint buflen,
+int rsa_pkcs1_sign( rsa_context *ctx,
+                    uchar *hash, int alg_id,
                     uchar *sig, uint siglen );
 
 /*
  * Perform a public RSA and check the message digest.
  *
  *      ctx     points to an RSA public key
- *      alg     can be set to RSA_MD{2,4,5}, RSA_SHA1
- *              or 0 for all
- *      buf     buffer holding the data to be hashed
- *      buflen  length of the data
+ *      hash    buffer holding the message digest
+ *      alg_id  must be set to RSA_MD{2,4,5} or RSA_SHA1
  *      sig     buffer holding the ciphertext
  *      siglen  must be the same as the modulus size
  *
  * Returns 0 if successful, or ERR_RSA_VERIFY_FAILED
  */
-int rsa_pkcs1_verify( rsa_context *ctx, int alg,
-                      uchar *buf, uint buflen,
+int rsa_pkcs1_verify( rsa_context *ctx,
+                      uchar *hash, int alg_id,
                       uchar *sig, uint siglen );
 
 /*
@@ -185,5 +186,9 @@ void rsa_free( rsa_context *ctx );
  * Checkup routine
  */
 int rsa_self_test( void );
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -260,7 +260,7 @@ int md4_file( char *filename, uchar digest[16] )
     md4_starts( &ctx );
 
     while( ( n = fread( buf, 1, sizeof( buf ), f ) ) > 0 )
-        md4_update( &ctx, buf, n );
+        md4_update( &ctx, buf, (uint) n );
 
     md4_finish( &ctx, digest );
 

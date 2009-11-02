@@ -102,7 +102,7 @@ int ssl_derive_keys( ssl_context *ssl )
     int i;
     md5_context md5;
     sha1_context sha1;
-    uchar padding[10];
+    uchar padding[16];
     uchar sha1sum[20];
     uchar keyblk[256];
     uchar *key1, *key2;
@@ -239,18 +239,18 @@ int ssl_derive_keys( ssl_context *ssl )
     {
         case SSL3_RSA_RC4_128_MD5:
         case SSL3_RSA_RC4_128_SHA:
-            arc4_setup( ctx1, key1, keylen );
-            arc4_setup( ctx2, key2, keylen );
+            arc4_setup( (arc4_context *) ctx1, key1, keylen );
+            arc4_setup( (arc4_context *) ctx2, key2, keylen );
             break;
 
         case SSL3_RSA_DES_192_SHA:
-            des3_set_3keys( ctx1, key1 );
-            des3_set_3keys( ctx2, key2 );
+            des3_set_3keys( (des3_context *) ctx1, key1 );
+            des3_set_3keys( (des3_context *) ctx2, key2 );
             break;
 
         case TLS1_RSA_AES_256_SHA:
-            aes_set_key( ctx1, key1, 256 );
-            aes_set_key( ctx2, key2, 256 );
+            aes_set_key( (aes_context *) ctx1, key1, 256 );
+            aes_set_key( (aes_context *) ctx2, key2, 256 );
             break;
 
         default:
@@ -281,7 +281,6 @@ int ssl_derive_keys( ssl_context *ssl )
     }
 
     ssl->ctxlen = ctxlen;
-    ssl->do_crypt = 1;
 
     memset( keyblk,  0, sizeof( keyblk ) );
 
@@ -355,9 +354,6 @@ int ssl_encrypt_buf( ssl_context *ssl )
     int i;
     uint padlen;
 
-    if( ssl->do_crypt == 0 )
-        return( 0 );
-
     /*
      * Add MAC then encrypt
      */
@@ -392,7 +388,8 @@ int ssl_encrypt_buf( ssl_context *ssl )
 
     if( ssl->ivlen == 0 )
     {
-        arc4_crypt( ssl->encrypt_ctx, ssl->out_msg, ssl->out_msglen );
+        arc4_crypt( (arc4_context *) ssl->encrypt_ctx,
+                    ssl->out_msg, ssl->out_msglen );
         padlen = 0;
     }
     else
@@ -405,14 +402,14 @@ int ssl_encrypt_buf( ssl_context *ssl )
         ssl->out_msglen += padlen + 1;
 
         if( ssl->ivlen ==  8 )
-            des3_cbc_encrypt( ssl->encrypt_ctx, ssl->iv_enc,
-                              ssl->out_msg, ssl->out_msg,
-                              ssl->out_msglen );
+            des3_cbc_encrypt( (des3_context *) ssl->encrypt_ctx,
+                              ssl->iv_enc,  ssl->out_msg,
+                              ssl->out_msg, ssl->out_msglen );
 
         if( ssl->ivlen == 16 )
-            aes_cbc_encrypt( ssl->encrypt_ctx, ssl->iv_enc,
-                             ssl->out_msg, ssl->out_msg,
-                             ssl->out_msglen );
+            aes_cbc_encrypt( (aes_context *) ssl->encrypt_ctx,
+                             ssl->iv_enc,  ssl->out_msg,
+                             ssl->out_msg, ssl->out_msglen );
     }
 
     return( 0 );
@@ -424,15 +421,12 @@ int ssl_decrypt_buf( ssl_context *ssl )
     uint padlen;
     uchar tmp[20];
 
-    if( ssl->do_crypt == 0 )
-        return( 0 );
-
     if( ssl->in_msglen < ssl->minlen )
         return( ERR_SSL_INVALID_MAC );
 
     if( ssl->ivlen == 0 )
     {
-        arc4_crypt( ssl->decrypt_ctx,
+        arc4_crypt( (arc4_context *) ssl->decrypt_ctx,
                     ssl->in_msg, ssl->in_msglen );
         padlen = 0;
     }
@@ -445,14 +439,14 @@ int ssl_decrypt_buf( ssl_context *ssl )
             return( ERR_SSL_INVALID_MAC );
 
         if( ssl->ivlen ==  8 )
-            des3_cbc_decrypt( ssl->decrypt_ctx, ssl->iv_dec,
-                              ssl->in_msg, ssl->in_msg,
-                              ssl->in_msglen );
+            des3_cbc_decrypt( (des3_context *) ssl->decrypt_ctx,
+                              ssl->iv_dec, ssl->in_msg,
+                              ssl->in_msg, ssl->in_msglen );
 
         if( ssl->ivlen == 16 )
-             aes_cbc_decrypt( ssl->decrypt_ctx, ssl->iv_dec,
-                              ssl->in_msg, ssl->in_msg,
-                              ssl->in_msglen );
+             aes_cbc_decrypt( (aes_context *) ssl->decrypt_ctx,
+                              ssl->iv_dec, ssl->in_msg,
+                              ssl->in_msg, ssl->in_msglen );
 
         padlen = 1 + (uint) ssl->in_msg[ssl->in_msglen - 1];
 
@@ -530,7 +524,7 @@ int ssl_decrypt_buf( ssl_context *ssl )
 /* 
  * Record layer functions
  */
-int ssl_write_record( ssl_context *ssl )
+int ssl_write_record( ssl_context *ssl, int do_crypt )
 {
     int ret;
     uint len = ssl->out_msglen;
@@ -547,21 +541,24 @@ int ssl_write_record( ssl_context *ssl )
         ssl->out_msg[2] = (len - 4) >>  8;
         ssl->out_msg[3] = (len - 4);
 
-         md5_update( &ssl-> md5_handshake, ssl->out_msg, len );
-        sha1_update( &ssl->sha1_handshake, ssl->out_msg, len );
+         md5_update( &ssl->hs_md5 , ssl->out_msg, len );
+        sha1_update( &ssl->hs_sha1, ssl->out_msg, len );
     }
 
-    if( ( ret = ssl_encrypt_buf( ssl ) ) != 0 )
-        return( ret );
+    if( do_crypt != 0 )
+    {
+        if( ( ret = ssl_encrypt_buf( ssl ) ) != 0 )
+            return( ret );
 
-    len = ssl->out_msglen;
-    ssl->out_hdr[3] = len >> 8;
-    ssl->out_hdr[4] = len;
+        len = ssl->out_msglen;
+        ssl->out_hdr[3] = len >> 8;
+        ssl->out_hdr[4] = len;
+    }
 
     return( net_write_all( ssl->write_fd, ssl->out_hdr, len + 5 ) );
 }
 
-int ssl_read_record( ssl_context *ssl )
+int ssl_read_record( ssl_context *ssl, int do_crypt )
 {
     int ret;
     uint i, len;
@@ -602,16 +599,18 @@ int ssl_read_record( ssl_context *ssl )
                             | ssl->in_hdr[4];
 
     if( ssl->in_hdr[1] != ssl->major_version ||
-        len < 1 || len  > SSL_MAX_RECORD_LEN )
+        len <  1 || len > SSL_MAX_RECORD_LEN )
         return( ERR_SSL_INVALID_RECORD );
 
     if( ( ret = net_read_all( ssl->read_fd,
                               ssl->in_msg, len ) ) != 0 )
         return( ret );
 
-    if( ssl->in_msgtype != SSL_MSG_CHANGE_CIPHER_SPEC )
+    if( do_crypt != 0 )
+    {
         if( ( ret = ssl_decrypt_buf( ssl ) ) != 0 )
             return( ret );
+    }
 
     if( ssl->in_hdr[2] != ssl->minor_version )
     {
@@ -622,7 +621,7 @@ int ssl_read_record( ssl_context *ssl )
             ssl->in_hdr[2] != TLS10_MINOR_VERSION )
             return( ERR_SSL_INVALID_RECORD );
 
-        if( ssl->in_msgtype != SSL_MSG_HANDSHAKE &&
+        if( ssl->in_msgtype != SSL_MSG_HANDSHAKE ||
             ssl->in_msg[0]  != SSL_HS_SERVER_HELLO )
             return( ERR_SSL_INVALID_RECORD );
     }
@@ -640,15 +639,8 @@ int ssl_read_record( ssl_context *ssl )
         if( ssl->in_msglen < ssl->hslen )
             return( ERR_SSL_INVALID_RECORD );
 
-        if( ssl->in_msg[0] != SSL_HS_FINISHED ||
-            ssl->endpoint  == SSL_IS_SERVER )
-        {
-              md5_update( &ssl-> md5_handshake, ssl->in_msg,
-                          ssl->in_msglen );
-
-             sha1_update( &ssl->sha1_handshake, ssl->in_msg,
-                          ssl->in_msglen );
-        }
+          md5_update( &ssl->hs_md5 , ssl->in_msg, ssl->in_msglen );
+         sha1_update( &ssl->hs_sha1, ssl->in_msg, ssl->in_msglen );
     }
     else
         ssl->hslen = ~0;
@@ -685,7 +677,7 @@ int ssl_parse_certificate( ssl_context *ssl )
      *     n  . n+2   length of cert. 2
      *    n+3 . ...   upper level cert, etc.
      */
-    if( ( ret = ssl_read_record( ssl ) ) != 0 )
+    if( ( ret = ssl_read_record( ssl, 0 ) ) != 0 )
         return( ret );
 
     if( ssl->in_msgtype != SSL_MSG_HANDSHAKE )
@@ -767,37 +759,37 @@ int ssl_write_certificate( ssl_context *ssl )
      */
     i = 7;
     crt = ssl->own_cert;
-    while( crt != NULL )
+    while( crt->next != NULL )
     {
         n = crt->raw.len;
 
         if( i + 3 + n > SSL_MAX_RECORD_LEN )
             return( ERR_SSL_CERTIFICATE_TOO_LARGE );
 
-        ssl->out_msg[i] = 0;
-        ssl->out_msg[i] = n >>  8;
-        ssl->out_msg[i] = n >> 16;
+        ssl->out_msg[i]     = (uchar) (n >> 16);
+        ssl->out_msg[i + 1] = (uchar) (n >>  8);
+        ssl->out_msg[i + 2] = (uchar)  n;
 
         i += 3; memcpy( ssl->out_msg + i, crt->raw.p, n );
         i += n; crt = crt->next;
     }
 
-    ssl->out_msg[4] = 0;
-    ssl->out_msg[5] = (n - 7) >> 8;
-    ssl->out_msg[6] = (n - 7);
+    ssl->out_msg[4] = (uchar) ((i - 7) >> 16);
+    ssl->out_msg[5] = (uchar) ((i - 7) >>  8);
+    ssl->out_msg[6] = (uchar)  (i - 7);
 
     ssl->out_msglen  = i;
     ssl->out_msgtype = SSL_MSG_HANDSHAKE;
     ssl->out_msg[0]  = SSL_HS_CERTIFICATE;
 
-    return( ssl_write_record( ssl ) );
+    return( ssl_write_record( ssl, 0 ) );
 }
 
 int ssl_parse_change_cipher_spec( ssl_context *ssl )
 {
     int ret;
 
-    if( ( ret = ssl_read_record( ssl ) ) != 0 )
+    if( ( ret = ssl_read_record( ssl, 0 ) ) != 0 )
         return( ret );
 
     if( ssl->in_msgtype != SSL_MSG_CHANGE_CIPHER_SPEC )
@@ -814,17 +806,16 @@ int ssl_write_change_cipher_spec( ssl_context *ssl )
     ssl->out_msgtype = SSL_MSG_CHANGE_CIPHER_SPEC;
     ssl->out_msg[0]  = ssl->out_msglen = 1;
 
-    return( ssl_write_record( ssl ) );
+    return( ssl_write_record( ssl, 0 ) );
 }
 
-void ssl_calc_finished( ssl_context *ssl, uchar *buf, int from )
+void ssl_calc_finished( ssl_context *ssl, uchar *buf, int from,
+                        md5_context *md5, sha1_context *sha1 )
 {
     char *sender;
     uchar padbuf[48];
     uchar md5sum[16];
     uchar sha1sum[20];
-    md5_context md5;
-    sha1_context sha1;
 
     /*
      * SSLv3:
@@ -840,53 +831,49 @@ void ssl_calc_finished( ssl_context *ssl, uchar *buf, int from )
      */
     if( ssl->minor_version == SSLV3_MINOR_VERSION )
     {
-        sender = ( from == SSL_IS_CLIENT ) ? "CLNT" : "SRVR";
-
-        memcpy(  &md5,  &ssl->md5_handshake, sizeof(  md5 ) );
-        memcpy( &sha1, &ssl->sha1_handshake, sizeof( sha1 ) );
+        sender = ( from == SSL_IS_CLIENT ) ? (char *) "CLNT"
+                                           : (char *) "SRVR";
 
         memset( padbuf, 0x36, 48 );
 
-        md5_update( &md5, (uchar *) sender, 4 );
-        md5_update( &md5, ssl->master, 48 );
-        md5_update( &md5, padbuf, 48 );
-        md5_finish( &md5, md5sum );
+        md5_update( md5, (uchar *) sender, 4 );
+        md5_update( md5, ssl->master, 48 );
+        md5_update( md5, padbuf, 48 );
+        md5_finish( md5, md5sum );
 
-        sha1_update( &sha1, (uchar *) sender, 4 );
-        sha1_update( &sha1, ssl->master, 48 );
-        sha1_update( &sha1, padbuf, 40 );
-        sha1_finish( &sha1, sha1sum );
+        sha1_update( sha1, (uchar *) sender, 4 );
+        sha1_update( sha1, ssl->master, 48 );
+        sha1_update( sha1, padbuf, 40 );
+        sha1_finish( sha1, sha1sum );
 
         memset( padbuf, 0x5C, 48 );
 
-        md5_starts( &md5 );
-        md5_update( &md5, ssl->master, 48 );
-        md5_update( &md5, padbuf, 48 );
-        md5_update( &md5, md5sum, 16 );
-        md5_finish( &md5, buf );
+        md5_starts( md5 );
+        md5_update( md5, ssl->master, 48 );
+        md5_update( md5, padbuf, 48 );
+        md5_update( md5, md5sum, 16 );
+        md5_finish( md5, buf );
 
-        sha1_starts( &sha1 );
-        sha1_update( &sha1, ssl->master, 48 );
-        sha1_update( &sha1, padbuf, 40 );
-        sha1_update( &sha1, sha1sum, 20 );
-        sha1_finish( &sha1, buf + 16 );
+        sha1_starts( sha1 );
+        sha1_update( sha1, ssl->master, 48 );
+        sha1_update( sha1, padbuf, 40 );
+        sha1_update( sha1, sha1sum, 20 );
+        sha1_finish( sha1, buf + 16 );
     }
     else
     {
-        sender = ( from == SSL_IS_CLIENT ) ? "client finished"
-                                           : "server finished";
+        sender = ( from == SSL_IS_CLIENT )
+                 ? (char *) "client finished"
+                 : (char *) "server finished";
 
-        memcpy( & md5, &ssl-> md5_handshake, sizeof(  md5 ) );
-        memcpy( &sha1, &ssl->sha1_handshake, sizeof( sha1 ) );
-
-         md5_finish(  &md5, padbuf );
-        sha1_finish( &sha1, padbuf + 16 );
+         md5_finish(  md5, padbuf );
+        sha1_finish( sha1, padbuf + 16 );
 
         tls1_prf( ssl->master, 48, sender, padbuf, 36, buf, 12 );
     }
 
-    memset(  &md5, 0, sizeof(  md5_context ) );
-    memset( &sha1, 0, sizeof( sha1_context ) );
+    memset(  md5, 0, sizeof(  md5_context ) );
+    memset( sha1, 0, sizeof( sha1_context ) );
 
     memset(  md5sum, 0, sizeof(  md5sum ) );
     memset( sha1sum, 0, sizeof( sha1sum ) );
@@ -897,11 +884,13 @@ int ssl_parse_finished( ssl_context *ssl )
     int ret;
     uint hash_len;
     uchar buf[36];
+     md5_context  md5;
+    sha1_context sha1;
 
-    if( ssl->do_crypt == 0 )
-        ssl_derive_keys( ssl );
+    memcpy( &md5 , &ssl->hs_md5 , sizeof(  md5_context ) );
+    memcpy( &sha1, &ssl->hs_sha1, sizeof( sha1_context ) );
 
-    if( ( ret = ssl_read_record( ssl ) ) != 0 )
+    if( ( ret = ssl_read_record( ssl, 1 ) ) != 0 )
         return( ret );
 
     if( ssl->in_msgtype != SSL_MSG_HANDSHAKE )
@@ -915,7 +904,7 @@ int ssl_parse_finished( ssl_context *ssl )
          ssl->hslen  != 4 + hash_len )
         return( ERR_SSL_BAD_HS_FINISHED );
 
-    ssl_calc_finished( ssl, buf, ssl->endpoint ^ 1 );
+    ssl_calc_finished( ssl, buf, ssl->endpoint ^ 1, &md5, &sha1 );
 
     if( memcmp( ssl->in_msg + 4, buf, hash_len ) != 0 )
         return( ERR_SSL_BAD_HS_FINISHED );
@@ -926,9 +915,11 @@ int ssl_parse_finished( ssl_context *ssl )
 int ssl_write_finished( ssl_context *ssl )
 {
     uint hash_len;
+     md5_context  md5;
+    sha1_context sha1;
 
-    if( ssl->do_crypt == 0 )
-        ssl_derive_keys( ssl );
+    memcpy( &md5 , &ssl->hs_md5 , sizeof(  md5_context ) );
+    memcpy( &sha1, &ssl->hs_sha1, sizeof( sha1_context ) );
 
     if( ssl->minor_version == SSLV3_MINOR_VERSION )
          hash_len = 36;
@@ -938,9 +929,10 @@ int ssl_write_finished( ssl_context *ssl )
     ssl->out_msgtype = SSL_MSG_HANDSHAKE;
     ssl->out_msg[0]  = SSL_HS_FINISHED;
 
-    ssl_calc_finished( ssl, ssl->out_msg + 4, ssl->endpoint );
+    ssl_calc_finished( ssl, ssl->out_msg + 4, ssl->endpoint,
+                       &md5, &sha1 );
 
-    return( ssl_write_record( ssl ) );
+    return( ssl_write_record( ssl, 1 ) );
 }
 
 /*
@@ -953,8 +945,6 @@ int ssl_init( ssl_context *ssl, uint *cipherlist,
 {
     memset( ssl, 0, sizeof( ssl_context ) );
 
-    ssl->major_version  = SSLV3_MAJOR_VERSION;
-    ssl->minor_version  = SSLV3_MINOR_VERSION;
     ssl->cipherlist     = cipherlist;
     ssl->rng_func       = rng_func;
     ssl->rng_state      = rng_state;
@@ -978,10 +968,21 @@ int ssl_init( ssl_context *ssl, uint *cipherlist,
 }
 
 /*
- * Setup own certificate and private key struct, returns 0.
+ * Setup the read and write file descriptors.
  */
-int ssl_set_owncert( ssl_context *ssl, x509_cert *own_cert,
-                     rsa_context *own_key )
+int ssl_set_io_files( ssl_context *ssl, int read_fd, int write_fd )
+{
+    ssl->read_fd  = read_fd;
+    ssl->write_fd = write_fd;
+
+    return( 0 );
+}
+
+/*
+ * Setup own certificate and private key struct.
+ */
+int ssl_set_own_cert( ssl_context *ssl, x509_cert *own_cert,
+                      rsa_context *own_key )
 {
     ssl->own_cert = own_cert;
     ssl->own_key  = own_key;
@@ -1002,12 +1003,10 @@ int ssl_set_ca_chain( ssl_context *ssl, x509_cert *ca, char *cn )
 
 /*
  * Receive application data decrypted from the SSL layer.
- * If "full" is not null, exactly *len bytes will be read;
- * otherwise the result of the read (stored in *len) may
- * be lesser than the requested size.
  *
- * In both cases, this function will block until data is
- * received at the record layer.
+ * If "full" is zero, ssl_real behaves like read(): less
+ * than *len bytes may be read. If full is non-zero, the
+ * exact amount of data requested is read.
  */
 int ssl_read( ssl_context *ssl, uchar *buf, uint *len, int full )
 {
@@ -1018,7 +1017,7 @@ int ssl_read( ssl_context *ssl, uchar *buf, uint *len, int full )
     {
         if( ssl->left == 0 )
         {
-            if( ( ret = ssl_read_record( ssl ) ) != 0 )
+            if( ( ret = ssl_read_record( ssl, 1 ) ) != 0 )
                 return( ret );
 
             if( ssl->in_msgtype != SSL_MSG_APPLICATION_DATA )
@@ -1047,7 +1046,7 @@ int ssl_read( ssl_context *ssl, uchar *buf, uint *len, int full )
 
 /*
  * Send application data to be encrypted by the SSL layer;
- * peer will receive exactly len bytes.
+ * the peer will receive exactly len bytes from ssl_read()
  */
 int ssl_write( ssl_context *ssl, uchar *buf, uint len )
 {
@@ -1063,7 +1062,7 @@ int ssl_write( ssl_context *ssl, uchar *buf, uint len )
         ssl->out_msgtype = SSL_MSG_APPLICATION_DATA;
         memcpy( ssl->out_msg, buf, n );
 
-        if( ( ret = ssl_write_record( ssl ) ) != 0 )
+        if( ( ret = ssl_write_record( ssl, 1 ) ) != 0 )
             return( ret );
 
         len -= n;
@@ -1073,49 +1072,43 @@ int ssl_write( ssl_context *ssl, uchar *buf, uint len )
 }
 
 /*
- * Close the SSL connection. The context can be reused
- * afterwards (no need to call ssl_init again).
+ * Close the SSL connection and cleanup/free all data.
  */
 void ssl_close( ssl_context *ssl )
-{
-    ssl->out_msgtype = SSL_MSG_ALERT;
-    ssl->out_msglen = 2;
-    ssl->out_msg[0] = SSL_ALERT_WARNING;
-    ssl->out_msg[1] = SSL_ALERT_CLOSE_NOTIFY;
-    ssl_write_record( ssl );
-
-    net_close( ssl->read_fd  );
-    net_close( ssl->write_fd );
-}
-
-/*
- * Cleanup the secrets and free all data; context cannot be used
- * anymore without calling ssl_init() first.
- */
-void ssl_free( ssl_context *ssl )
 {
     x509_cert *next;
 
     if( ssl->ctxlen != 0 )
     {
+        ssl->out_msgtype = SSL_MSG_ALERT;
+        ssl->out_msglen  = 2;
+        ssl->out_msg[0]  = SSL_ALERT_WARNING;
+        ssl->out_msg[1]  = SSL_ALERT_CLOSE_NOTIFY;
+        ssl_write_record( ssl, 1 );
+
+        net_close( ssl->read_fd  );
+        net_close( ssl->write_fd );
+
         memset( ssl->encrypt_ctx, 0, ssl->ctxlen );
         memset( ssl->decrypt_ctx, 0, ssl->ctxlen );
+
         free( ssl->encrypt_ctx );
         free( ssl->decrypt_ctx );
     }
 
     while( ssl->peer_cert != NULL )
     {
-        next = ssl->peer_cert->next;
+        next =  ssl->peer_cert->next;
         memset( ssl->peer_cert, 0, sizeof( x509_cert ) );
         free( ssl->peer_cert );
         ssl->peer_cert = next;
     }
 
-    memset( ssl-> in_ctr, 0, SSL_MAX_RECORD_LEN + 1 );
     memset( ssl->out_ctr, 0, SSL_MAX_RECORD_LEN + 1 );
-    free( ssl-> in_ctr );
+    memset( ssl-> in_ctr, 0, SSL_MAX_RECORD_LEN + 1 );
+
     free( ssl->out_ctr );
+    free( ssl-> in_ctr );
  
     memset( ssl, 0, sizeof( ssl_context ) );
 }

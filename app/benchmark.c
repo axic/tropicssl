@@ -22,10 +22,6 @@
 #define _CRT_SECURE_NO_DEPRECATE 1
 #endif
 
-#ifdef _MSC_VER
-#pragma comment(lib, "xyssl.lib")
-#endif
-
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -55,11 +51,10 @@ ulong myrand( void *rng_state )
 int main( void )
 {
     int i;
-    uint64 tsc;
     struct hr_time ht;
     uchar buf[BUFSIZE];
     uchar tmp[32];
-    ulong u, v;
+    ulong tsc, u, v;
 
     md2_context md2;
     md4_context md4;
@@ -184,7 +179,7 @@ int main( void )
 
     aes_set_key( &aes, tmp, 128 );
     for( i = 0; i < NB_ITER; i++ )
-        aes_cbc_encrypt ( &aes, tmp, buf, buf, BUFSIZE );
+        aes_cbc_encrypt( &aes, tmp, buf, buf, BUFSIZE );
 
     v = (ulong)(( hardclock() - tsc ) / ( NB_ITER * BUFSIZE ));
     u = (ulong)( NB_ITER * BUFSIZE / ( set_timer( &ht, 0 ) ) );
@@ -224,7 +219,6 @@ int main( void )
     rsa_gen_key( &rsa, 1024, 257, myrand, NULL );
 
     set_timer( &ht, 1 );
-    tsc = hardclock();
 
     for( i = 0; i < NB_ITER2; i++ )
     {
@@ -232,12 +226,10 @@ int main( void )
         rsa_public( &rsa, buf, 128, buf, 128 );
     }
 
-    v = (ulong)(( hardclock() - tsc ) / ( NB_ITER2 * 128 ));
     u = (ulong)( NB_ITER2 / ( set_timer( &ht, 0 ) ) );
-    printf( "  RSA-1024  :  %5ld verify op/s,  %9ld cycles/byte\n", u, v );
+    printf( "  RSA-1024  :  %5ld verify op/s\n", u );
 
     set_timer( &ht, 1 );
-    tsc = hardclock();
 
     for( i = 0; i < NB_ITER2; i++ )
     {
@@ -245,40 +237,35 @@ int main( void )
         rsa_private( &rsa, buf, 128, buf, 128 );
     }
 
-    v = (ulong)(( hardclock() - tsc ) / ( NB_ITER2 * 128 ));
     u = (ulong)( NB_ITER2 / ( set_timer( &ht, 0 ) ) );
-    printf( "  RSA-1024  :  %5ld sign   op/s,  %9ld cycles/byte\n", u, v );
+    printf( "  RSA-1024  :  %5ld sign   op/s\n", u );
 
     /*
-     * RSA-2048 timing
+     * RSA-1536 timing
      */ 
-    rsa_gen_key( &rsa, 2048, 41, myrand, NULL );
+    rsa_gen_key( &rsa, 1536, 41, myrand, NULL );
 
     set_timer( &ht, 1 );
-    tsc = hardclock();
 
     for( i = 0; i < NB_ITER2; i++ )
     {
         buf[0] = 0;
-        rsa_public( &rsa, buf, 256, buf, 256 );
+        rsa_public( &rsa, buf, 192, buf, 192 );
     }
 
-    v = (ulong)(( hardclock() - tsc ) / ( NB_ITER2 * 256 ));
     u = (ulong)( NB_ITER2 / ( set_timer( &ht, 0 ) ) );
-    printf( "  RSA-2048  :  %5ld verify op/s,  %9ld cycles/byte\n", u, v );
+    printf( "  RSA-1536  :  %5ld verify op/s\n", u );
 
     set_timer( &ht, 1 );
-    tsc = hardclock();
 
     for( i = 0; i < NB_ITER2; i++ )
     {
         buf[0] = 0;
-        rsa_private( &rsa, buf, 256, buf, 256 );
+        rsa_private( &rsa, buf, 192, buf, 192 );
     }
 
-    v = (ulong)(( hardclock() - tsc ) / ( NB_ITER2 * 256 ));
     u = (ulong)( NB_ITER2 / ( set_timer( &ht, 0 ) ) );
-    printf( "  RSA-2048  :  %5ld sign   op/s,  %9ld cycles/byte\n", u, v );
+    printf( "  RSA-1536  :  %5ld sign   op/s\n", u );
 
     printf( "\n" );
 

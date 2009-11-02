@@ -37,6 +37,15 @@ int ssl_write_client_hello( ssl_context *ssl )
     uint i, n;
     time_t t;
 
+     md5_starts( &ssl->hs_md5  );
+    sha1_starts( &ssl->hs_sha1 );
+
+    ssl->major_version = SSLV3_MAJOR_VERSION;
+    ssl->minor_version = SSLV3_MINOR_VERSION;
+
+    ssl->max_client_ver[0] = SSLV3_MAJOR_VERSION;
+    ssl->max_client_ver[1] = TLS10_MINOR_VERSION;
+
     /*
      *     0  .   0   handshake type
      *     1  .   3   handshake length
@@ -46,8 +55,7 @@ int ssl_write_client_hello( ssl_context *ssl )
      */
     buf = ssl->out_msg;
 
-    buf[4] = SSLV3_MAJOR_VERSION;
-    buf[5] = TLS10_MINOR_VERSION;
+    memcpy( buf + 4, ssl->max_client_ver, 2 );
 
     t = time( NULL );
     buf[6] = (uchar)(t >> 24);
@@ -70,8 +78,8 @@ int ssl_write_client_hello( ssl_context *ssl )
     buf[38] = n = i = 0;
     while( ssl->cipherlist[i] != 0 )
     {
-        buf[41 + n] = ssl->cipherlist[i] >> 8;
-        buf[42 + n] = ssl->cipherlist[i];
+        buf[41 + n] = (uchar)( ssl->cipherlist[i] >> 8 );
+        buf[42 + n] = (uchar)  ssl->cipherlist[i];
         n += 2; i++;
     }
 
@@ -85,7 +93,7 @@ int ssl_write_client_hello( ssl_context *ssl )
     ssl->out_msgtype = SSL_MSG_HANDSHAKE;
     ssl->out_msg[0]  = SSL_HS_CLIENT_HELLO;
 
-    return( ssl_write_record( ssl ) );
+    return( ssl_write_record( ssl, 0 ) );
 }
 
 int ssl_parse_server_hello( ssl_context *ssl )
@@ -103,7 +111,7 @@ int ssl_parse_server_hello( ssl_context *ssl )
      */
     buf = ssl->in_msg;
 
-    if( ( ret = ssl_read_record( ssl ) ) != 0 )
+    if( ( ret = ssl_read_record( ssl, 0 ) ) != 0 )
         return( ret );
 
     if( ssl->in_msgtype != SSL_MSG_HANDSHAKE )
@@ -163,7 +171,7 @@ int ssl_parse_certificate_request( ssl_context *ssl )
      *    n+4 .. ...  Distinguished Name #1
      *    ... .. ...  length of DN 2, etc.
      */
-    if( ( ret = ssl_read_record( ssl ) ) != 0 )
+    if( ( ret = ssl_read_record( ssl, 0 ) ) != 0 )
         return( ret );
 
     if( ssl->in_msgtype != SSL_MSG_HANDSHAKE )
@@ -173,7 +181,7 @@ int ssl_parse_certificate_request( ssl_context *ssl )
     {
         ssl->client_auth = 1;
 
-        if( ( ret = ssl_read_record( ssl ) ) != 0 )
+        if( ( ret = ssl_read_record( ssl, 0 ) ) != 0 )
             return( ret );
 
         if( ssl->in_msgtype != SSL_MSG_HANDSHAKE )
@@ -215,10 +223,10 @@ int ssl_write_client_key_exchange( ssl_context *ssl )
     p = (ulong *) ssl->premaster;
 
     for( i = 0; i < 48 / sizeof( ulong ); i++ )
-        p[i] = ssl->rng_func( ssl->rng_state );
+        p[i] = ssl->rng_func( ssl->rng_state )
+             * ssl->rng_func( ssl->rng_state );
 
-    ssl->premaster[0] = SSLV3_MAJOR_VERSION;
-    ssl->premaster[1] = TLS10_MINOR_VERSION;
+    memcpy( ssl->premaster, ssl->max_client_ver, 2 );
 
     i = 4;
     if( ssl->minor_version != SSLV3_MINOR_VERSION )
@@ -236,11 +244,13 @@ int ssl_write_client_key_exchange( ssl_context *ssl )
                                     ssl->out_msg + i, n ) ) != 0 )
         return( ret );
 
+    ssl_derive_keys( ssl );
+
     ssl->out_msglen  = i + n;
     ssl->out_msgtype = SSL_MSG_HANDSHAKE;
     ssl->out_msg[0]  = SSL_HS_CLIENT_KEY_EXCHANGE;
 
-    return( ssl_write_record( ssl ) );
+    return( ssl_write_record( ssl, 0 ) );
 }
 
 int ssl_write_certificate_verify( ssl_context *ssl )
@@ -259,7 +269,7 @@ int ssl_write_certificate_verify( ssl_context *ssl )
         return( ERR_SSL_INVALID_MODULUS_SIZE );
 
     /*
-     * SSLv3/TLSv1.0 does not conform to PKCS#1, so rsa_pkcs1_sign
+     * SSLv3/TLSv1 does not conform to PKCS1v1.5, so rsa_pkcs1_sign
      * cannot be used directly; we have to take care of hashing and
      * message padding issues here.
      */
@@ -267,8 +277,8 @@ int ssl_write_certificate_verify( ssl_context *ssl )
     sig[1] = RSA_SIGN;
     memset( sig + 2, 0xFF, n - 38 );
 
-    memcpy(  &md5, &ssl-> md5_handshake, sizeof(  md5_context ) );
-    memcpy( &sha1, &ssl->sha1_handshake, sizeof( sha1_context ) );
+    memcpy( &md5,  &ssl->hs_md5 , sizeof(  md5_context ) );
+    memcpy( &sha1, &ssl->hs_sha1, sizeof( sha1_context ) );
 
      md5_finish(  &md5, sig + n - 36 );
     sha1_finish( &sha1, sig + n - 20 );
@@ -281,7 +291,7 @@ int ssl_write_certificate_verify( ssl_context *ssl )
     ssl->out_msg[0]  = SSL_HS_CERTIFICATE_VERIFY;
     memcpy( ssl->out_msg + 4, sig, n );
 
-    return( ssl_write_record( ssl ) );
+    return( ssl_write_record( ssl, 0 ) );
 }
 
 /*
@@ -302,9 +312,7 @@ int ssl_client_start( ssl_context *ssl, int server_verify )
 {
     int ret;
 
-     md5_starts( &ssl-> md5_handshake );
-    sha1_starts( &ssl->sha1_handshake );
-
+    ssl->endpoint    = SSL_IS_CLIENT;
     ssl->verify_mode = server_verify;
 
     /*

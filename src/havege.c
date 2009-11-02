@@ -143,12 +143,10 @@
     PT1 ^= (PT2 ^ 0x10) & 0x10;                         \
                                                         \
     for( i = 0; i < 16; i++ )                           \
-        hs->pool[n] ^= RES[i];                          \
-                                                        \
-    n = ( n + 1 ) % COLLECT_SIZE;
+        hs->pool[n] ^= RES[i];
 
 /* 
- * Entropy gathering phase
+ * Entropy gathering function
  */
 void havege_collect_rand( havege_state *hs )
 {
@@ -168,60 +166,18 @@ void havege_collect_rand( havege_state *hs )
 
     t = time( NULL );
 
-    while( time( NULL ) - t < COLLECT_TIME )
+    do 
     {
-        /*
-         * make sure the internal loop size fits the
-         * CPU instruction cache
-         */
-        ONE_ITERATION  ONE_ITERATION  ONE_ITERATION
-        ONE_ITERATION  ONE_ITERATION  ONE_ITERATION /* 6 */
+        for( n = 0; n < COLLECT_SIZE / 8; n++ )
+        {
+            ONE_ITERATION   ONE_ITERATION
+            ONE_ITERATION   ONE_ITERATION
 
-#if defined HAVE_CPU_UIII || defined HAVE_CPU_PIII || \
-    defined HAVE_CPU_PIV  || defined HAVE_CPU_G4   || \
-    defined HAVE_CPU_ATHLON
-
-        ONE_ITERATION  ONE_ITERATION  ONE_ITERATION
-        ONE_ITERATION  ONE_ITERATION  ONE_ITERATION
-        ONE_ITERATION  ONE_ITERATION  ONE_ITERATION
-        ONE_ITERATION  ONE_ITERATION                /* 11 */
-
-#endif
-#if defined HAVE_CPU_PIII || defined HAVE_CPU_PIV || \
-    defined HAVE_CPU_G4   || defined HAVE_CPU_ATHLON
-
-        ONE_ITERATION  ONE_ITERATION  ONE_ITERATION /* 14 */
-
-#endif
-#if defined HAVE_CPU_PIV || defined HAVE_CPU_G4 || \
-    defined HAVE_CPU_ATHLON
-
-        ONE_ITERATION  ONE_ITERATION  ONE_ITERATION /* 17 */
-
-#endif
-#if defined HAVE_CPU_G4 || defined HAVE_CPU_ATHLON
-
-        ONE_ITERATION  ONE_ITERATION  ONE_ITERATION
-        ONE_ITERATION  ONE_ITERATION                /* 22 */
-
-#endif
-#if defined HAVE_CPU_ATHLON
-
-        ONE_ITERATION  ONE_ITERATION  ONE_ITERATION
-        ONE_ITERATION  ONE_ITERATION  ONE_ITERATION
-        ONE_ITERATION  ONE_ITERATION  ONE_ITERATION
-        ONE_ITERATION  ONE_ITERATION  ONE_ITERATION
-        ONE_ITERATION  ONE_ITERATION  ONE_ITERATION
-        ONE_ITERATION  ONE_ITERATION  ONE_ITERATION
-        ONE_ITERATION  ONE_ITERATION  ONE_ITERATION
-        ONE_ITERATION  ONE_ITERATION  ONE_ITERATION
-        ONE_ITERATION  ONE_ITERATION  ONE_ITERATION
-        ONE_ITERATION  ONE_ITERATION  ONE_ITERATION
-        ONE_ITERATION  ONE_ITERATION  ONE_ITERATION
-        ONE_ITERATION  ONE_ITERATION  ONE_ITERATION /* 58 */
-
-#endif
+            ONE_ITERATION   ONE_ITERATION
+            ONE_ITERATION   ONE_ITERATION
+        }
     }
+    while( time( NULL ) - t <= COLLECT_TIME );
 
     hs->offset = 0;
     hs->PT1 = PT1;
@@ -238,14 +194,20 @@ void havege_init( havege_state *hs )
 }
 
 /*
- * Returns a random unsigned long.
+ * Return a random unsigned long
  */
 ulong havege_rand( void *rng_state )
 {
-    havege_state *hs = rng_state;
+    havege_state *hs = (havege_state *) rng_state;
 
     if( hs->offset >= COLLECT_SIZE )
+    {
+        /*
+         * refill the entropy pool
+         */
+        hs->offset  = 0;
         havege_collect_rand( hs );
+    }
 
     return( hs->pool[hs->offset++] );
 }

@@ -414,9 +414,9 @@ void des_decrypt( des_context *ctx, uchar input[8], uchar output[8] )
 void des_cbc_encrypt( des_context *ctx, uchar iv[8],
                       uchar *input, uchar *output, uint len )
 {
-    int i;
+    int i, n = len;
 
-    while( len > 0 )
+    while( n > 0 )
     {
         for( i = 0; i < 8; i++ )
             output[i] = input[i] ^ iv[i];
@@ -436,10 +436,10 @@ void des_cbc_encrypt( des_context *ctx, uchar iv[8],
 void des_cbc_decrypt( des_context *ctx, uchar iv[8],
                       uchar *input, uchar *output, uint len )
 {
-    int i;
+    int i, n = len;
     uchar temp[8];
 
-    while( len > 0 )
+    while( n > 0 )
     {
         memcpy( temp, input, 8 );
         des_crypt( ctx->dsk, input, output );
@@ -569,9 +569,8 @@ void des3_decrypt( des3_context *ctx, uchar input[8], uchar output[8] )
 void des3_cbc_encrypt( des3_context *ctx, uchar iv[8],
                        uchar *input, uchar *output, uint len )
 {
-    int i;
-
-    while( len >= 8 )
+    int i, n = len;
+    while( n > 0 )
     {
         for( i = 0; i < 8; i++ )
             output[i] = input[i] ^ iv[i];
@@ -581,7 +580,7 @@ void des3_cbc_encrypt( des3_context *ctx, uchar iv[8],
 
         input  += 8;
         output += 8;
-        len    -= 8;
+        n -= 8;
     }
 }
 
@@ -591,10 +590,9 @@ void des3_cbc_encrypt( des3_context *ctx, uchar iv[8],
 void des3_cbc_decrypt( des3_context *ctx, uchar iv[8],
                        uchar *input, uchar *output, uint len )
 {
-    int i;
     uchar temp[8];
-
-    while( len > 0 )
+    int i, n = len;
+    while( n > 0 )
     {
         memcpy( temp, input, 8 );
         des3_crypt( ctx->dsk, input, output );
@@ -606,7 +604,7 @@ void des3_cbc_decrypt( des3_context *ctx, uchar iv[8],
 
         input  += 8;
         output += 8;
-        len    -= 8;
+        n -= 8;
     }
 }
 

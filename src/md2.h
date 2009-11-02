@@ -1,6 +1,10 @@
 #ifndef _MD2_H
 #define _MD2_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef _STD_TYPES
 #define _STD_TYPES
 
@@ -46,5 +50,9 @@ void md2_hmac( uchar *buf, uint buflen, uchar *key, uint keylen,
  * Checkup routine
  */
 int md2_self_test( void );
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* md2.h */

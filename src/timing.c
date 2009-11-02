@@ -22,125 +22,113 @@
 #define _CRT_SECURE_NO_DEPRECATE 1
 #endif
 
+#include "timing.h"
+
 #ifdef WIN32
 #include <windows.h>
 #include <winbase.h>
 
-struct hr_time
+struct _hr_time
 {
-    LARGE_INTEGER start, hfreq;
+    LARGE_INTEGER start;
 };
 #else
 #include <sys/time.h>
 #include <time.h>
-       
-struct hr_time
+
+struct _hr_time
 {
     struct timeval start;
 };
 #endif
 
-#ifdef _MSC_VER
-typedef __int64 uint64;
-#else
-typedef unsigned long long uint64;
-#endif
-
 #if defined(_MSC_VER) && defined(_M_IX86) || defined(__WATCOMC__)
 
-uint64 hardclock( void )
+unsigned long hardclock( void )
 {
-    volatile uint64 tsc;
-
-    __asm
-    {   
-        rdtsc
-        lea     ecx, [tsc]
-        mov     [ecx], eax
-        mov     [ecx + 4], edx
-    }
+    unsigned long tsc;
+    __asm   rdtsc
+    __asm   mov  [tsc], eax
     return( tsc );
 }
 
-#endif
+#else
+#if defined(__i386__)
 
-#if defined(__i386__) || defined(__x86_64__)
-
-uint64 hardclock( void )
+unsigned long hardclock( void )
 {
-    unsigned long a, d;
-    asm volatile( "rdtsc" : "=a" (a), "=d" (d) ); 
-    return( ( (uint64) d ) << 32 | a );
+#ifdef HAVE_RDTSC
+    unsigned long tsc;
+    asm( "rdtsc" : "=a" (tsc) );
+    return( tsc );
+#else
+    struct timeval tv;
+    gettimeofday( &tv, NULL );
+    return( tv.tv_usec );
+#endif
 }
 
-#endif
+#else
+#if defined(__x86_64__)
 
+unsigned long hardclock( void )
+{
+    unsigned long tsc;
+    asm( "rdtsc" : "=a" (tsc) ); 
+    return( tsc );
+}
+
+#else
 #if defined(__sparc__)
 
-uint64 hardclock( void )
+unsigned long hardclock( void )
 {
     unsigned long tick;
-    asm volatile( "rd %%tick, %0" : "=r" (tick) );
+    asm( "rd %%tick, %0" : "=r" (tick) );
     return( tick );
 }
 
-#endif
-
+#else
 #if defined(__alpha__)
 
-uint64 hardclock( void )
+unsigned long hardclock( void )
 {
     unsigned long cc;
-    asm volatile( "rpcc %0" : "=r" (cc) );
+    asm( "rpcc %0" : "=r" (cc) );
     return( cc & 0xFFFFFFFF );
 }
 
-#endif
-
+#else
 #if defined(__ia64__)
 
-uint64 hardclock( void )
+unsigned long hardclock( void )
 {
-    uint64 itc;
-    asm volatile( "mov %0 = ar.itc" : "=r" (itc) );
+    unsigned long itc;
+    asm( "mov %0 = ar.itc" : "=r" (itc) );
     return( itc );
 }
 
-#endif
-
+#else
 #if defined(__powerpc__) || defined(__ppc__)
 
-uint64 hardclock( void )
+unsigned long hardclock( void )
 {
     unsigned long tbl, tbu0, tbu1;
 
     do
     {
-        asm volatile( "mftbu %0" : "=r" (tbu0) );
-        asm volatile( "mftb  %0" : "=r" (tbl ) );
-        asm volatile( "mftbu %0" : "=r" (tbu1) );
+        asm( "mftbu %0" : "=r" (tbu0) );
+        asm( "mftb  %0" : "=r" (tbl ) );
+        asm( "mftbu %0" : "=r" (tbu1) );
     }
     while( tbu0 != tbu1 );
 
-    return( ( (uint64) tbu0 ) << 32 | tbl );
+    return( tbl );
 }
 
-#endif
+#else
 
-#if defined(__mips__)
-
-uint64 hardclock( void )
-{
-    unsigned long t;
-    asm volatile( "mfc0 %0, $9; nop" : "=r" (t) );
-    return( t );
-}
-
-#endif
-
-#if defined(__arm__)
-
-uint64 hardclock( void )
+unsigned long hardclock( void )
 {
     struct timeval tv;
     gettimeofday( &tv, NULL );
@@ -148,39 +136,40 @@ uint64 hardclock( void )
 }
 
 #endif
+#endif
+#endif
+#endif
+#endif
+#endif
+#endif
 
 #ifdef WIN32
 
-float set_timer( void *timer_val, int reset )
+float set_timer( struct hr_time *val, int reset )
 {
     float delta = 0.0f;
-    LARGE_INTEGER offset;
-    struct hr_time *t = timer_val;
+    LARGE_INTEGER offset, hfreq;
+    struct _hr_time *t = (struct _hr_time *) val;
 
-    QueryPerformanceCounter( &offset );
+    QueryPerformanceCounter(  &offset );
+    QueryPerformanceFrequency( &hfreq );
 
-    if( t->hfreq.QuadPart )
-    {
-        delta = (float) ( offset.QuadPart - t->start.QuadPart ) /
-                (float) t->hfreq.QuadPart;
-    }
+    delta = (float) ( offset.QuadPart - t->start.QuadPart ) /
+            (float) hfreq.QuadPart;
 
     if( reset )
-    {
-        QueryPerformanceFrequency( &t->hfreq );
         QueryPerformanceCounter( &t->start );
-    }
 
     return( delta );
 }
 
 #else
 
-float set_timer( void *timer_val, int reset )
+float set_timer( struct hr_time *val, int reset )
 {
     float delta;
     struct timeval offset;
-    struct hr_time *t = timer_val;
+    struct _hr_time *t = (struct _hr_time *) val;
 
     gettimeofday( &offset, NULL );
 

@@ -1,6 +1,10 @@
 #ifndef _BASE64_H
 #define _BASE64_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef _STD_TYPES
 #define _STD_TYPES
 
@@ -42,5 +46,9 @@ int base64_decode( uchar *dst, uint *dlen, uchar *src, uint slen );
  * Checkup routine
  */
 int b64_self_test( void );
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* base64.h */

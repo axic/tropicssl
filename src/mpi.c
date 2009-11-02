@@ -912,18 +912,26 @@ int mpi_sub_int( mpi *X, mpi *A, int b )
          "rbx", "rsi", "rdi" );
 
 #else
-#warning : no muladdc assembly code for this cpu
+#warning no muladdc assembly code for this cpu
 
 #define MULADDC_INIT                    \
 {                                       \
-    t_dbl r;                            \
-    t_int r0, r1;
+    t_int s0, s1, b0, b1;               \
+    t_int r0, r1, rx, ry;               \
+    b0 = ( b << biH ) >> biH;           \
+    b1 = ( b >> biH );
 
 #define MULADDC_CORE                    \
-    r   = *(s++) * (t_dbl) b;           \
-    r0  = r;                            \
-    r1  = r >> biL;                     \
-    r0 += c;  r1 += (r0 <  c);          \
+    s0 = ( *s << biH ) >> biH;          \
+    s1 = ( *s >> biH ); s++;            \
+    rx = s0 * b1; r0 = s0 * b0;         \
+    ry = s1 * b0; r1 = s1 * b1;         \
+    r1 += ( rx >> biH );                \
+    r1 += ( ry >> biH );                \
+    rx <<= biH; ry <<= biH;             \
+    r0 += rx; r1 += (r0 < rx);          \
+    r0 += ry; r1 += (r0 < ry);          \
+    r0 +=  c; r1 += (r0 <  c);          \
     r0 += *d; r1 += (r0 < *d);          \
     c = r1; *(d++) = r0;
 
@@ -1041,7 +1049,8 @@ int mpi_div_mpi( mpi *Q, mpi *R, mpi *A, mpi *B )
 {
     int ret, i, n, t, k;
     mpi X, Y, Z, T1, T2;
-    t_dbl r;
+    t_int q0, q1, r0, r1;
+    t_int d0, d1, d, m;
 
     if( mpi_cmp_int( B, 0 ) == 0 )
         return( ERR_MPI_DIVISION_BY_ZERO );
@@ -1085,16 +1094,46 @@ int mpi_div_mpi( mpi *Q, mpi *R, mpi *A, mpi *B )
 
     for( i = n; i > t ; i-- )
     {
-        if( X.p[i] == Y.p[t] )
+        if( X.p[i] >= Y.p[t] )
             Z.p[i - t - 1] = ~0;
         else
         {
-            r  = (t_dbl) X.p[i] << biL;
-            r |= (t_dbl) X.p[i - 1];
-            r /= Y.p[t];
-            if( r > ((t_dbl) 1 << biL) - 1)
-                r = ((t_dbl) 1 << biL) - 1;
-            Z.p[i - t - 1] = (t_int) r;
+            /*
+             * __udiv_qrnnd_c, from GMP/longlong.h
+             */
+            d  = Y.p[t];
+            d0 = ( d << biH ) >> biH;
+            d1 = ( d >> biH );
+
+            q1 = X.p[i] / d1;
+            r1 = X.p[i] - d1 * q1;
+            r1 <<= biH;
+            r1 |= ( X.p[i - 1] >> biH );
+
+            m = q1 * d0;
+            if( r1 < m )
+            {
+                q1--, r1 += d;
+                while( r1 >= d && r1 < m )
+                    q1--, r1 += d;
+            }
+            r1 -= m;
+
+            q0 = r1 / d1;
+            r0 = r1 - d1 * q0;
+            r0 <<= biH;
+            r0 |= ( X.p[i - 1] << biH ) >> biH;
+
+            m = q0 * d0;
+            if( r0 < m )
+            {
+                q0--, r0 += d;
+                while( r0 >= d && r0 < m )
+                    q0--, r0 += d;
+            }
+            r0 -= m;
+
+            Z.p[i - t - 1] = ( q1 << biH ) | q0;
         }
 
         Z.p[i - t - 1]++;
@@ -1254,7 +1293,7 @@ void mpi_montg_init( t_int *mm, mpi *N )
     if( biL >= 32 ) x *= (2 - (m0 * x));
     if( biL >= 64 ) x *= (2 - (m0 * x));
 
-    *mm = -(long int) x;
+    *mm = ~x + 1;
 }
 
 /* 
@@ -1795,7 +1834,8 @@ int mpi_gen_prime( mpi *X, uint nbits, int need_dh_prime,
     CHK( mpi_lset( X, 0 ) );
 
     for( k = 0; k < n; k++ )
-        X->p[k] = rng_func( rng_state );
+        X->p[k] = rng_func( rng_state ) 
+                * rng_func( rng_state );
 
     k = mpi_size( X );
 

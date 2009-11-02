@@ -22,14 +22,11 @@
 #define _CRT_SECURE_NO_DEPRECATE 1
 #endif
 
-#ifdef _MSC_VER
-#pragma comment(lib, "xyssl.lib")
-#endif
-
 #include <string.h>
 #include <stdio.h>
 
 #include "havege.h"
+#include "testcert.h"
 #include "ssl_v3.h"
 #include "x509.h"
 #include "net.h"
@@ -39,59 +36,76 @@
  */
 #define SERVER_CN "xyssl.org"
 
-/*
- * XySSL.org CA certificate
- */
-char xyssl_crt[] =
-"-----BEGIN CERTIFICATE-----\r\n"
-"MIID4DCCAsigAwIBAgIJAOLw9BMV1jxMMA0GCSqGSIb3DQEBBQUAMFMxCzAJBgNV\r\n"
-"BAYTAkZSMQ4wDAYDVQQIEwVQYXJpczEOMAwGA1UEChMFWHlTU0wxJDAiBgNVBAMT\r\n"
-"G1h5U1NMIENlcnRpZmljYXRlIEF1dGhvcml0eTAeFw0wNjEwMzEyMjU5MjRaFw0x\r\n"
-"NjEwMzEyMjU5MjRaMFMxCzAJBgNVBAYTAkZSMQ4wDAYDVQQIEwVQYXJpczEOMAwG\r\n"
-"A1UEChMFWHlTU0wxJDAiBgNVBAMTG1h5U1NMIENlcnRpZmljYXRlIEF1dGhvcml0\r\n"
-"eTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAKnprf1RQ7IYPI3FmI/h\r\n"
-"f2EJGfaIP+Jt551VZWFrs3A56Nn4KS57zTAKZUA7YGbLwlAznfaphJ7SvENALeZR\r\n"
-"/J0c/n9jwMpfXReQL7RVpgg/zlR+t2DUi3DAwigPZiHHCSJSBC73vpMc6uH0eV2d\r\n"
-"itqjjUnJG5F8Zg9/gX4UMRAdlwGWqxvs+jc9i0XFKOEzga8+rONe6WvKyBM4e20I\r\n"
-"HcO4BPF92d6sm4qLgyR4oXUkBz6NfDWX8ZdTvXuRaK9qMy1327cCT48sis9F6/eK\r\n"
-"QAxx0VHlqGTtxDYjHJPsMLNejuyUDvsaC8TMCSpFTXpMTUvJdmxsF1LZWmIo5lY5\r\n"
-"zh0CAwEAAaOBtjCBszAdBgNVHQ4EFgQUBlVzoNJrkkgPkJ8xjuFvVP2E4GswgYMG\r\n"
-"A1UdIwR8MHqAFAZVc6DSa5JID5CfMY7hb1T9hOBroVekVTBTMQswCQYDVQQGEwJG\r\n"
-"UjEOMAwGA1UECBMFUGFyaXMxDjAMBgNVBAoTBVh5U1NMMSQwIgYDVQQDExtYeVNT\r\n"
-"TCBDZXJ0aWZpY2F0ZSBBdXRob3JpdHmCCQDi8PQTFdY8TDAMBgNVHRMEBTADAQH/\r\n"
-"MA0GCSqGSIb3DQEBBQUAA4IBAQCGD65b2l5BASFsPvlrcRnLZu/99eWTVAJwJbbD\r\n"
-"VhPAQiET0W4U/85EDK7uoFo/SEjyMB/m4T20A8FIDaK7jBPo/1gtbuQjGMRl7h+z\r\n"
-"F2iGuNhZ6Td26Uzqclt3oiFtSvDRoZ/9kqkEy7Lrs7FBzOmvfTvrqvADf7cLMa2D\r\n"
-"ri/otDpzPr4XoDnwd4C+4bQC/Gr3Uder4VAeTOJtKdGqfYLvPwPSPVBDuVLUybKi\r\n"
-"8cMAT6p9IG1e12u6vFqcBT/I67Q0bGU6gzVVz9ZVULXOYZMjjLAfVXC1gesUH2WT\r\n"
-"gTEAnEBkSRrkfAi+RezoEFAbmEl3fPt09dwSPku3x7cB3zaJ\r\n"
-"-----END CERTIFICATE-----\r\n";
-
 #define GET_REQUEST \
     "HEAD /hello/ HTTP/1.1\r\nHost: %s\r\n\r\n"
+
+uint ciphers[] =
+{
+    TLS1_RSA_AES_256_SHA,
+    SSL3_RSA_DES_192_SHA,
+    SSL3_RSA_RC4_128_SHA,
+    0
+};
 
 int main( void )
 {
     int ret;
+    int server_fd;
+
     uint len;
-    uint ciphers[4];
     uchar buf[1024];
+
     havege_state hs;
     ssl_context ssl;
     x509_cert cacert;
 
     /*
-     * ==== Init RNG & Ciphersuites ====
+     * == Initialize the RNG ==
      */
-    printf( "\n  . Setting up the RNG and SSL state..." );
+    printf( "\n  . Seeding the random nb. generator..." );
     fflush( stdout );
 
     havege_init( &hs );
+    printf( " ok\n" );
 
-    ciphers[0] = TLS1_RSA_AES_256_SHA;
-    ciphers[1] = SSL3_RSA_DES_192_SHA;
-    ciphers[1] = SSL3_RSA_RC4_128_SHA;
-    ciphers[3] = 0;
+    /*
+     * == Load the trusted CA ==
+     */
+    printf( "  . Loading the CA root  certificate..." );
+    fflush( stdout );
+
+    memset( &cacert, 0, sizeof( x509_cert ) );
+
+    ret = x509_add_certs( &cacert, (uchar *) xyssl_ca_crt,
+                                     strlen( xyssl_ca_crt ) );
+    if( ret != 0 )
+    {
+        printf( " failed\n  ! x509_add_certs returned %08x\n\n", ret );
+        goto exit;
+    }
+
+    printf( " ok\n" );
+
+    /*
+     * === TCP connect() ===
+     */
+    printf( "  . Connecting  to tcp/%s/443...", SERVER_CN );
+    fflush( stdout );
+
+    ret = net_connect( &server_fd, SERVER_CN, 443 );
+    if( ret != 0 )
+    {
+        printf( " failed\n  ! net_connect returned %08x\n\n", ret );
+        goto exit;
+    }
+
+    printf( " ok\n" );
+
+    /*
+     * == Handshake ==
+     */
+    printf( "  . Performing the SSL/TLS handshake..." );
+    fflush( stdout );
 
     ret = ssl_init( &ssl, ciphers, havege_rand, &hs );
     if( ret != 0 )
@@ -100,56 +114,15 @@ int main( void )
         goto exit;
     }
 
-    printf( " ok\n" );
-
-    /*
-     * ==== Load trusted CA ====
-     */
-    printf( "  . Loading the CA root  certificate..." );
-    fflush( stdout );
-
-    memset( &cacert, 0, sizeof( x509_cert ) );
-
-    ret = x509_add_certs( &cacert, (uchar *) xyssl_crt,
-                                     strlen( xyssl_crt ) );
-    if( ret != 0 )
-    {
-        printf( " failed\n  ! x509_add_certs returned %08x\n\n", ret );
-        goto exit;
-    }
-
+    ssl_set_io_files( &ssl, server_fd, server_fd );
     ssl_set_ca_chain( &ssl, &cacert, SERVER_CN );
-
-    printf( " ok\n" );
-
-    /*
-     * ===== TCP Connect =====
-     */
-    printf( "  . Connecting  to tcp/%s/443...", SERVER_CN );
-    fflush( stdout );
-
-    ret = net_connect( &ssl.read_fd, SERVER_CN, 443 );
-    if( ret != 0 )
-    {
-        printf( " failed\n  ! net_connect returned %08x\n\n", ret );
-        goto exit;
-    }
-
-    ssl.write_fd = ssl.read_fd;
-
-    printf( " ok\n" );
-
-    /*
-     * ==== Handshake ====
-     */
-    printf( "  . Performing the SSL/TLS handshake..." );
-    fflush( stdout );
 
     ret = ssl_client_start( &ssl, SSL_VERIFY_OPTIONAL );
     if( ret != 0 )
     {
         printf( " failed\n  ! ssl_client_start returned %08x\n\n", ret );
-        goto exit2;
+        ssl_close( &ssl );
+        goto exit;
     }
 
     printf( " ok\n" );
@@ -160,7 +133,7 @@ int main( void )
                                                  "SSL3_RSA_RC4_128_SHA" );
 
     /*
-     * ==== X509 Cert. Verify ====
+     * == X.509 Cert. signature verify ==
      */
     printf( "  . Verifying peer X.509 certificate..." );
 
@@ -183,7 +156,7 @@ int main( void )
         printf( " ok\n" );
 
     /*
-     * ==== Write the GET Request ====
+     * == Write the GET Request ==
      */
     printf( "  > Write to server:" );
 
@@ -192,13 +165,14 @@ int main( void )
     if( ret != 0 )
     {
         printf( " failed\n  ! ssl_write returned %08x\n\n", ret );
-        goto exit2;
+        ssl_close( &ssl );
+        goto exit;
     }
 
     printf( "\n\n%s", buf );
 
     /*
-     * ==== Read the HTTP Response ====
+     * == Read the HTTP Response ==
      */
     printf( "  < Read from server:" );
 
@@ -207,15 +181,12 @@ int main( void )
     if( ( ret = ssl_read( &ssl, buf, &len, 0 ) ) != 0 )
     {
         printf( " failed\n  ! ssl_read returned %08x\n\n", ret );
-        goto exit2;
+        ssl_close( &ssl );
+        goto exit;
     }
 
     printf( "\n\n%s", buf );
-
-exit2:
-
     ssl_close( &ssl );
-    ssl_free(  &ssl );
 
 exit:
 

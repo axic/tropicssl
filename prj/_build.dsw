@@ -3,7 +3,7 @@ Microsoft Developer Studio Workspace File, Format Version 6.00
 
 ###############################################################################
 
-Project: "_build"=".\_build.dsp" - Package Owner=<4>
+Project: "_build_all"=.\_build_all.dsp - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -36,7 +36,7 @@ Package=<4>
 
 ###############################################################################
 
-Project: "benchmark"=".\benchmark.dsp" - Package Owner=<4>
+Project: "benchmark"=.\benchmark.dsp - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -51,7 +51,7 @@ Package=<4>
 
 ###############################################################################
 
-Project: "filecrypt"=".\filecrypt.dsp" - Package Owner=<4>
+Project: "filecrypt"=.\filecrypt.dsp - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -66,7 +66,7 @@ Package=<4>
 
 ###############################################################################
 
-Project: "hello"=".\hello.dsp" - Package Owner=<4>
+Project: "hello"=.\hello.dsp - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -81,7 +81,7 @@ Package=<4>
 
 ###############################################################################
 
-Project: "rsa_demo"=".\rsa_demo.dsp" - Package Owner=<4>
+Project: "rsa_demo"=.\rsa_demo.dsp - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -96,7 +96,7 @@ Package=<4>
 
 ###############################################################################
 
-Project: "selftest"=".\selftest.dsp" - Package Owner=<4>
+Project: "selftest"=.\selftest.dsp - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -111,7 +111,7 @@ Package=<4>
 
 ###############################################################################
 
-Project: "ssl_client"=".\ssl_client.dsp" - Package Owner=<4>
+Project: "ssl_client"=.\ssl_client.dsp - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -126,7 +126,7 @@ Package=<4>
 
 ###############################################################################
 
-Project: "ssl_server"=".\ssl_server.dsp" - Package Owner=<4>
+Project: "ssl_server"=.\ssl_server.dsp - Package Owner=<4>
 
 Package=<5>
 {{{
@@ -141,7 +141,7 @@ Package=<4>
 
 ###############################################################################
 
-Project: "xyssl"=".\xyssl.dsp" - Package Owner=<4>
+Project: "xyssl"=.\xyssl.dsp - Package Owner=<4>
 
 Package=<5>
 {{{

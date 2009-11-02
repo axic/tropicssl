@@ -1,6 +1,10 @@
 #ifndef _MD4_H
 #define _MD4_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef _STD_TYPES
 #define _STD_TYPES
 
@@ -45,5 +49,9 @@ void md4_hmac( uchar *buf, uint buflen, uchar *key, uint keylen,
  * Checkup routine
  */
 int md4_self_test( void );
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* md4.h */

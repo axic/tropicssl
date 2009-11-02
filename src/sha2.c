@@ -295,7 +295,7 @@ int sha2_file( char *filename, uchar digest[32] )
     sha2_starts( &ctx );
 
     while( ( n = fread( buf, 1, sizeof( buf ), f ) ) > 0 )
-        sha2_update( &ctx, buf, n );
+        sha2_update( &ctx, buf, (uint) n );
 
     sha2_finish( &ctx, digest );
 

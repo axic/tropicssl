@@ -22,6 +22,10 @@
 #ifndef _HAVEGE_H
 #define _HAVEGE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef _STD_TYPES
 #define _STD_TYPES
 
@@ -31,8 +35,8 @@
 
 #endif
 
-#define COLLECT_SIZE    1024
-#define COLLECT_TIME       2
+#define COLLECT_SIZE 1024
+#define COLLECT_TIME    3
 
 typedef struct
 {
@@ -49,8 +53,12 @@ havege_state;
 void havege_init( havege_state *hs );
 
 /*
- * Returns a random unsigned long.
+ * Return a random unsigned long
  */
 ulong havege_rand( void *rng_state );
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* havege.h */
