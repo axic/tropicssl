@@ -1,48 +1,47 @@
 /**
  * \file x509.h
  */
-#ifndef _X509_H
-#define _X509_H
+#ifndef XYSSL_X509_H
+#define XYSSL_X509_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "xyssl/rsa.h"
 
-#include "rsa.h"
+#define XYSSL_ERR_ASN1_OUT_OF_DATA                      -0x0014
+#define XYSSL_ERR_ASN1_UNEXPECTED_TAG                   -0x0016
+#define XYSSL_ERR_ASN1_INVALID_LENGTH                   -0x0018
+#define XYSSL_ERR_ASN1_LENGTH_MISMATCH                  -0x001A
+#define XYSSL_ERR_ASN1_INVALID_DATA                     -0x001C
 
-#define ERR_ASN1_OUT_OF_DATA                    0x0014
-#define ERR_ASN1_UNEXPECTED_TAG                 0x0016
-#define ERR_ASN1_INVALID_LENGTH                 0x0018
-#define ERR_ASN1_LENGTH_MISMATCH                0x001A
-#define ERR_ASN1_INVALID_DATA                   0x001C
+#define XYSSL_ERR_X509_FEATURE_UNAVAILABLE              -0x0020
+#define XYSSL_ERR_X509_CERT_INVALID_PEM                 -0x0040
+#define XYSSL_ERR_X509_CERT_INVALID_FORMAT              -0x0060
+#define XYSSL_ERR_X509_CERT_INVALID_VERSION             -0x0080
+#define XYSSL_ERR_X509_CERT_INVALID_SERIAL              -0x00A0
+#define XYSSL_ERR_X509_CERT_INVALID_ALG                 -0x00C0
+#define XYSSL_ERR_X509_CERT_INVALID_NAME                -0x00E0
+#define XYSSL_ERR_X509_CERT_INVALID_DATE                -0x0100
+#define XYSSL_ERR_X509_CERT_INVALID_PUBKEY              -0x0120
+#define XYSSL_ERR_X509_CERT_INVALID_SIGNATURE           -0x0140
+#define XYSSL_ERR_X509_CERT_INVALID_EXTENSIONS          -0x0160
+#define XYSSL_ERR_X509_CERT_UNKNOWN_VERSION             -0x0180
+#define XYSSL_ERR_X509_CERT_UNKNOWN_SIG_ALG             -0x01A0
+#define XYSSL_ERR_X509_CERT_UNKNOWN_PK_ALG              -0x01C0
+#define XYSSL_ERR_X509_CERT_SIG_MISMATCH                -0x01E0
+#define XYSSL_ERR_X509_CERT_VERIFY_FAILED               -0x0200
+#define XYSSL_ERR_X509_KEY_INVALID_PEM                  -0x0220
+#define XYSSL_ERR_X509_KEY_INVALID_VERSION              -0x0240
+#define XYSSL_ERR_X509_KEY_INVALID_FORMAT               -0x0260
+#define XYSSL_ERR_X509_KEY_INVALID_ENC_IV               -0x0280
+#define XYSSL_ERR_X509_KEY_UNKNOWN_ENC_ALG              -0x02A0
+#define XYSSL_ERR_X509_KEY_PASSWORD_REQUIRED            -0x02C0
+#define XYSSL_ERR_X509_KEY_PASSWORD_MISMATCH            -0x02E0
+#define XYSSL_ERR_X509_POINT_ERROR                      -0x0300
+#define XYSSL_ERR_X509_VALUE_TO_LENGTH                  -0x0320
 
-#define ERR_X509_FEATURE_UNAVAILABLE            0x0020
-#define ERR_X509_CERT_INVALID_PEM               0x0040
-#define ERR_X509_CERT_INVALID_FORMAT            0x0060
-#define ERR_X509_CERT_INVALID_VERSION           0x0080
-#define ERR_X509_CERT_INVALID_SERIAL            0x00A0
-#define ERR_X509_CERT_INVALID_ALG               0x00C0
-#define ERR_X509_CERT_INVALID_NAME              0x00E0
-#define ERR_X509_CERT_INVALID_DATE              0x0100
-#define ERR_X509_CERT_INVALID_PUBKEY            0x0120
-#define ERR_X509_CERT_INVALID_SIGNATURE         0x0140
-#define ERR_X509_CERT_INVALID_EXTENSIONS        0x0160
-#define ERR_X509_CERT_UNKNOWN_VERSION           0x0180
-#define ERR_X509_CERT_UNKNOWN_SIG_ALG           0x01A0
-#define ERR_X509_CERT_UNKNOWN_PK_ALG            0x01C0
-#define ERR_X509_CERT_SIG_MISMATCH              0x01E0
-#define ERR_X509_KEY_INVALID_PEM                0x0200
-#define ERR_X509_KEY_INVALID_VERSION            0x0220
-#define ERR_X509_KEY_INVALID_FORMAT             0x0240
-#define ERR_X509_KEY_INVALID_ENC_IV             0x0260
-#define ERR_X509_KEY_UNKNOWN_ENC_ALG            0x0280
-#define ERR_X509_KEY_PASSWORD_REQUIRED          0x02A0
-#define ERR_X509_KEY_PASSWORD_MISMATCH          0x02C0
-#define ERR_X509_SIG_VERIFY_FAILED              0x02E0
-
-#define BADCERT_HAS_EXPIRED             1
-#define BADCERT_CN_MISMATCH             2
-#define BADCERT_NOT_TRUSTED             4
+#define BADCERT_EXPIRED                 1
+#define BADCERT_REVOKED                 2
+#define BADCERT_CN_MISMATCH             4
+#define BADCERT_NOT_TRUSTED             8
 
 /*
  * DER constants
@@ -77,11 +76,20 @@ extern "C" {
 #define X520_ORG_UNIT                  11
 #define PKCS9_EMAIL                     1
 
+#define X509_OUTPUT_DER              0x01
+#define X509_OUTPUT_PEM              0x02
+#define PEM_LINE_LENGTH                72
+
 #define OID_X520                "\x55\x04"
 #define OID_PKCS1               "\x2A\x86\x48\x86\xF7\x0D\x01\x01"
 #define OID_PKCS1_RSA           "\x2A\x86\x48\x86\xF7\x0D\x01\x01\x01"
+#define OID_PKCS1_RSA_SHA       "\x2A\x86\x48\x86\xF7\x0D\x01\x01\x05"
 #define OID_PKCS9               "\x2A\x86\x48\x86\xF7\x0D\x01\x09"
+#define OID_PKCS9_EMAIL         "\x2A\x86\x48\x86\xF7\x0D\x01\x09\x01"
 
+/*
+ * Structures for parsing X.509 certificates
+ */
 typedef struct _x509_buf
 {
     int tag;
@@ -140,9 +148,44 @@ typedef struct _x509_cert
 }
 x509_cert;
 
+/*
+ * Structures for writing X.509 certificates
+ */
+typedef struct _x509_node
+{
+    unsigned char *data;
+    unsigned char *p;
+    unsigned char *end;
+
+    size_t len;
+}
+x509_node;
+
+typedef struct _x509_raw
+{
+    x509_node raw;
+    x509_node tbs;
+
+    x509_node version;
+    x509_node serial;
+    x509_node tbs_signalg;
+    x509_node issuer;
+    x509_node validity;
+    x509_node subject;
+    x509_node subpubkey;
+
+    x509_node signalg;
+    x509_node sign;
+}
+x509_raw;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * \brief          Parse one or more certificates and add them
- *                 to the chain
+ *                 to the chained list
  *
  * \param chain    points to the start of the chain
  * \param buf      buffer holding the certificate data
@@ -150,18 +193,18 @@ x509_cert;
  *
  * \return         0 if successful, or a specific X509 error code
  */
-int x509_add_certs( x509_cert *chain, unsigned char *buf, int buflen );
+int x509parse_crt( x509_cert *crt, unsigned char *buf, int buflen );
 
 /**
  * \brief          Load one or more certificates and add them
- *                 to the chain
+ *                 to the chained list
  *
  * \param chain    points to the start of the chain
  * \param path     filename to read the certificates from
  *
  * \return         0 if successful, or a specific X509 error code
  */
-int x509_read_crtfile( x509_cert *chain, char *path );
+int x509parse_crtfile( x509_cert *crt, char *path );
 
 /**
  * \brief          Parse a private RSA key
@@ -174,8 +217,9 @@ int x509_read_crtfile( x509_cert *chain, char *path );
  *
  * \return         0 if successful, or a specific X509 error code
  */
-int x509_parse_key( rsa_context *rsa, unsigned char *buf, int buflen,
-                                      unsigned char *pwd, int pwdlen );
+int x509parse_key( rsa_context *rsa,
+                   unsigned char *buf, int buflen,
+                   unsigned char *pwd, int pwdlen );
 
 /**
  * \brief          Load and parse a private RSA key
@@ -186,25 +230,25 @@ int x509_parse_key( rsa_context *rsa, unsigned char *buf, int buflen,
  *
  * \return         0 if successful, or a specific X509 error code
  */
-int x509_read_keyfile( rsa_context *rsa, char *path, char *password );
+int x509parse_keyfile( rsa_context *rsa, char *path, char *password );
 
 /**
  * \brief          Store the certificate DN in printable form into buf;
  *                 no more than (end - buf) characters will be written.
  */
-int x509_dn_gets( char *buf, char *end, x509_name *dn );
+int x509parse_dn_gets( char *buf, char *end, x509_name *dn );
 
 /**
  * \brief          Return an informational string about the
  *                 certificate, or NULL if memory allocation failed
  */
-char *x509_cert_info( x509_cert *crt );
+char *x509parse_cert_info( char *prefix, x509_cert *crt );
 
 /**
  * \brief          Return 0 if the certificate is still valid,
- *                 or BADCERT_HAS_EXPIRED
+ *                 or BADCERT_EXPIRED
  */
-int x509_is_cert_expired( x509_cert *crt );
+int x509parse_expired( x509_cert *crt );
 
 /**
  * \brief          Verify the certificate signature
@@ -215,20 +259,24 @@ int x509_is_cert_expired( x509_cert *crt );
  *                 NULL if the CN must not be verified)
  * \param flags    result of the verification
  *
- * \return         0 if successful or ERR_X509_SIG_VERIFY_FAILED,
+ * \return         0 if successful or XYSSL_ERR_X509_SIG_VERIFY_FAILED,
  *                 in which case *flags will have one or more of
  *                 the following values set:
- *                      BADCERT_HAS_EXPIRED --
+ *                      BADCERT_EXPIRED --
+ *                      BADCERT_REVOKED --
  *                      BADCERT_CN_MISMATCH --
  *                      BADCERT_NOT_TRUSTED
+ *
+ * \note           TODO: add two arguments, depth and crl
  */
-int x509_verify_cert( x509_cert *crt, x509_cert *trust_ca,
+int x509parse_verify( x509_cert *crt,
+                      x509_cert *trust_ca,
                       char *cn, int *flags );
 
 /**
  * \brief          Unallocate all certificate data
  */
-void x509_free_cert( x509_cert *crt );
+void x509_free( x509_cert *crt );
 
 /**
  * \brief          Checkup routine
@@ -236,6 +284,91 @@ void x509_free_cert( x509_cert *crt );
  * \return         0 if successful, or 1 if the test failed
  */
 int x509_self_test( int verbose );
+
+/**
+ * \brief          Write a certificate info file
+ *
+ * \param chain    points to the raw certificate data
+ * \param path     filename to write the certificate to
+ * \param format   X509_OUTPUT_DER or X509_OUTPUT_PEM
+ *
+ * \return         0 if successful, or a specific X509 error code
+ */
+int x509write_crtfile( x509_raw *crt,
+                       unsigned char *path,
+                       int out_flag );
+
+/*
+ * \brief          Write a private RSA key into a file
+ *
+ * \param rsa      points to an RSA key
+ * \param path     filename to write the key to
+ * \param format   X509_OUTPUT_DER or X509_OUTPUT_PEM
+ *
+ * \return         0 if successful, or a specific X509 error code
+ */
+int x509write_keyfile( rsa_context *rsa,
+                       unsigned char *path,
+                       int out_flag );
+
+/**
+ * \brief          Add a public key to certificate
+ *
+ * \param chain    points to the raw certificate data
+ * \param pubkey   points to an RSA key
+ *
+ * \return         0 if successful, or a specific X509 error code
+ */
+int x509write_add_pubkey( x509_raw *crt, rsa_context *pubkey );
+
+/**
+ * \brief          Create x509 subject field to raw certificate
+ *
+ * \param chain    points to the raw certificate data
+ * \param names    a string that can hold:
+ *                     CN='CommonName'
+ *                 --   O='Organization'
+ *                 --  OU='OrgUnit'
+ *                 --  ST='State'
+ *                 --   L='Locality'
+ *                 --   R='Email'
+ *
+ * \return         0 if successful, or a specific X509 error code
+ */
+int x509write_create_subject( x509_raw *crt, unsigned char *names );
+
+/**
+ * \brief          Create x509 validity time in UTC
+ *
+ * \param chain    points to the raw certificate data
+ * \param before   valid not before in format YYYY-MM-DD hh:mm:ss
+ * \param after    valid not after  in format YYYY-MM-DD hh:mm:ss
+ *
+ * \return         0 if successful, or a specific X509 error code
+ */
+int x509write_create_validity( x509_raw *crt,
+                               unsigned char *before,
+                               unsigned char *after );
+
+/**
+ * \brief          Create a self-signed certificate
+ *
+ * \param chain    points to the raw certificate data
+ * \param rsa      a private key to sign the certificate
+ *
+ * \return         0 if successful, or a specific X509 error code
+ */
+int x509write_create_selfsign( x509_raw *crt, rsa_context *raw );
+
+/**
+ * \brief          Unallocate all raw certificate data
+ */
+void x509write_free_raw( x509_raw *crt );
+
+/**
+ * \brief          Allocate all raw certificate data
+ */
+void x509write_init_raw( x509_raw *crt );
 
 #ifdef __cplusplus
 }

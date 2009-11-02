@@ -1,21 +1,32 @@
-/*
- *  Diffie-Hellman-Merkle key exchange (server side)
- *
- *  Copyright (C) 2006-2007  Christophe Devine
- *
- *  This library is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU Lesser General Public
- *  License, version 2.1 as published by the Free Software Foundation.
- *
- *  This library is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  Lesser General Public License for more details.
- *
- *  You should have received a copy of the GNU Lesser General Public
- *  License along with this library; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- *  MA  02110-1301  USA
+/* 
+ * Copyright (c) 2006-2007, Christophe Devine
+ * All rights reserved.
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer
+ *       in the documentation and/or other materials provided with the
+ *       distribution.
+ *     * Neither the name of the XySSL nor the names of its contributors
+ *       may be used to endorse or promote products derived from this
+ *       software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #ifndef _CRT_SECURE_NO_DEPRECATE
@@ -33,7 +44,7 @@
 #include "xyssl/havege.h"
 
 #define SERVER_PORT 11999
-#define PLAINTEXT "0123456_89ABCDE_"
+#define PLAINTEXT "==Hello there!=="
 
 int main( void )
 {
@@ -77,12 +88,23 @@ int main( void )
         goto exit;
     }
 
-    if( ( ret = rsa_read_private( &rsa, f ) ) != 0 )
+    rsa_init( &rsa, RSA_PKCS_V15, 0, NULL, NULL );
+
+    if( ( ret = mpi_read_file( &rsa.N , 16, f ) ) != 0 ||
+        ( ret = mpi_read_file( &rsa.E , 16, f ) ) != 0 ||
+        ( ret = mpi_read_file( &rsa.D , 16, f ) ) != 0 ||
+        ( ret = mpi_read_file( &rsa.P , 16, f ) ) != 0 ||
+        ( ret = mpi_read_file( &rsa.Q , 16, f ) ) != 0 ||
+        ( ret = mpi_read_file( &rsa.DP, 16, f ) ) != 0 ||
+        ( ret = mpi_read_file( &rsa.DQ, 16, f ) ) != 0 ||
+        ( ret = mpi_read_file( &rsa.QP, 16, f ) ) != 0 )
     {
-        printf( " failed\n  ! rsa_read_private returned %08x\n\n", ret );
+        printf( " failed\n  ! mpi_read_file returned %d\n\n", ret );
         goto exit;
     }
 
+    rsa.len = ( mpi_msb( &rsa.N ) + 7 ) >> 3;
+    
     fclose( f );
 
     /*
@@ -106,6 +128,8 @@ int main( void )
         goto exit;
     }
 
+    fclose( f );
+
     /*
      * 3. Wait for a client to connect
      */
@@ -114,13 +138,13 @@ int main( void )
 
     if( ( ret = net_bind( &listen_fd, NULL, SERVER_PORT ) ) != 0 )
     {
-        printf( " failed\n  ! net_bind returned %08x\n\n", ret );
+        printf( " failed\n  ! net_bind returned %d\n\n", ret );
         goto exit;
     }
 
     if( ( ret = net_accept( listen_fd, &client_fd, NULL ) ) != 0 )
     {
-        printf( " failed\n  ! net_accept returned %08x\n\n", ret );
+        printf( " failed\n  ! net_accept returned %d\n\n", ret );
         goto exit;
     }
 
@@ -132,10 +156,10 @@ int main( void )
 
     memset( buf, 0, sizeof( buf ) );
 
-    if( ( ret = dhm_make_params( &dhm, havege_rand, &hs,
-                                 buf, &n ) ) != 0 )
+    if( ( ret = dhm_make_params( &dhm, 256, buf, &n,
+                                 havege_rand, &hs ) ) != 0 )
     {
-        printf( " failed\n  ! dhm_make_params returned %08x\n\n", ret );
+        printf( " failed\n  ! dhm_make_params returned %d\n\n", ret );
         goto exit;
     }
 
@@ -144,30 +168,24 @@ int main( void )
      */
     sha1( buf, n, hash );
 
-    buf[n] = rsa.len >> 8;
-    buf[n + 1] = rsa.len;
+    buf[n    ] = (unsigned char)( rsa.len >> 8 );
+    buf[n + 1] = (unsigned char)( rsa.len      );
 
-    if( ( ret = rsa_pkcs1_sign( &rsa, RSA_SHA1, hash, 20,
-                                buf + n + 2, rsa.len ) ) != 0 )
+    if( ( ret = rsa_pkcs1_sign( &rsa, RSA_PRIVATE, RSA_SHA1,
+                                0, hash, buf + n + 2 ) ) != 0 )
     {
-        printf( " failed\n  ! rsa_pkcs1_sign returned %08x\n\n", ret );
+        printf( " failed\n  ! rsa_pkcs1_sign returned %d\n\n", ret );
         goto exit;
     }
 
     buflen = n + 2 + rsa.len;
-    buf2[0] = buflen >> 8;
-    buf2[1] = buflen;
-    n = 2;
+    buf2[0] = (unsigned char)( buflen >> 8 );
+    buf2[1] = (unsigned char)( buflen      );
 
-    if( ( ret = net_send( client_fd, buf2, &n ) ) != 0 )
+    if( ( ret = net_send( &client_fd, buf2, 2 ) ) != 2 ||
+        ( ret = net_send( &client_fd, buf, buflen ) ) != buflen )
     {
-        printf( " failed\n  ! net_send returned %08x\n\n", ret );
-        goto exit;
-    }
-
-    if( ( ret = net_send( client_fd, buf, &buflen ) ) != 0 )
-    {
-        printf( " failed\n  ! net_send returned %08x\n\n", ret );
+        printf( " failed\n  ! net_send returned %d\n\n", ret );
         goto exit;
     }
 
@@ -177,16 +195,18 @@ int main( void )
     printf( "\n  . Receiving the client's public value" );
     fflush( stdout );
 
+    memset( buf, 0, sizeof( buf ) );
     n = dhm.len;
-    if( ( ret = net_recv( client_fd, buf, &n ) ) != 0 )
+
+    if( ( ret = net_recv( &client_fd, buf, n ) ) != n )
     {
-        printf( " failed\n  ! net_recv returned %08x\n\n", ret );
+        printf( " failed\n  ! net_recv returned %d\n\n", ret );
         goto exit;
     }
 
-    if( ( ret = dhm_read_public( &dhm, buf, n ) ) != 0 )
+    if( ( ret = dhm_read_public( &dhm, buf, dhm.len ) ) != 0 )
     {
-        printf( " failed\n  ! net_recv returned %08x\n\n", ret );
+        printf( " failed\n  ! dhm_read_public returned %d\n\n", ret );
         goto exit;
     }
 
@@ -198,7 +218,7 @@ int main( void )
 
     if( ( ret = dhm_calc_secret( &dhm, buf, &n ) ) != 0 )
     {
-        printf( " failed\n  ! dhm_calc_secret returned %08x\n\n", ret );
+        printf( " failed\n  ! dhm_calc_secret returned %d\n\n", ret );
         goto exit;
     }
 
@@ -216,14 +236,13 @@ int main( void )
     printf( "...\n  . Encrypting and sending the ciphertext" );
     fflush( stdout );
 
-    aes_set_key( &aes, buf, 256 );
+    aes_setkey_enc( &aes, buf, 256 );
     memcpy( buf, PLAINTEXT, 16 );
-    aes_encrypt( &aes, buf, buf );
+    aes_crypt_ecb( &aes, AES_ENCRYPT, buf, buf );
 
-    n = 16;
-    if( ( ret = net_send( client_fd, buf, &n ) ) != 0 )
+    if( ( ret = net_send( &client_fd, buf, 16 ) ) != 16 )
     {
-        printf( " failed\n  ! net_send returned %08x\n\n", ret );
+        printf( " failed\n  ! net_send returned %d\n\n", ret );
         goto exit;
     }
 

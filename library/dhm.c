@@ -1,21 +1,32 @@
-/*
- *  Diffie-Hellman-Merkle key exchange
- *
- *  Copyright (C) 2006-2007  Christophe Devine
- *
- *  This library is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU Lesser General Public
- *  License, version 2.1 as published by the Free Software Foundation.
- *
- *  This library is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  Lesser General Public License for more details.
- *
- *  You should have received a copy of the GNU Lesser General Public
- *  License along with this library; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- *  MA  02110-1301  USA
+/* 
+ * Copyright (c) 2006-2007, Christophe Devine
+ * All rights reserved.
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer
+ *       in the documentation and/or other materials provided with the
+ *       distribution.
+ *     * Neither the name of the XySSL nor the names of its contributors
+ *       may be used to endorse or promote products derived from this
+ *       software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
  *  Reference:
@@ -23,13 +34,13 @@
  *  http://www.cacr.math.uwaterloo.ca/hac/ (chapter 12)
  */
 
-#ifndef _CRT_SECURE_NO_DEPRECATE
-#define _CRT_SECURE_NO_DEPRECATE 1
-#endif
+#include "xyssl/config.h"
 
-#include <string.h>
+#if defined(XYSSL_DHM_C)
 
 #include "xyssl/dhm.h"
+
+#include <string.h>
 
 /*
  * helper to validate the mpi size and import it
@@ -41,16 +52,16 @@ static int dhm_read_bignum( mpi *X,
     int ret, n;
 
     if( end - *p < 2 )
-        return( ERR_DHM_BAD_INPUT_DATA );
+        return( XYSSL_ERR_DHM_BAD_INPUT_DATA );
 
     n = ( (*p)[0] << 8 ) | (*p)[1];
     (*p) += 2;
 
     if( (int)( end - *p ) < n )
-        return( ERR_DHM_BAD_INPUT_DATA );
+        return( XYSSL_ERR_DHM_BAD_INPUT_DATA );
 
     if( ( ret = mpi_read_binary( X, *p, n ) ) != 0 )
-        return( ERR_DHM_READ_PARAMS_FAILED | ret );
+        return( XYSSL_ERR_DHM_READ_PARAMS_FAILED | ret );
 
     (*p) += n;
 
@@ -73,16 +84,16 @@ int dhm_read_params( dhm_context *ctx,
         ( ret = dhm_read_bignum( &ctx->GY, p, end ) ) != 0 )
         return( ret );
 
-    ctx->len = ( mpi_msb( &ctx->P ) + 7 ) >> 3;
+    ctx->len = mpi_size( &ctx->P );
 
     if( end - *p < 2 )
-        return( ERR_DHM_BAD_INPUT_DATA );
+        return( XYSSL_ERR_DHM_BAD_INPUT_DATA );
 
     n = ( (*p)[0] << 8 ) | (*p)[1];
     (*p) += 2;
 
     if( end != *p + n )
-        return( ERR_DHM_BAD_INPUT_DATA );
+        return( XYSSL_ERR_DHM_BAD_INPUT_DATA );
 
     return( 0 );
 }
@@ -90,9 +101,9 @@ int dhm_read_params( dhm_context *ctx,
 /*
  * Setup and write the ServerKeyExchange parameters
  */
-int dhm_make_params( dhm_context *ctx,
-                     int (*rng_f)(void *), void *rng_d,
-                     unsigned char *output, int *olen )
+int dhm_make_params( dhm_context *ctx, int x_size,
+                     unsigned char *output, int *olen,
+                     int (*f_rng)(void *), void *p_rng )
 {
     int i, ret, n, n1, n2, n3;
     unsigned char *p;
@@ -100,29 +111,32 @@ int dhm_make_params( dhm_context *ctx,
     /*
      * generate X and calculate GX = G^X mod P
      */
-    n = 48 / sizeof( t_int );
-    CHK( mpi_grow( &ctx->X, n ) );
+    n = x_size / sizeof( t_int );
+    MPI_CHK( mpi_grow( &ctx->X, n ) );
+    MPI_CHK( mpi_lset( &ctx->X, 0 ) );
 
+    n = x_size >> 3;
     p = (unsigned char *) ctx->X.p;
-    for( i = 0; i < ciL * ctx->X.n; i++ )
-        *p++ = rng_f( rng_d );
+    for( i = 0; i < n; i++ )
+        *p++ = (unsigned char) f_rng( p_rng );
 
     while( mpi_cmp_mpi( &ctx->X, &ctx->P ) >= 0 )
-        mpi_shift_r( &ctx->X, 1 );
+           mpi_shift_r( &ctx->X, 1 );
 
-    CHK( mpi_exp_mod( &ctx->GX, &ctx->G, &ctx->X,
-                      &ctx->P , &ctx->RP ) );
+    MPI_CHK( mpi_exp_mod( &ctx->GX, &ctx->G, &ctx->X,
+                          &ctx->P , &ctx->RP ) );
 
     /*
      * export P, G, GX
      */
 #define DHM_MPI_EXPORT(X,n)                     \
-    CHK( mpi_write_binary( X, p + 2, &n ) );    \
-    *p++ = ( n >> 8 ); *p++ = n; p += n;
+    MPI_CHK( mpi_write_binary( X, p + 2, n ) ); \
+    *p++ = (unsigned char)( n >> 8 );           \
+    *p++ = (unsigned char)( n      ); p += n;
 
-    n1 = ( mpi_msb( &ctx->P  ) + 7 ) >> 3;
-    n2 = ( mpi_msb( &ctx->G  ) + 7 ) >> 3;
-    n3 = ( mpi_msb( &ctx->GX ) + 7 ) >> 3;
+    n1 = mpi_size( &ctx->P  );
+    n2 = mpi_size( &ctx->G  );
+    n3 = mpi_size( &ctx->GX );
 
     p = output;
     DHM_MPI_EXPORT( &ctx->P , n1 );
@@ -136,13 +150,13 @@ int dhm_make_params( dhm_context *ctx,
 cleanup:
 
     if( ret != 0 )
-        return( ret | ERR_DHM_MAKE_PARAMS_FAILED );
+        return( ret | XYSSL_ERR_DHM_MAKE_PARAMS_FAILED );
 
     return( 0 );
 }
 
 /*
- * Import the peer's public value (G^Y)
+ * Import the peer's public value G^Y
  */
 int dhm_read_public( dhm_context *ctx,
                      unsigned char *input, int ilen )
@@ -150,49 +164,51 @@ int dhm_read_public( dhm_context *ctx,
     int ret;
 
     if( ctx == NULL || ilen < 1 || ilen > ctx->len )
-        return( ERR_DHM_BAD_INPUT_DATA );
+        return( XYSSL_ERR_DHM_BAD_INPUT_DATA );
 
     if( ( ret = mpi_read_binary( &ctx->GY, input, ilen ) ) != 0 )
-        return( ERR_DHM_READ_PUBLIC_FAILED | ret );
+        return( XYSSL_ERR_DHM_READ_PUBLIC_FAILED | ret );
 
     return( 0 );
 }
 
 /*
- * Create own private (X) and public (G^X) values
+ * Create own private value X and export G^X
  */
-int dhm_make_public( dhm_context *ctx,
+int dhm_make_public( dhm_context *ctx, int x_size,
                      unsigned char *output, int olen,
-                     int (*rng_f)(void *), void *rng_d )
+                     int (*f_rng)(void *), void *p_rng )
 {
     int ret, i, n;
     unsigned char *p;
 
     if( ctx == NULL || olen < 1 || olen > ctx->len )
-        return( ERR_DHM_BAD_INPUT_DATA );
+        return( XYSSL_ERR_DHM_BAD_INPUT_DATA );
 
     /*
-     * Get 384 bytes of entropy for the private value
+     * generate X and calculate GX = G^X mod P
      */
-    n = 48 / sizeof( t_int );
-    CHK( mpi_grow( &ctx->X, n ) );
+    n = x_size / sizeof( t_int );
+    MPI_CHK( mpi_grow( &ctx->X, n ) );
+    MPI_CHK( mpi_lset( &ctx->X, 0 ) );
 
+    n = x_size >> 3;
     p = (unsigned char *) ctx->X.p;
-    for( i = 0; i < ciL * ctx->X.n; i++ )
-        *p++ = rng_f( rng_d );
+    for( i = 0; i < n; i++ )
+        *p++ = (unsigned char) f_rng( p_rng );
 
     while( mpi_cmp_mpi( &ctx->X, &ctx->P ) >= 0 )
-        mpi_shift_r( &ctx->X, 1 );
+           mpi_shift_r( &ctx->X, 1 );
 
-    CHK( mpi_exp_mod( &ctx->GX, &ctx->G, &ctx->X,
-                      &ctx->P , &ctx->RP ) );
+    MPI_CHK( mpi_exp_mod( &ctx->GX, &ctx->G, &ctx->X,
+                          &ctx->P , &ctx->RP ) );
 
-    CHK( mpi_write_binary( &ctx->GX, output, &olen ) );
+    MPI_CHK( mpi_write_binary( &ctx->GX, output, olen ) );
 
 cleanup:
 
     if( ret != 0 )
-        return( ERR_DHM_MAKE_PUBLIC_FAILED | ret );
+        return( XYSSL_ERR_DHM_MAKE_PUBLIC_FAILED | ret );
 
     return( 0 );
 }
@@ -206,19 +222,19 @@ int dhm_calc_secret( dhm_context *ctx,
     int ret;
 
     if( ctx == NULL || *olen < ctx->len )
-        return( ERR_DHM_BAD_INPUT_DATA );
+        return( XYSSL_ERR_DHM_BAD_INPUT_DATA );
 
-    CHK( mpi_exp_mod( &ctx->K, &ctx->GY, &ctx->X,
-                      &ctx->P, &ctx->RP ) );
+    MPI_CHK( mpi_exp_mod( &ctx->K, &ctx->GY, &ctx->X,
+                          &ctx->P, &ctx->RP ) );
 
-    *olen = ( mpi_msb( &ctx->K ) + 7 ) >> 3;
+    *olen = mpi_size( &ctx->K );
 
-    CHK( mpi_write_binary( &ctx->K, output, olen ) );
+    MPI_CHK( mpi_write_binary( &ctx->K, output, *olen ) );
 
 cleanup:
 
     if( ret != 0 )
-        return( ERR_DHM_CALC_SECRET_FAILED | ret );
+        return( XYSSL_ERR_DHM_CALC_SECRET_FAILED | ret );
 
     return( 0 );
 }
@@ -233,14 +249,16 @@ void dhm_free( dhm_context *ctx )
               &ctx->P, NULL );    
 }
 
-static const char _dhm_src[] = "_dhm_src";
+#if defined(XYSSL_SELF_TEST)
 
-#if defined(SELF_TEST)
-#endif
 /*
  * Checkup routine
  */
 int dhm_self_test( int verbose )
 {
-    return( verbose = 0 );
+    return( verbose++ );
 }
+
+#endif
+
+#endif

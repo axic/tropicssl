@@ -1,21 +1,32 @@
-/*
- *  RSA/SHA-1 signature verification program
- *
- *  Copyright (C) 2006-2007  Christophe Devine
- *
- *  This library is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU Lesser General Public
- *  License, version 2.1 as published by the Free Software Foundation.
- *
- *  This library is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  Lesser General Public License for more details.
- *
- *  You should have received a copy of the GNU Lesser General Public
- *  License along with this library; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- *  MA  02110-1301  USA
+/* 
+ * Copyright (c) 2006-2007, Christophe Devine
+ * All rights reserved.
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer
+ *       in the documentation and/or other materials provided with the
+ *       distribution.
+ *     * Neither the name of the XySSL nor the names of its contributors
+ *       may be used to endorse or promote products derived from this
+ *       software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #ifndef _CRT_SECURE_NO_DEPRECATE
@@ -58,11 +69,16 @@ int main( int argc, char *argv[] )
         goto exit;
     }
 
-    if( ( ret = rsa_read_public( &rsa, f ) ) != 0 )
+    rsa_init( &rsa, RSA_PKCS_V15, 0, NULL, NULL );
+
+    if( ( ret = mpi_read_file( &rsa.N, 16, f ) ) != 0 ||
+        ( ret = mpi_read_file( &rsa.E, 16, f ) ) != 0 )
     {
-        printf( " failed\n  ! rsa_read_public returned %08x\n\n", ret );
+        printf( " failed\n  ! mpi_read_file returned %d\n\n", ret );
         goto exit;
     }
+
+    rsa.len = ( mpi_msb( &rsa.N ) + 7 ) >> 3;
 
     fclose( f );
 
@@ -71,7 +87,7 @@ int main( int argc, char *argv[] )
      */
     ret = 1;
     i = strlen( argv[1] );
-    memcpy( argv[1] + i, "-sig.txt", 9 );
+    memcpy( argv[1] + i, ".sig", 5 );
 
     if( ( f = fopen( argv[1], "rb" ) ) == NULL )
     {
@@ -83,7 +99,7 @@ int main( int argc, char *argv[] )
 
     while( fscanf( f, "%02X", &c ) > 0 &&
            i < (int) sizeof( buf ) )
-        buf[i++] = c;
+        buf[i++] = (unsigned char) c;
 
     fclose( f );
 
@@ -106,10 +122,10 @@ int main( int argc, char *argv[] )
         goto exit;
     }
 
-    if( ( ret = rsa_pkcs1_verify( &rsa, RSA_SHA1, hash, 20,
-                                  buf, rsa.len ) ) != 0 )
+    if( ( ret = rsa_pkcs1_verify( &rsa, RSA_PUBLIC, RSA_SHA1,
+                                  20, hash, buf ) ) != 0 )
     {
-        printf( " failed\n  ! rsa_pkcs1_verify returned %08x\n\n", ret );
+        printf( " failed\n  ! rsa_pkcs1_verify returned %d\n\n", ret );
         goto exit;
     }
 

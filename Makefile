@@ -1,5 +1,6 @@
 
 DESTDIR=/usr/local
+PREFIX=xyssl_
 
 .SILENT:
 
@@ -8,15 +9,18 @@ all:
 	cd programs && make all && cd ..
 
 install:
-	mkdir -p $(DESTDIR)/{include/xyssl,lib}
-	cp -v -r include $(DESTDIR)/include
-	cp -v library/libxyssl.a $(DESTDIR)/lib
+	mkdir -p $(DESTDIR)/include/xyssl
+	cp -r include/xyssl $(DESTDIR)/include
+	
+	mkdir -p $(DESTDIR)/lib
+	cp library/libxyssl.* $(DESTDIR)/lib
 	
 	mkdir -p $(DESTDIR)/bin
 	for p in programs/*/* ; do              \
-	    if [ -x $$p ] ; then                \
-                f=bin/xyssl_`basename $$p` ;    \
-	        cp -v $$p  $(DESTDIR)/$$f  ;    \
+	    if [ -x $$p ] && [ ! -d $$p ] ;     \
+	    then                                \
+	        f=$(PREFIX)`basename $$p` ;     \
+	        cp $$p $(DESTDIR)/bin/$$f ;     \
 	    fi                                  \
 	done
 

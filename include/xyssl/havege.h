@@ -1,12 +1,8 @@
 /**
  * \file havege.h
  */
-#ifndef _HAVEGE_H
-#define _HAVEGE_H
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#ifndef XYSSL_HAVEGE_H
+#define XYSSL_HAVEGE_H
 
 #define COLLECT_SIZE 1024
 
@@ -20,6 +16,10 @@ typedef struct
     int WALK[8192];
 }
 havege_state;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /**
  * \brief          HAVEGE initialization
@@ -35,7 +35,7 @@ void havege_init( havege_state *hs );
  *
  * \return         A random int
  */
-int havege_rand( void *rng_d );
+int havege_rand( void *p_rng );
 
 #ifdef __cplusplus
 }

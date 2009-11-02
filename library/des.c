@@ -1,42 +1,53 @@
-/*
- *  FIPS-46-3 compliant Triple-DES implementation
- *
- *  Copyright (C) 2006-2007  Christophe Devine
- *
- *  This library is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU Lesser General Public
- *  License, version 2.1 as published by the Free Software Foundation.
- *
- *  This library is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  Lesser General Public License for more details.
- *
- *  You should have received a copy of the GNU Lesser General Public
- *  License along with this library; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- *  MA  02110-1301  USA
+/* 
+ * Copyright (c) 2006-2007, Christophe Devine
+ * All rights reserved.
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer
+ *       in the documentation and/or other materials provided with the
+ *       distribution.
+ *     * Neither the name of the XySSL nor the names of its contributors
+ *       may be used to endorse or promote products derived from this
+ *       software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- *  DES, on which TDES is based, was originally designed by IBM in
- *  1974 and adopted as a standard by NIST (formerly NBS).
+ *  DES, on which TDES is based, was originally designed by Hans Feistel
+ *  at IBM in 1974, and was adopted as a standard by NIST (formerly NBS).
  *
  *  http://csrc.nist.gov/publications/fips/fips46-3/fips46-3.pdf
  */
 
-#ifndef _CRT_SECURE_NO_DEPRECATE
-#define _CRT_SECURE_NO_DEPRECATE 1
-#endif
+#include "xyssl/config.h"
 
-#include <string.h>
+#if defined(XYSSL_DES_C)
 
 #include "xyssl/des.h"
+
+#include <string.h>
 
 /*
  * 32-bit integer manipulation macros (big endian)
  */
-#ifndef GET_UINT32_BE
-#define GET_UINT32_BE(n,b,i)                            \
+#ifndef GET_ULONG_BE
+#define GET_ULONG_BE(n,b,i)                             \
 {                                                       \
     (n) = ( (unsigned long) (b)[(i)    ] << 24 )        \
         | ( (unsigned long) (b)[(i) + 1] << 16 )        \
@@ -44,8 +55,9 @@
         | ( (unsigned long) (b)[(i) + 3]       );       \
 }
 #endif
-#ifndef PUT_UINT32_BE
-#define PUT_UINT32_BE(n,b,i)                            \
+
+#ifndef PUT_ULONG_BE
+#define PUT_ULONG_BE(n,b,i)                             \
 {                                                       \
     (b)[(i)    ] = (unsigned char) ( (n) >> 24 );       \
     (b)[(i) + 1] = (unsigned char) ( (n) >> 16 );       \
@@ -282,13 +294,15 @@ static const unsigned long RHs[16] =
          SB1[ (T >> 24) & 0x3F ];               \
 }
 
-static void des_main_ks( unsigned long SK[32], unsigned char key[8] )
+#define SWAP(a,b) { unsigned long t = a; a = b; b = t; t = 0; }
+
+static void des_setkey( unsigned long SK[32], unsigned char key[8] )
 {
     int i;
     unsigned long X, Y, T;
 
-    GET_UINT32_BE( X, key, 0 );
-    GET_UINT32_BE( Y, key, 4 );
+    GET_ULONG_BE( X, key, 0 );
+    GET_ULONG_BE( Y, key, 4 );
 
     /*
      * Permuted Choice 1
@@ -352,290 +366,286 @@ static void des_main_ks( unsigned long SK[32], unsigned char key[8] )
 }
 
 /*
- * DES key schedule (56-bit)
+ * DES key schedule (56-bit, encryption)
  */
-void des_set_key( des_context *ctx, unsigned char key[8] )
+void des_setkey_enc( des_context *ctx, unsigned char key[8] )
+{
+    des_setkey( ctx->sk, key );
+}
+
+/*
+ * DES key schedule (56-bit, decryption)
+ */
+void des_setkey_dec( des_context *ctx, unsigned char key[8] )
 {
     int i;
 
-    des_main_ks( ctx->esk, key );
+    des_setkey( ctx->sk, key );
+
+    for( i = 0; i < 16; i += 2 )
+    {
+        SWAP( ctx->sk[i    ], ctx->sk[30 - i] );
+        SWAP( ctx->sk[i + 1], ctx->sk[31 - i] );
+    }
+}
+
+static void des3_set2key( unsigned long esk[96],
+                          unsigned long dsk[96],
+                          unsigned char key[16] )
+{
+    int i;
+
+    des_setkey( esk, key );
+    des_setkey( dsk + 32, key + 8 );
 
     for( i = 0; i < 32; i += 2 )
     {
-        ctx->dsk[i    ] = ctx->esk[30 - i];
-        ctx->dsk[i + 1] = ctx->esk[31 - i];
+        dsk[i     ] = esk[30 - i];
+        dsk[i +  1] = esk[31 - i];
+
+        esk[i + 32] = dsk[62 - i];
+        esk[i + 33] = dsk[63 - i];
+
+        esk[i + 64] = esk[i    ];
+        esk[i + 65] = esk[i + 1];
+
+        dsk[i + 64] = dsk[i    ];
+        dsk[i + 65] = dsk[i + 1];
     }
 }
 
-static void des_crypt( unsigned long SK[32],
-                       unsigned char input[8],
-                       unsigned char output[8] )
+/*
+ * Triple-DES key schedule (112-bit, encryption)
+ */
+void des3_set2key_enc( des3_context *ctx, unsigned char key[16] )
 {
-    unsigned long X, Y, T;
+    unsigned long sk[96];
 
-    GET_UINT32_BE( X, input, 0 );
-    GET_UINT32_BE( Y, input, 4 );
-
-    DES_IP( X, Y );
-
-    DES_ROUND( Y, X );  DES_ROUND( X, Y );
-    DES_ROUND( Y, X );  DES_ROUND( X, Y );
-    DES_ROUND( Y, X );  DES_ROUND( X, Y );
-    DES_ROUND( Y, X );  DES_ROUND( X, Y );
-    DES_ROUND( Y, X );  DES_ROUND( X, Y );
-    DES_ROUND( Y, X );  DES_ROUND( X, Y );
-    DES_ROUND( Y, X );  DES_ROUND( X, Y );
-    DES_ROUND( Y, X );  DES_ROUND( X, Y );
-
-    DES_FP( Y, X );
-
-    PUT_UINT32_BE( Y, output, 0 );
-    PUT_UINT32_BE( X, output, 4 );
+    des3_set2key( ctx->sk, sk, key );
+    memset( sk,  0, sizeof( sk ) );
 }
 
 /*
- * DES block encryption (ECB mode)
+ * Triple-DES key schedule (112-bit, decryption)
  */
-void des_encrypt( des_context *ctx,
-                  unsigned char input[8],
-                  unsigned char output[8] )
+void des3_set2key_dec( des3_context *ctx, unsigned char key[16] )
 {
-    des_crypt( ctx->esk, input, output );
+    unsigned long sk[96];
+
+    des3_set2key( sk, ctx->sk, key );
+    memset( sk,  0, sizeof( sk ) );
 }
 
-/*
- * DES block decryption (ECB mode)
- */
-void des_decrypt( des_context *ctx,
-                  unsigned char input[8],
-                  unsigned char output[8] )
-{
-    des_crypt( ctx->dsk, input, output );
-}
-
-/*
- * DES-CBC buffer encryption
- */
-void des_cbc_encrypt( des_context *ctx,
-                      unsigned char iv[8],
-                      unsigned char *input,
-                      unsigned char *output,
-                      int len )
+static void des3_set3key( unsigned long esk[96],
+                          unsigned long dsk[96],
+                          unsigned char key[24] )
 {
     int i;
 
-    while( len > 0 )
+    des_setkey( esk, key );
+    des_setkey( dsk + 32, key +  8 );
+    des_setkey( esk + 64, key + 16 );
+
+    for( i = 0; i < 32; i += 2 )
     {
-        for( i = 0; i < 8; i++ )
-            output[i] = input[i] ^ iv[i];
+        dsk[i     ] = esk[94 - i];
+        dsk[i +  1] = esk[95 - i];
 
-        des_crypt( ctx->esk, output, output );
-        memcpy( iv, output, 8 );
+        esk[i + 32] = dsk[62 - i];
+        esk[i + 33] = dsk[63 - i];
 
-        input  += 8;
-        output += 8;
-        len    -= 8;
+        dsk[i + 64] = esk[30 - i];
+        dsk[i + 65] = esk[31 - i];
     }
 }
 
 /*
- * DES-CBC buffer decryption
+ * Triple-DES key schedule (168-bit, encryption)
  */
-void des_cbc_decrypt( des_context *ctx,
-                      unsigned char iv[8],
-                      unsigned char *input,
-                      unsigned char *output,
-                      int len )
+void des3_set3key_enc( des3_context *ctx, unsigned char key[24] )
+{
+    unsigned long sk[96];
+
+    des3_set3key( ctx->sk, sk, key );
+    memset( sk, 0, sizeof( sk ) );
+}
+
+/*
+ * Triple-DES key schedule (168-bit, decryption)
+ */
+void des3_set3key_dec( des3_context *ctx, unsigned char key[24] )
+{
+    unsigned long sk[96];
+
+    des3_set3key( sk, ctx->sk, key );
+    memset( sk, 0, sizeof( sk ) );
+}
+
+/*
+ * DES-ECB block encryption/decryption
+ */
+void des_crypt_ecb( des_context *ctx,
+                    unsigned char input[8],
+                    unsigned char output[8] )
+{
+    int i;
+    unsigned long X, Y, T, *SK;
+
+    SK = ctx->sk;
+
+    GET_ULONG_BE( X, input, 0 );
+    GET_ULONG_BE( Y, input, 4 );
+
+    DES_IP( X, Y );
+
+    for( i = 0; i < 8; i++ )
+    {
+        DES_ROUND( Y, X );
+        DES_ROUND( X, Y );
+    }
+
+    DES_FP( Y, X );
+
+    PUT_ULONG_BE( Y, output, 0 );
+    PUT_ULONG_BE( X, output, 4 );
+}
+
+/*
+ * DES-CBC buffer encryption/decryption
+ */
+void des_crypt_cbc( des_context *ctx,
+                    int mode,
+                    int length,
+                    unsigned char iv[8],
+                    unsigned char *input,
+                    unsigned char *output )
 {
     int i;
     unsigned char temp[8];
 
-    while( len > 0 )
+    if( mode == DES_ENCRYPT )
     {
-        memcpy( temp, input, 8 );
-        des_crypt( ctx->dsk, input, output );
+        while( length > 0 )
+        {
+            for( i = 0; i < 8; i++ )
+                output[i] = (unsigned char)( input[i] ^ iv[i] );
 
-        for( i = 0; i < 8; i++ )
-            output[i] = output[i] ^ iv[i];
+            des_crypt_ecb( ctx, output, output );
+            memcpy( iv, output, 8 );
 
-        memcpy( iv, temp, 8 );
+            input  += 8;
+            output += 8;
+            length -= 8;
+        }
+    }
+    else /* DES_DECRYPT */
+    {
+        while( length > 0 )
+        {
+            memcpy( temp, input, 8 );
+            des_crypt_ecb( ctx, input, output );
 
-        input  += 8;
-        output += 8;
-        len    -= 8;
+            for( i = 0; i < 8; i++ )
+                output[i] = (unsigned char)( output[i] ^ iv[i] );
+
+            memcpy( iv, temp, 8 );
+
+            input  += 8;
+            output += 8;
+            length -= 8;
+        }
     }
 }
 
 /*
- * Triple-DES key schedule (112-bit)
+ * 3DES-ECB block encryption/decryption
  */
-void des3_set_2keys( des3_context *ctx, unsigned char key[16] )
+void des3_crypt_ecb( des3_context *ctx,
+                     unsigned char input[8],
+                     unsigned char output[8] )
 {
     int i;
+    unsigned long X, Y, T, *SK;
 
-    des_main_ks( ctx->esk     , key     );
-    des_main_ks( ctx->dsk + 32, key + 8 );
+    SK = ctx->sk;
 
-    for( i = 0; i < 32; i += 2 )
-    {
-        ctx->dsk[i     ] = ctx->esk[30 - i];
-        ctx->dsk[i +  1] = ctx->esk[31 - i];
-
-        ctx->esk[i + 32] = ctx->dsk[62 - i];
-        ctx->esk[i + 33] = ctx->dsk[63 - i];
-
-        ctx->esk[i + 64] = ctx->esk[     i];
-        ctx->esk[i + 65] = ctx->esk[ 1 + i];
-
-        ctx->dsk[i + 64] = ctx->dsk[     i];
-        ctx->dsk[i + 65] = ctx->dsk[ 1 + i];
-    }
-}
-
-/*
- * Triple-DES key schedule (168-bit)
- */
-void des3_set_3keys( des3_context *ctx, unsigned char key[24] )
-{
-    int i;
-
-    des_main_ks( ctx->esk     , key      );
-    des_main_ks( ctx->dsk + 32, key +  8 );
-    des_main_ks( ctx->esk + 64, key + 16 );
-
-    for( i = 0; i < 32; i += 2 )
-    {
-        ctx->dsk[i     ] = ctx->esk[94 - i];
-        ctx->dsk[i +  1] = ctx->esk[95 - i];
-
-        ctx->esk[i + 32] = ctx->dsk[62 - i];
-        ctx->esk[i + 33] = ctx->dsk[63 - i];
-
-        ctx->dsk[i + 64] = ctx->esk[30 - i];
-        ctx->dsk[i + 65] = ctx->esk[31 - i];
-    }
-}
-
-static void des3_crypt( unsigned long SK[96],
-                        unsigned char input[8],
-                        unsigned char output[8] )
-{
-    unsigned long X, Y, T;
-
-    GET_UINT32_BE( X, input, 0 );
-    GET_UINT32_BE( Y, input, 4 );
+    GET_ULONG_BE( X, input, 0 );
+    GET_ULONG_BE( Y, input, 4 );
 
     DES_IP( X, Y );
 
-    DES_ROUND( Y, X );  DES_ROUND( X, Y );
-    DES_ROUND( Y, X );  DES_ROUND( X, Y );
-    DES_ROUND( Y, X );  DES_ROUND( X, Y );
-    DES_ROUND( Y, X );  DES_ROUND( X, Y );
-    DES_ROUND( Y, X );  DES_ROUND( X, Y );
-    DES_ROUND( Y, X );  DES_ROUND( X, Y );
-    DES_ROUND( Y, X );  DES_ROUND( X, Y );
-    DES_ROUND( Y, X );  DES_ROUND( X, Y );
+    for( i = 0; i < 8; i++ )
+    {
+        DES_ROUND( Y, X );
+        DES_ROUND( X, Y );
+    }
 
-    DES_ROUND( X, Y );  DES_ROUND( Y, X );
-    DES_ROUND( X, Y );  DES_ROUND( Y, X );
-    DES_ROUND( X, Y );  DES_ROUND( Y, X );
-    DES_ROUND( X, Y );  DES_ROUND( Y, X );
-    DES_ROUND( X, Y );  DES_ROUND( Y, X );
-    DES_ROUND( X, Y );  DES_ROUND( Y, X );
-    DES_ROUND( X, Y );  DES_ROUND( Y, X );
-    DES_ROUND( X, Y );  DES_ROUND( Y, X );
+    for( i = 0; i < 8; i++ )
+    {
+        DES_ROUND( X, Y );
+        DES_ROUND( Y, X );
+    }
 
-    DES_ROUND( Y, X );  DES_ROUND( X, Y );
-    DES_ROUND( Y, X );  DES_ROUND( X, Y );
-    DES_ROUND( Y, X );  DES_ROUND( X, Y );
-    DES_ROUND( Y, X );  DES_ROUND( X, Y );
-    DES_ROUND( Y, X );  DES_ROUND( X, Y );
-    DES_ROUND( Y, X );  DES_ROUND( X, Y );
-    DES_ROUND( Y, X );  DES_ROUND( X, Y );
-    DES_ROUND( Y, X );  DES_ROUND( X, Y );
+    for( i = 0; i < 8; i++ )
+    {
+        DES_ROUND( Y, X );
+        DES_ROUND( X, Y );
+    }
 
     DES_FP( Y, X );
 
-    PUT_UINT32_BE( Y, output, 0 );
-    PUT_UINT32_BE( X, output, 4 );
+    PUT_ULONG_BE( Y, output, 0 );
+    PUT_ULONG_BE( X, output, 4 );
 }
 
 /*
- * Triple-DES block encryption (ECB mode)
+ * 3DES-CBC buffer encryption/decryption
  */
-void des3_encrypt( des3_context *ctx,
-                   unsigned char input[8],
-                   unsigned char output[8] )
-{
-    des3_crypt( ctx->esk, input, output );
-}
-
-/*
- * Triple-DES block decryption (ECB mode)
- */
-void des3_decrypt( des3_context *ctx,
-                   unsigned char input[8],
-                   unsigned char output[8] )
-{
-    des3_crypt( ctx->dsk, input, output );
-}
-
-/*
- * 3DES-CBC buffer encryption
- */
-void des3_cbc_encrypt( des3_context *ctx,
-                       unsigned char iv[8],
-                       unsigned char *input,
-                       unsigned char *output,
-                       int len )
-{
-    int i;
-
-    while( len > 0 )
-    {
-        for( i = 0; i < 8; i++ )
-            output[i] = input[i] ^ iv[i];
-
-        des3_crypt( ctx->esk, output, output );
-        memcpy( iv, output, 8 );
-
-        input  += 8;
-        output += 8;
-        len    -= 8;
-    }
-}
-
-/*
- * 3DES-CBC buffer decryption
- */
-void des3_cbc_decrypt( des3_context *ctx,
-                       unsigned char iv[8],
-                       unsigned char *input,
-                       unsigned char *output,
-                       int len )
+void des3_crypt_cbc( des3_context *ctx,
+                     int mode,
+                     int length,
+                     unsigned char iv[8],
+                     unsigned char *input,
+                     unsigned char *output )
 {
     int i;
     unsigned char temp[8];
 
-    while( len > 0 )
+    if( mode == DES_ENCRYPT )
     {
-        memcpy( temp, input, 8 );
-        des3_crypt( ctx->dsk, input, output );
+        while( length > 0 )
+        {
+            for( i = 0; i < 8; i++ )
+                output[i] = (unsigned char)( input[i] ^ iv[i] );
 
-        for( i = 0; i < 8; i++ )
-            output[i] = output[i] ^ iv[i];
+            des3_crypt_ecb( ctx, output, output );
+            memcpy( iv, output, 8 );
 
-        memcpy( iv, temp, 8 );
+            input  += 8;
+            output += 8;
+            length -= 8;
+        }
+    }
+    else /* DES_DECRYPT */
+    {
+        while( length > 0 )
+        {
+            memcpy( temp, input, 8 );
+            des3_crypt_ecb( ctx, input, output );
 
-        input  += 8;
-        output += 8;
-        len    -= 8;
+            for( i = 0; i < 8; i++ )
+                output[i] = (unsigned char)( output[i] ^ iv[i] );
+
+            memcpy( iv, temp, 8 );
+
+            input  += 8;
+            output += 8;
+            length -= 8;
+        }
     }
 }
 
-static const char _des_src[] = "_des_src";
-
-#if defined(SELF_TEST)
+#if defined(XYSSL_SELF_TEST)
 
 #include <stdio.h>
 
@@ -684,33 +694,42 @@ int des_self_test( int verbose )
         v = i  & 1;
 
         if( verbose != 0 )
-            printf( "  DES%c-EBC-%3d (%s): ",
-                    ( u == 0 ) ? ' ' : '3', 64 + u * 64,
+            printf( "  DES%c-ECB-%3d (%s): ",
+                    ( u == 0 ) ? ' ' : '3', 56 + u * 56,
                     ( v == 0 ) ? "enc" : "dec" );
 
         memcpy( buf, DES3_init, 8 );
 
-        if( u == 0 )
-               des_set_key( &ctx,  (unsigned char *) DES3_keys );
+        switch( u )
+        {
+        case 0:
+            if( v == 0 )
+                des_setkey_enc( &ctx, (unsigned char *) DES3_keys );
+            if( v == 1 )
+                des_setkey_dec( &ctx, (unsigned char *) DES3_keys );
+            break;
 
-        if( u == 1 )
-            des3_set_2keys( &ctx3, (unsigned char *) DES3_keys );
+        case 1:
+            if( v == 0 )
+                des3_set2key_enc( &ctx3, (unsigned char *) DES3_keys );
+            if( v == 1 )
+                des3_set2key_dec( &ctx3, (unsigned char *) DES3_keys );
+            break;
 
-        if( u == 2 )
-            des3_set_3keys( &ctx3, (unsigned char *) DES3_keys );
+        default:
+            if( v == 0 )
+                des3_set3key_enc( &ctx3, (unsigned char *) DES3_keys );
+            if( v == 1 )
+                des3_set3key_dec( &ctx3, (unsigned char *) DES3_keys );
+            break;
+        }
 
         for( j = 0; j < 10000; j++ )
         {
             if( u == 0 )
-            {
-                if( v == 0 ) des_encrypt( &ctx, buf, buf );
-                if( v == 1 ) des_decrypt( &ctx, buf, buf );
-            }
+                 des_crypt_ecb( &ctx, buf, buf );
             else
-            {
-                if( v == 0 ) des3_encrypt( &ctx3, buf, buf );
-                if( v == 1 ) des3_decrypt( &ctx3, buf, buf );
-            }
+                des3_crypt_ecb( &ctx3, buf, buf );
         }
 
         if( ( v == 0 && memcmp( buf, DES3_enc_test[u], 8 ) != 0 ) ||
@@ -731,9 +750,7 @@ int des_self_test( int verbose )
 
     return( 0 );
 }
-#else
-int des_self_test( int verbose )
-{
-    return( 0 );
-}
+
+#endif
+
 #endif

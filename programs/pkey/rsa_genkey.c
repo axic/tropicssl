@@ -1,21 +1,32 @@
-/*
- *  Example RSA key generation program
- *
- *  Copyright (C) 2006-2007  Christophe Devine
- *
- *  This library is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU Lesser General Public
- *  License, version 2.1 as published by the Free Software Foundation.
- *
- *  This library is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  Lesser General Public License for more details.
- *
- *  You should have received a copy of the GNU Lesser General Public
- *  License along with this library; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- *  MA  02110-1301  USA
+/* 
+ * Copyright (c) 2006-2007, Christophe Devine
+ * All rights reserved.
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer
+ *       in the documentation and/or other materials provided with the
+ *       distribution.
+ *     * Neither the name of the XySSL nor the names of its contributors
+ *       may be used to endorse or promote products derived from this
+ *       software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #ifndef _CRT_SECURE_NO_DEPRECATE
@@ -38,6 +49,7 @@ int main( void )
     havege_state hs;
     FILE *fpub  = NULL;
     FILE *fpriv = NULL;
+/*  x509_raw cert; */
 
     printf( "\n  . Seeding the random number generator..." );
     fflush( stdout );
@@ -47,10 +59,11 @@ int main( void )
     printf( " ok\n  . Generating the RSA key [ %d-bit ]...", KEY_SIZE );
     fflush( stdout );
 
-    if( ( ret = rsa_gen_key( &rsa, KEY_SIZE, EXPONENT,
-                             havege_rand, &hs ) ) != 0 )
+    rsa_init( &rsa, RSA_PKCS_V15, 0, havege_rand, &hs );
+    
+    if( ( ret = rsa_gen_key( &rsa, KEY_SIZE, EXPONENT ) ) != 0 )
     {
-        printf( " failed\n  ! rsa_gen_key returned %08x\n\n", ret );
+        printf( " failed\n  ! rsa_gen_key returned %d\n\n", ret );
         goto exit;
     }
 
@@ -64,9 +77,10 @@ int main( void )
         goto exit;
     }
 
-    if( ( ret = rsa_write_public( &rsa, fpub ) ) != 0 )
+    if( ( ret = mpi_write_file( "N = ", &rsa.N, 16, fpub ) ) != 0 ||
+        ( ret = mpi_write_file( "E = ", &rsa.E, 16, fpub ) ) != 0 )
     {
-        printf( " failed\n  ! rsa_write_public returned %08x\n\n", ret );
+        printf( " failed\n  ! mpi_write_file returned %d\n\n", ret );
         goto exit;
     }
 
@@ -80,12 +94,31 @@ int main( void )
         goto exit;
     }
 
-    if( ( ret = rsa_write_private( &rsa, fpriv ) ) != 0 )
+    if( ( ret = mpi_write_file( "N = " , &rsa.N , 16, fpriv ) ) != 0 ||
+        ( ret = mpi_write_file( "E = " , &rsa.E , 16, fpriv ) ) != 0 ||
+        ( ret = mpi_write_file( "D = " , &rsa.D , 16, fpriv ) ) != 0 ||
+        ( ret = mpi_write_file( "P = " , &rsa.P , 16, fpriv ) ) != 0 ||
+        ( ret = mpi_write_file( "Q = " , &rsa.Q , 16, fpriv ) ) != 0 ||
+        ( ret = mpi_write_file( "DP = ", &rsa.DP, 16, fpriv ) ) != 0 ||
+        ( ret = mpi_write_file( "DQ = ", &rsa.DQ, 16, fpriv ) ) != 0 ||
+        ( ret = mpi_write_file( "QP = ", &rsa.QP, 16, fpriv ) ) != 0 )
     {
-        printf( " failed\n  ! rsa_write_private returned %08x\n\n", ret );
+        printf( " failed\n  ! mpi_write_file returned %d\n\n", ret );
         goto exit;
     }
+/*
+    printf( " ok\n  . Generating the certificate..." );
 
+    x509_init_raw( &cert );
+    x509_add_pubkey( &cert, &rsa );
+    x509_create_subject( &cert,  "CN='localhost'" );
+    x509_create_validity( &cert, "2007-09-06 17:00:32",
+                                 "2010-09-06 17:00:32" );
+    x509_create_selfsign( &cert, &rsa );
+    x509_write_crtfile( &cert, "cert.der", X509_OUTPUT_DER );
+    x509_write_crtfile( &cert, "cert.pem", X509_OUTPUT_PEM );
+    x509_free_raw( &cert );
+*/
     printf( " ok\n\n" );
 
 exit:

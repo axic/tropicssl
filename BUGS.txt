@@ -1,0 +1,183 @@
+
+[FORUM]
+
+  08/10/2007  kaidokert: (contrib) ARM gcc compilation flags
+
+  07/10/2007  goldenchild: (bug) OpenSSL sends empty records
+
+  02/10/2007  dennis: (wish) ARM assembler code for mwccarm
+
+  02/10/2007  guillermo: (wish) more ARM benchmarks
+
+  01/10/2007  kriegaex: (wish) OpenSSL wrapper for OpenVPN
+
+  28/09/2007  jonmccune: (bug) memory leak in rsa_gen_key()
+
+  26/09/2007  hbden: (wish) support for reading CRLs
+
+  20/09/2007  quinthar: (contrib) OpenSSL compatibility layer
+
+  06/09/2007  mg404: (wish) user-driven BIO layer
+
+  03/09/2007  hbden: (bug) in mpi_read_binary() on 64-bit platforms
+
+  28/08/2007  gopal: (wish) OpenSSL compatibility layer
+
+  27/08/2007  fviard: (wish) support for EC crypto (ECDH, ECDSA)
+
+  22/08/2007  roadrunnr: (wish) IO timeouts for blocking operations
+
+  26/07/2007  gary ng: (contrib) suggestions for handling sessions
+
+  24/07/2007  hbden: (bug) in MULADDC when compiling with icc
+
+  23/07/2007  gary ng: (bug) in x509_verify_cert()
+
+  21/07/2007  gary ng: (bug) in ssl_read()
+
+  19/07/2007  hbden: (bug) in ssl_parse_certificate_verify() with IE7
+
+  16/07/2007  spaceolive: (bug) in Makefile, dsa.o unused
+
+  09/07/2007  chmike: (contrib) AES-CFB mode of operation
+
+  03/07/2007  chmike: (bug) in VS6.mak, x509_parse.obj
+
+  29/06/2007  roadrunnr: (wish) more HMAC support functions
+
+  19/06/2007  roadrunnr: (bug) in ssl_read_record() with non-blocking IO
+
+  19/06/2007  roadrunnr: (bug) in net_set_{non,}block()
+
+  18/06/2007  roadrunnr: (bug) fails with XYSSL_ERR_SSL_CERTIFICATE_REQUIRED
+
+  26/05/2007  rafal: (bug) in ssl_write()
+
+  25/05/2007  blackthought: (wish) simpler bignum export/import API
+
+  21/05/2007  kimalaz: (contrib) dhm_ssl_init()
+
+  15/05/2007  supersie: (bug) unknown "bad record MAC" error?
+
+  01/05/2007  gamall: (wish) support for SHA-512
+
+  18/04/2007  lemonyao: (bug) memory leak in rsa_gen_key()
+
+  18/04/2007  amrat: (wish) stunnel-like example program
+
+  07/03/2007  ozzman: (contrib) patch for non-blocking IO
+
+  01/03/2007  amrat: (bug) "ebx clobbered in asm" with fPIC
+
+  25/02/2007  aznium: (bug) in rsa_gen_key() when P == Q
+
+  21/02/2007  hugomendiondo: (bug) MPI issues with Xilinx EDK
+
+  15/02/2007  bernard: (contrib) optimization suggestions
+
+  11/02/2007  jable: (wish) support for SHA-512
+
+  24/01/2007  vbhanu: (bug) memory leaks in x509_read.c
+
+  15/01/2007  matrix: (bug) in ssl_parse_client_hello()
+
+  06/12/2006  dowst: (wish) support for the MC68332 CPU
+
+  01/12/2006  old wolf: (bug) in rsa_check_privkey()
+
+  27/11/2006  collin: (bug) in ssl_read_record()
+
+[MAIL]
+
+  05/10/2007  Jonathan M. McCune: (bug) in mpi_init()
+
+  03/10/2007  Stephane Desneux: (bug) in sha2_hmac_starts()
+
+  03/10/2007  Lorenzo Hernández García-Hierro: (bug) use of realloc()
+
+  21/09/2007  David Barrett: (wish) RSA encryption with the public key
+
+  20/09/2007  David Barrett: (wish) reading DER-encoded public RSA keys
+
+  13/09/2007  Pascal Vizeli: (contrib) x509write.c
+
+  09/09/2007  Azriel Fasten: (contrib) XYSSL_* namespace cleanup
+
+  01/09/2007  Lorenz Schori: (contrib) patch fixes net_recv()
+
+  01/09/2007  Lorenz Schori: (contrib) patch adds OSX shared library target
+
+  30/08/2007  Kevin McLaughlin: (contrib) mpi_is_prime() speedups
+
+  28/08/2007  Frank de Brabander: (bug) "make install" on OpenBSD
+
+  27/08/2007  Kevin McLaughlin: (bug) mpi_is_prime() prime rejection
+
+  21/08/2007  Alireza Sahraei: (bug) mpi_is_prime() memory leak
+
+  01/08/2007  Deng Huibin: (bug) IE7 interoperability issues
+
+  26/07/2007  David Schwab: (bug) Xilinx EDK memory allocation problems
+
+  24/07/2007  Egon Kocjan: (contrib) patch fixes non-blocking issues
+
+  24/07/2007  Egon Kocjan: (wish) skip 0-length records from OpenSSL
+
+  19/07/2007  Christophe Meessen: (contrib) preliminary C++ wrapper
+
+  10/07/2007  Christophe Meessen: (wish) padlock support and AES-CFB mode
+
+  03/07/1007  Mikael Voss: (bug) "ebx clobbered in asm" in bn_asm.h
+
+  01/07/2007  Mikael Voss: (contrib) Portage ebuild for Gentoo
+
+  16/06/2007  Olivier Tuchon: (wish) SHA-384/512 and PKCS#1 v2.1
+
+  07/06/2007  [Anonymous]: (contrib) minor improvements in filecrypt.c
+
+  10/05/2007  Kobe McGrady: (contrib) user feedback wrt/ the rsa API
+
+  27/04/2007  Mark Hong: (wish) example of SMTP over SSL/TLS
+
+  18/04/2007  Lau Wt: (wish) support for RSA OEAP padding
+
+  08/04/2007  Arnaud Cornet: (contrib) patch fixes "make install" on Linux
+
+  05/04/2007  Matt D. Harris: (contrib) patch fixes "make install" on FreeBSD
+
+  19/03/2007  Nathan Crawford: (wish) OFB mode of operation
+
+  13/03/2007  Raphaël Huck: (wish) more OpenSSL compatibility, for embedded
+
+  12/03/2007  David Patiño: (contrib) patch to support the TriCore processor
+
+  06/03/2007  Kevin McLaughlin: (bug) bias in random integer generation
+
+  19/02/2007  Renaud Lehoux: (contrib) patch fixes compilation on WinCE
+
+  19/02/2007  Renaud Lehoux: (bug)s in ssl_write_certificate_verify()
+
+  25/01/2007  Julien Almarcha: (contrib) RSA speed improvements on m68k
+
+  08/01/2007  Didier Rebeix: (bug) in ssl_decrypt_buf()
+
+  08/01/2007  Didier Rebeix: (bug) in ssl_parse_client_hello()
+
+  30/12/2006  Xosé Otero: (contrib) patch fixes compilation with g++
+
+  11/12/2006  Arnaud Cornet: (contrib) patch fixes x86 rdtsc portability
+
+  08/12/2006  Julien Almarcha: (bug) in the DES CBC functions
+
+  06/12/2006  Adrian-Ken Rüegsegger: (bug) in x509_parse_key()
+
+  30/11/2006  Adrian-Ken Rüegsegger: (contrib) patch adds mpi_showf()
+
+  28/11/2006  Adrian-Ken Rüegsegger: (wish) writing X.509 RSA keys
+
+  21/11/2006  Khalil Petit: (contrib) XySSL added into pkgsrc
+
+  17/11/2006  Wenfang Zhang: (bug) in sha2_hmac()
+
+  05/11/2006  Tolga Balci: (wish) support for compilation on 16-bit DOS
+

@@ -1,21 +1,32 @@
-/*
- *  X.509 certificate and private key decoding
- *
- *  Copyright (C) 2006-2007  Christophe Devine
- *
- *  This library is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU Lesser General Public
- *  License, version 2.1 as published by the Free Software Foundation.
- *
- *  This library is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  Lesser General Public License for more details.
- *
- *  You should have received a copy of the GNU Lesser General Public
- *  License along with this library; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- *  MA  02110-1301  USA
+/* 
+ * Copyright (c) 2006-2007, Christophe Devine
+ * All rights reserved.
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer
+ *       in the documentation and/or other materials provided with the
+ *       distribution.
+ *     * Neither the name of the XySSL nor the names of its contributors
+ *       may be used to endorse or promote products derived from this
+ *       software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
  *  The ITU-T X.509 standard defines a certificat format for PKI.
@@ -29,27 +40,22 @@
  *  http://www.itu.int/ITU-T/studygroups/com17/languages/X.690-0207.pdf
  */
 
-#ifndef _CRT_SECURE_NO_DEPRECATE
-#define _CRT_SECURE_NO_DEPRECATE 1
-#endif
+#include "xyssl/config.h"
+
+#if defined(XYSSL_X509_PARSE_C)
+
+#include "xyssl/x509.h"
+#include "xyssl/base64.h"
+#include "xyssl/des.h"
+#include "xyssl/md2.h"
+#include "xyssl/md4.h"
+#include "xyssl/md5.h"
+#include "xyssl/sha1.h"
 
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
-
-#include "xyssl/x509.h"
-#include "xyssl/base64.h"
-#include "xyssl/des.h"
-#include "xyssl/sha1.h"
-#include "xyssl/md5.h"
-
-#if !defined(NO_MD4)
-#include "xyssl/md4.h"
-#endif
-#if !defined(NO_MD2)
-#include "xyssl/md2.h"
-#endif
 
 /*
  * ASN.1 DER decoding routines
@@ -59,7 +65,7 @@ static int asn1_get_len( unsigned char **p,
                          int *len )
 {
     if( ( end - *p ) < 1 )
-        return( ERR_ASN1_OUT_OF_DATA );
+        return( XYSSL_ERR_ASN1_OUT_OF_DATA );
 
     if( ( **p & 0x80 ) == 0 )
         *len = *(*p)++;
@@ -69,7 +75,7 @@ static int asn1_get_len( unsigned char **p,
         {
         case 1:
             if( ( end - *p ) < 2 )
-                return( ERR_ASN1_OUT_OF_DATA );
+                return( XYSSL_ERR_ASN1_OUT_OF_DATA );
 
             *len = (*p)[1];
             (*p) += 2;
@@ -77,20 +83,20 @@ static int asn1_get_len( unsigned char **p,
 
         case 2:
             if( ( end - *p ) < 3 )
-                return( ERR_ASN1_OUT_OF_DATA );
+                return( XYSSL_ERR_ASN1_OUT_OF_DATA );
 
             *len = ( (*p)[1] << 8 ) | (*p)[2];
             (*p) += 3;
             break;
 
         default:
-            return( ERR_ASN1_INVALID_LENGTH );
+            return( XYSSL_ERR_ASN1_INVALID_LENGTH );
             break;
         }
     }
 
     if( *len > (int) ( end - *p ) )
-        return( ERR_ASN1_OUT_OF_DATA );
+        return( XYSSL_ERR_ASN1_OUT_OF_DATA );
 
     return( 0 );
 }
@@ -100,10 +106,10 @@ static int asn1_get_tag( unsigned char **p,
                          int *len, int tag )
 {
     if( ( end - *p ) < 1 )
-        return( ERR_ASN1_OUT_OF_DATA );
+        return( XYSSL_ERR_ASN1_OUT_OF_DATA );
 
     if( **p != tag )
-        return( ERR_ASN1_UNEXPECTED_TAG );
+        return( XYSSL_ERR_ASN1_UNEXPECTED_TAG );
 
     (*p)++;
 
@@ -120,7 +126,7 @@ static int asn1_get_bool( unsigned char **p,
         return( ret );
 
     if( len != 1 )
-        return( ERR_ASN1_INVALID_LENGTH );
+        return( XYSSL_ERR_ASN1_INVALID_LENGTH );
 
     *val = ( **p != 0 ) ? 1 : 0;
     (*p)++;
@@ -138,7 +144,7 @@ static int asn1_get_int( unsigned char **p,
         return( ret );
 
     if( len > (int) sizeof( int ) || ( **p & 0x80 ) != 0 )
-        return( ERR_ASN1_INVALID_LENGTH );
+        return( XYSSL_ERR_ASN1_INVALID_LENGTH );
 
     *val = 0;
 
@@ -179,7 +185,7 @@ static int x509_get_version( unsigned char **p,
     if( ( ret = asn1_get_tag( p, end, &len,
             ASN1_CONTEXT_SPECIFIC | ASN1_CONSTRUCTED | 0 ) ) != 0 )
     {
-        if( ret == ERR_ASN1_UNEXPECTED_TAG )
+        if( ret == XYSSL_ERR_ASN1_UNEXPECTED_TAG )
             return( *ver = 0 );
 
         return( ret );
@@ -188,11 +194,11 @@ static int x509_get_version( unsigned char **p,
     end = *p + len;
 
     if( ( ret = asn1_get_int( p, end, ver ) ) != 0 )
-        return( ERR_X509_CERT_INVALID_VERSION | ret );
+        return( XYSSL_ERR_X509_CERT_INVALID_VERSION | ret );
 
     if( *p != end )
-        return( ERR_X509_CERT_INVALID_VERSION |
-                ERR_ASN1_LENGTH_MISMATCH );
+        return( XYSSL_ERR_X509_CERT_INVALID_VERSION |
+                XYSSL_ERR_ASN1_LENGTH_MISMATCH );
 
     return( 0 );
 }
@@ -207,18 +213,18 @@ static int x509_get_serial( unsigned char **p,
     int ret;
 
     if( ( end - *p ) < 1 )
-        return( ERR_X509_CERT_INVALID_SERIAL |
-                ERR_ASN1_OUT_OF_DATA );
+        return( XYSSL_ERR_X509_CERT_INVALID_SERIAL |
+                XYSSL_ERR_ASN1_OUT_OF_DATA );
 
     if( **p != ( ASN1_CONTEXT_SPECIFIC | ASN1_PRIMITIVE | 2 ) &&
         **p !=   ASN1_INTEGER )
-        return( ERR_X509_CERT_INVALID_SERIAL |
-                ERR_ASN1_UNEXPECTED_TAG );
+        return( XYSSL_ERR_X509_CERT_INVALID_SERIAL |
+                XYSSL_ERR_ASN1_UNEXPECTED_TAG );
 
     serial->tag = *(*p)++;
 
     if( ( ret = asn1_get_len( p, end, &serial->len ) ) != 0 )
-        return( ERR_X509_CERT_INVALID_SERIAL | ret );
+        return( XYSSL_ERR_X509_CERT_INVALID_SERIAL | ret );
 
     serial->p = *p;
     *p += serial->len;
@@ -239,13 +245,13 @@ static int x509_get_alg( unsigned char **p,
 
     if( ( ret = asn1_get_tag( p, end, &len,
             ASN1_CONSTRUCTED | ASN1_SEQUENCE ) ) != 0 )
-        return( ERR_X509_CERT_INVALID_ALG | ret );
+        return( XYSSL_ERR_X509_CERT_INVALID_ALG | ret );
 
     end = *p + len;
     alg->tag = **p;
 
     if( ( ret = asn1_get_tag( p, end, &alg->len, ASN1_OID ) ) != 0 )
-        return( ERR_X509_CERT_INVALID_ALG | ret );
+        return( XYSSL_ERR_X509_CERT_INVALID_ALG | ret );
 
     alg->p = *p;
     *p += alg->len;
@@ -257,11 +263,11 @@ static int x509_get_alg( unsigned char **p,
      * assume the algorithm parameters must be NULL
      */
     if( ( ret = asn1_get_tag( p, end, &len, ASN1_NULL ) ) != 0 )
-        return( ERR_X509_CERT_INVALID_ALG | ret );
+        return( XYSSL_ERR_X509_CERT_INVALID_ALG | ret );
 
     if( *p != end )
-        return( ERR_X509_CERT_INVALID_ALG |
-                ERR_ASN1_LENGTH_MISMATCH );
+        return( XYSSL_ERR_X509_CERT_INVALID_ALG |
+                XYSSL_ERR_ASN1_LENGTH_MISMATCH );
 
     return( 0 );
 }
@@ -289,43 +295,43 @@ static int x509_get_name( unsigned char **p,
 
     if( ( ret = asn1_get_tag( p, end, &len,
             ASN1_CONSTRUCTED | ASN1_SET ) ) != 0 )
-        return( ERR_X509_CERT_INVALID_NAME | ret );
+        return( XYSSL_ERR_X509_CERT_INVALID_NAME | ret );
 
     end2 = end;
     end  = *p + len;
 
     if( ( ret = asn1_get_tag( p, end, &len,
             ASN1_CONSTRUCTED | ASN1_SEQUENCE ) ) != 0 )
-        return( ERR_X509_CERT_INVALID_NAME | ret );
+        return( XYSSL_ERR_X509_CERT_INVALID_NAME | ret );
 
     if( *p + len != end )
-        return( ERR_X509_CERT_INVALID_NAME |
-                ERR_ASN1_LENGTH_MISMATCH );
+        return( XYSSL_ERR_X509_CERT_INVALID_NAME |
+                XYSSL_ERR_ASN1_LENGTH_MISMATCH );
 
     oid = &cur->oid;
     oid->tag = **p;
 
     if( ( ret = asn1_get_tag( p, end, &oid->len, ASN1_OID ) ) != 0 )
-        return( ERR_X509_CERT_INVALID_NAME | ret );
+        return( XYSSL_ERR_X509_CERT_INVALID_NAME | ret );
 
     oid->p = *p;
     *p += oid->len;
 
     if( ( end - *p ) < 1 )
-        return( ERR_X509_CERT_INVALID_NAME |
-                ERR_ASN1_OUT_OF_DATA );
+        return( XYSSL_ERR_X509_CERT_INVALID_NAME |
+                XYSSL_ERR_ASN1_OUT_OF_DATA );
 
     if( **p != ASN1_BMP_STRING && **p != ASN1_UTF8_STRING      &&
         **p != ASN1_T61_STRING && **p != ASN1_PRINTABLE_STRING &&
         **p != ASN1_IA5_STRING && **p != ASN1_UNIVERSAL_STRING )
-        return( ERR_X509_CERT_INVALID_NAME |
-                ERR_ASN1_UNEXPECTED_TAG );
+        return( XYSSL_ERR_X509_CERT_INVALID_NAME |
+                XYSSL_ERR_ASN1_UNEXPECTED_TAG );
 
     val = &cur->val;
     val->tag = *(*p)++;
 
     if( ( ret = asn1_get_len( p, end, &val->len ) ) != 0 )
-        return( ERR_X509_CERT_INVALID_NAME | ret );
+        return( XYSSL_ERR_X509_CERT_INVALID_NAME | ret );
 
     val->p = *p;
     *p += val->len;
@@ -333,8 +339,8 @@ static int x509_get_name( unsigned char **p,
     cur->next = NULL;
 
     if( *p != end )
-        return( ERR_X509_CERT_INVALID_NAME |
-                ERR_ASN1_LENGTH_MISMATCH );
+        return( XYSSL_ERR_X509_CERT_INVALID_NAME |
+                XYSSL_ERR_ASN1_LENGTH_MISMATCH );
 
     /*
      * recurse until end of SEQUENCE is reached
@@ -370,7 +376,7 @@ static int x509_get_dates( unsigned char **p,
 
     if( ( ret = asn1_get_tag( p, end, &len,
             ASN1_CONSTRUCTED | ASN1_SEQUENCE ) ) != 0 )
-        return( ERR_X509_CERT_INVALID_DATE | ret );
+        return( XYSSL_ERR_X509_CERT_INVALID_DATE | ret );
 
     end = *p + len;
 
@@ -378,7 +384,7 @@ static int x509_get_dates( unsigned char **p,
      * TODO: also handle GeneralizedTime
      */
     if( ( ret = asn1_get_tag( p, end, &len, ASN1_UTC_TIME ) ) != 0 )
-        return( ERR_X509_CERT_INVALID_DATE | ret );
+        return( XYSSL_ERR_X509_CERT_INVALID_DATE | ret );
 
     memset( date,  0, sizeof( date ) );
     memcpy( date, *p, ( len < (int) sizeof( date ) - 1 ) ?
@@ -387,15 +393,15 @@ static int x509_get_dates( unsigned char **p,
     if( sscanf( date, "%2d%2d%2d%2d%2d%2d",
                 &from->year, &from->mon, &from->day,
                 &from->hour, &from->min, &from->sec ) < 5 )
-        return( ERR_X509_CERT_INVALID_DATE );
+        return( XYSSL_ERR_X509_CERT_INVALID_DATE );
 
-    from->year += 100 * ( from->year < 90 );
+    from->year +=  100 * ( from->year < 90 );
     from->year += 1900;
 
     *p += len;
 
     if( ( ret = asn1_get_tag( p, end, &len, ASN1_UTC_TIME ) ) != 0 )
-        return( ERR_X509_CERT_INVALID_DATE | ret );
+        return( XYSSL_ERR_X509_CERT_INVALID_DATE | ret );
 
     memset( date,  0, sizeof( date ) );
     memcpy( date, *p, ( len < (int) sizeof( date ) - 1 ) ?
@@ -404,16 +410,16 @@ static int x509_get_dates( unsigned char **p,
     if( sscanf( date, "%2d%2d%2d%2d%2d%2d",
                 &to->year, &to->mon, &to->day,
                 &to->hour, &to->min, &to->sec ) < 5 ) 
-        return( ERR_X509_CERT_INVALID_DATE );
+        return( XYSSL_ERR_X509_CERT_INVALID_DATE );
 
-    to->year += 100 * ( to->year < 90 );
+    to->year +=  100 * ( to->year < 90 );
     to->year += 1900;
 
     *p += len;
 
     if( *p != end )
-        return( ERR_X509_CERT_INVALID_DATE |
-                ERR_ASN1_LENGTH_MISMATCH );
+        return( XYSSL_ERR_X509_CERT_INVALID_DATE |
+                XYSSL_ERR_ASN1_LENGTH_MISMATCH );
 
     return( 0 );
 }
@@ -439,19 +445,19 @@ static int x509_get_pubkey( unsigned char **p,
      */
     if( pk_alg_oid->len != 9 ||
         memcmp( pk_alg_oid->p, OID_PKCS1_RSA, 9 ) != 0 )
-        return( ERR_X509_CERT_UNKNOWN_PK_ALG );
+        return( XYSSL_ERR_X509_CERT_UNKNOWN_PK_ALG );
 
     if( ( ret = asn1_get_tag( p, end, &len, ASN1_BIT_STRING ) ) != 0 )
-        return( ERR_X509_CERT_INVALID_PUBKEY | ret );
+        return( XYSSL_ERR_X509_CERT_INVALID_PUBKEY | ret );
 
     if( ( end - *p ) < 1 )
-        return( ERR_X509_CERT_INVALID_PUBKEY |
-                ERR_ASN1_OUT_OF_DATA );
+        return( XYSSL_ERR_X509_CERT_INVALID_PUBKEY |
+                XYSSL_ERR_ASN1_OUT_OF_DATA );
 
     end2 = *p + len;
 
     if( *(*p)++ != 0 )
-        return( ERR_X509_CERT_INVALID_PUBKEY );
+        return( XYSSL_ERR_X509_CERT_INVALID_PUBKEY );
 
     /*
      *  RSAPublicKey ::= SEQUENCE {
@@ -461,19 +467,19 @@ static int x509_get_pubkey( unsigned char **p,
      */
     if( ( ret = asn1_get_tag( p, end2, &len,
             ASN1_CONSTRUCTED | ASN1_SEQUENCE ) ) != 0 )
-        return( ERR_X509_CERT_INVALID_PUBKEY | ret );
+        return( XYSSL_ERR_X509_CERT_INVALID_PUBKEY | ret );
 
     if( *p + len != end2 )
-        return( ERR_X509_CERT_INVALID_PUBKEY |
-                ERR_ASN1_LENGTH_MISMATCH );
+        return( XYSSL_ERR_X509_CERT_INVALID_PUBKEY |
+                XYSSL_ERR_ASN1_LENGTH_MISMATCH );
 
     if( ( ret = asn1_get_mpi( p, end2, N ) ) != 0 ||
         ( ret = asn1_get_mpi( p, end2, E ) ) != 0 )
-        return( ERR_X509_CERT_INVALID_PUBKEY | ret );
+        return( XYSSL_ERR_X509_CERT_INVALID_PUBKEY | ret );
 
     if( *p != end )
-        return( ERR_X509_CERT_INVALID_PUBKEY |
-                ERR_ASN1_LENGTH_MISMATCH );
+        return( XYSSL_ERR_X509_CERT_INVALID_PUBKEY |
+                XYSSL_ERR_ASN1_LENGTH_MISMATCH );
 
     return( 0 );
 }
@@ -487,10 +493,10 @@ static int x509_get_sig( unsigned char **p,
     sig->tag = **p;
 
     if( ( ret = asn1_get_tag( p, end, &len, ASN1_BIT_STRING ) ) != 0 )
-        return( ERR_X509_CERT_INVALID_SIGNATURE | ret );
+        return( XYSSL_ERR_X509_CERT_INVALID_SIGNATURE | ret );
 
     if( --len < 1 || *(*p)++ != 0 )
-        return( ERR_X509_CERT_INVALID_SIGNATURE );
+        return( XYSSL_ERR_X509_CERT_INVALID_SIGNATURE );
 
     sig->len = len;
     sig->p = *p;
@@ -517,7 +523,7 @@ static int x509_get_uid( unsigned char **p,
     if( ( ret = asn1_get_tag( p, end, &uid->len,
             ASN1_CONTEXT_SPECIFIC | ASN1_CONSTRUCTED | n ) ) != 0 )
     {
-        if( ret == ERR_ASN1_UNEXPECTED_TAG )
+        if( ret == XYSSL_ERR_ASN1_UNEXPECTED_TAG )
             return( 0 );
 
         return( ret );
@@ -551,7 +557,7 @@ static int x509_get_ext( unsigned char **p,
     if( ( ret = asn1_get_tag( p, end, &ext->len,
             ASN1_CONTEXT_SPECIFIC | ASN1_CONSTRUCTED | 3 ) ) != 0 )
     {
-        if( ret == ERR_ASN1_UNEXPECTED_TAG )
+        if( ret == XYSSL_ERR_ASN1_UNEXPECTED_TAG )
             return( 0 );
 
         return( ret );
@@ -570,17 +576,17 @@ static int x509_get_ext( unsigned char **p,
      */
     if( ( ret = asn1_get_tag( p, end, &len,
             ASN1_CONSTRUCTED | ASN1_SEQUENCE ) ) != 0 )
-        return( ERR_X509_CERT_INVALID_EXTENSIONS | ret );
+        return( XYSSL_ERR_X509_CERT_INVALID_EXTENSIONS | ret );
 
     if( end != *p + len )
-        return( ERR_X509_CERT_INVALID_EXTENSIONS |
-                ERR_ASN1_LENGTH_MISMATCH );
+        return( XYSSL_ERR_X509_CERT_INVALID_EXTENSIONS |
+                XYSSL_ERR_ASN1_LENGTH_MISMATCH );
 
     while( *p < end )
     {
         if( ( ret = asn1_get_tag( p, end, &len,
                 ASN1_CONSTRUCTED | ASN1_SEQUENCE ) ) != 0 )
-            return( ERR_X509_CERT_INVALID_EXTENSIONS | ret );
+            return( XYSSL_ERR_X509_CERT_INVALID_EXTENSIONS | ret );
 
         if( memcmp( *p, "\x06\x03\x55\x1D\x13", 5 ) != 0 )
         {
@@ -591,12 +597,12 @@ static int x509_get_ext( unsigned char **p,
         *p += 5;
 
         if( ( ret = asn1_get_bool( p, end, &is_critical ) ) != 0 &&
-            ( ret != ERR_ASN1_UNEXPECTED_TAG ) )
-            return( ERR_X509_CERT_INVALID_EXTENSIONS | ret );
+            ( ret != XYSSL_ERR_ASN1_UNEXPECTED_TAG ) )
+            return( XYSSL_ERR_X509_CERT_INVALID_EXTENSIONS | ret );
 
         if( ( ret = asn1_get_tag( p, end, &len,
                 ASN1_OCTET_STRING ) ) != 0 )
-            return( ERR_X509_CERT_INVALID_EXTENSIONS | ret );
+            return( XYSSL_ERR_X509_CERT_INVALID_EXTENSIONS | ret );
 
         /*
          * BasicConstraints ::= SEQUENCE {
@@ -607,30 +613,30 @@ static int x509_get_ext( unsigned char **p,
 
         if( ( ret = asn1_get_tag( p, end2, &len,
                 ASN1_CONSTRUCTED | ASN1_SEQUENCE ) ) != 0 )
-            return( ERR_X509_CERT_INVALID_EXTENSIONS | ret );
+            return( XYSSL_ERR_X509_CERT_INVALID_EXTENSIONS | ret );
 
         if( *p == end2 )
             continue;
 
         if( ( ret = asn1_get_bool( p, end2, &is_cacert ) ) != 0 )
-            return( ERR_X509_CERT_INVALID_EXTENSIONS | ret );
+            return( XYSSL_ERR_X509_CERT_INVALID_EXTENSIONS | ret );
 
         if( *p == end2 )
             continue;
 
         if( ( ret = asn1_get_int( p, end2, max_pathlen ) ) != 0 )
-            return( ERR_X509_CERT_INVALID_EXTENSIONS | ret );
+            return( XYSSL_ERR_X509_CERT_INVALID_EXTENSIONS | ret );
 
         if( *p != end2 )
-            return( ERR_X509_CERT_INVALID_EXTENSIONS |
-                    ERR_ASN1_LENGTH_MISMATCH );
+            return( XYSSL_ERR_X509_CERT_INVALID_EXTENSIONS |
+                    XYSSL_ERR_ASN1_LENGTH_MISMATCH );
 
         max_pathlen++;
     }
 
     if( *p != end )
-        return( ERR_X509_CERT_INVALID_EXTENSIONS |
-                ERR_ASN1_LENGTH_MISMATCH );
+        return( XYSSL_ERR_X509_CERT_INVALID_EXTENSIONS |
+                XYSSL_ERR_ASN1_LENGTH_MISMATCH );
 
     *ca_istrue = is_critical & is_cacert;
 
@@ -638,9 +644,9 @@ static int x509_get_ext( unsigned char **p,
 }
 
 /*
- * Parse one or more certificates and add them to the chain
+ * Parse one or more certificates and add them to the chained list
  */
-int x509_add_certs( x509_cert *chain, unsigned char *buf, int buflen )
+int x509parse_crt( x509_cert *chain, unsigned char *buf, int buflen )
 {
     int ret, len;
     unsigned char *s1, *s2;
@@ -664,12 +670,12 @@ int x509_add_certs( x509_cert *chain, unsigned char *buf, int buflen )
             "-----END CERTIFICATE-----" );
 
         if( s2 == NULL || s2 <= s1 )
-            return( ERR_X509_CERT_INVALID_PEM );
+            return( XYSSL_ERR_X509_CERT_INVALID_PEM );
 
         s1 += 27;
         if( *s1 == '\r' ) s1++;
         if( *s1 == '\n' ) s1++;
-            else return( ERR_X509_CERT_INVALID_PEM );
+            else return( XYSSL_ERR_X509_CERT_INVALID_PEM );
 
         /*
          * get the DER data length and decode the buffer
@@ -677,8 +683,8 @@ int x509_add_certs( x509_cert *chain, unsigned char *buf, int buflen )
         len = 0;
         ret = base64_decode( NULL, &len, s1, s2 - s1 );
 
-        if( ret == ERR_BASE64_INVALID_CHARACTER )
-            return( ERR_X509_CERT_INVALID_PEM | ret );
+        if( ret == XYSSL_ERR_BASE64_INVALID_CHARACTER )
+            return( XYSSL_ERR_X509_CERT_INVALID_PEM | ret );
 
         if( ( p = (unsigned char *) malloc( len ) ) == NULL )
             return( 1 );
@@ -686,7 +692,7 @@ int x509_add_certs( x509_cert *chain, unsigned char *buf, int buflen )
         if( ( ret = base64_decode( p, &len, s1, s2 - s1 ) ) != 0 )
         {
             free( p );
-            return( ERR_X509_CERT_INVALID_PEM | ret );
+            return( XYSSL_ERR_X509_CERT_INVALID_PEM | ret );
         }
 
         /*
@@ -695,7 +701,7 @@ int x509_add_certs( x509_cert *chain, unsigned char *buf, int buflen )
         s2 += 25;
         if( *s2 == '\r' ) s2++;
         if( *s2 == '\n' ) s2++;
-            else return( ERR_X509_CERT_INVALID_PEM );
+            else return( XYSSL_ERR_X509_CERT_INVALID_PEM );
 
         buflen -= s2 - buf;
         buf = s2;
@@ -728,15 +734,15 @@ int x509_add_certs( x509_cert *chain, unsigned char *buf, int buflen )
     if( ( ret = asn1_get_tag( &p, end, &len,
             ASN1_CONSTRUCTED | ASN1_SEQUENCE ) ) != 0 )
     {
-        x509_free_cert( crt );
-        return( ERR_X509_CERT_INVALID_FORMAT );
+          x509_free( crt );
+        return( XYSSL_ERR_X509_CERT_INVALID_FORMAT );
     }
 
     if( len != (int) ( end - p ) )
     {
-        x509_free_cert( crt );
-        return( ERR_X509_CERT_INVALID_FORMAT |
-                ERR_ASN1_LENGTH_MISMATCH );
+          x509_free( crt );
+        return( XYSSL_ERR_X509_CERT_INVALID_FORMAT |
+                XYSSL_ERR_ASN1_LENGTH_MISMATCH );
     }
 
     /*
@@ -747,8 +753,8 @@ int x509_add_certs( x509_cert *chain, unsigned char *buf, int buflen )
     if( ( ret = asn1_get_tag( &p, end, &len,
             ASN1_CONSTRUCTED | ASN1_SEQUENCE ) ) != 0 )
     {
-        x509_free_cert( crt );
-        return( ERR_X509_CERT_INVALID_FORMAT | ret );
+          x509_free( crt );
+        return( XYSSL_ERR_X509_CERT_INVALID_FORMAT | ret );
     }
 
     end = p + len;
@@ -765,7 +771,7 @@ int x509_add_certs( x509_cert *chain, unsigned char *buf, int buflen )
         ( ret = x509_get_serial(  &p, end, &crt->serial  ) ) != 0 ||
         ( ret = x509_get_alg(  &p, end, &crt->sig_oid1   ) ) != 0 )
     {
-        x509_free_cert( crt );
+          x509_free( crt );
         return( ret );
     }
 
@@ -773,22 +779,22 @@ int x509_add_certs( x509_cert *chain, unsigned char *buf, int buflen )
 
     if( crt->version > 3 )
     {
-        x509_free_cert( crt );
-        return( ERR_X509_CERT_UNKNOWN_VERSION );
+          x509_free( crt );
+        return( XYSSL_ERR_X509_CERT_UNKNOWN_VERSION );
     }
 
     if( crt->sig_oid1.len != 9 ||
         memcmp( crt->sig_oid1.p, OID_PKCS1, 8 ) != 0 )
     {
-        x509_free_cert( crt );
-        return( ERR_X509_CERT_UNKNOWN_SIG_ALG );
+          x509_free( crt );
+        return( XYSSL_ERR_X509_CERT_UNKNOWN_SIG_ALG );
     }
 
     if( crt->sig_oid1.p[8] < 2 ||
         crt->sig_oid1.p[8] > 5 )
     {
-        x509_free_cert( crt );
-        return( ERR_X509_CERT_UNKNOWN_SIG_ALG );
+          x509_free( crt );
+        return( XYSSL_ERR_X509_CERT_UNKNOWN_SIG_ALG );
     }
 
     /*
@@ -799,13 +805,13 @@ int x509_add_certs( x509_cert *chain, unsigned char *buf, int buflen )
     if( ( ret = asn1_get_tag( &p, end, &len,
             ASN1_CONSTRUCTED | ASN1_SEQUENCE ) ) != 0 )
     {
-        x509_free_cert( crt );
-        return( ERR_X509_CERT_INVALID_FORMAT | ret );
+          x509_free( crt );
+        return( XYSSL_ERR_X509_CERT_INVALID_FORMAT | ret );
     }
 
     if( ( ret = x509_get_name( &p, p + len, &crt->issuer ) ) != 0 )
     {
-        x509_free_cert( crt );
+          x509_free( crt );
         return( ret );
     }
 
@@ -820,7 +826,7 @@ int x509_add_certs( x509_cert *chain, unsigned char *buf, int buflen )
     if( ( ret = x509_get_dates( &p, end, &crt->valid_from,
                                          &crt->valid_to ) ) != 0 )
     {
-        x509_free_cert( crt );
+          x509_free( crt );
         return( ret );
     }
 
@@ -832,13 +838,13 @@ int x509_add_certs( x509_cert *chain, unsigned char *buf, int buflen )
     if( ( ret = asn1_get_tag( &p, end, &len,
             ASN1_CONSTRUCTED | ASN1_SEQUENCE ) ) != 0 )
     {
-        x509_free_cert( crt );
-        return( ERR_X509_CERT_INVALID_FORMAT | ret );
+          x509_free( crt );
+        return( XYSSL_ERR_X509_CERT_INVALID_FORMAT | ret );
     }
 
     if( ( ret = x509_get_name( &p, p + len, &crt->subject ) ) != 0 )
     {
-        x509_free_cert( crt );
+          x509_free( crt );
         return( ret );
     }
 
@@ -852,24 +858,24 @@ int x509_add_certs( x509_cert *chain, unsigned char *buf, int buflen )
     if( ( ret = asn1_get_tag( &p, end, &len,
             ASN1_CONSTRUCTED | ASN1_SEQUENCE ) ) != 0 )
     {
-        x509_free_cert( crt );
-        return( ERR_X509_CERT_INVALID_FORMAT | ret );
+          x509_free( crt );
+        return( XYSSL_ERR_X509_CERT_INVALID_FORMAT | ret );
     }
 
     if( ( ret = x509_get_pubkey( &p, p + len, &crt->pk_oid,
                                  &crt->rsa.N, &crt->rsa.E ) ) != 0 )
     {
-        x509_free_cert( crt );
+          x509_free( crt );
         return( ret );
     }
 
     if( ( ret = rsa_check_pubkey( &crt->rsa ) ) != 0 )
     {
-        x509_free_cert( crt );
+          x509_free( crt );
         return( ret );
     }
 
-    crt->rsa.len = ( mpi_msb( &crt->rsa.N ) + 7 ) >> 3;
+    crt->rsa.len = mpi_size( &crt->rsa.N );
 
     /*
      *  issuerUniqueID  [1]  IMPLICIT UniqueIdentifier OPTIONAL,
@@ -884,7 +890,7 @@ int x509_add_certs( x509_cert *chain, unsigned char *buf, int buflen )
         ret = x509_get_uid( &p, end, &crt->issuer_id,  1 );
         if( ret != 0 )
         {
-            x509_free_cert( crt );
+              x509_free( crt );
             return( ret );
         }
     }
@@ -894,7 +900,7 @@ int x509_add_certs( x509_cert *chain, unsigned char *buf, int buflen )
         ret = x509_get_uid( &p, end, &crt->subject_id,  2 );
         if( ret != 0 )
         {
-            x509_free_cert( crt );
+              x509_free( crt );
             return( ret );
         }
     }
@@ -905,16 +911,16 @@ int x509_add_certs( x509_cert *chain, unsigned char *buf, int buflen )
                             &crt->ca_istrue, &crt->max_pathlen );
         if( ret != 0 )
         {
-            x509_free_cert( crt );
+              x509_free( crt );
             return( ret );
         }
     }
 
     if( p != end )
     {
-        x509_free_cert( crt );
-        return( ERR_X509_CERT_INVALID_FORMAT |
-                ERR_ASN1_LENGTH_MISMATCH );
+          x509_free( crt );
+        return( XYSSL_ERR_X509_CERT_INVALID_FORMAT |
+                XYSSL_ERR_ASN1_LENGTH_MISMATCH );
     }
 
     end = crt->raw.p + crt->raw.len;
@@ -925,34 +931,34 @@ int x509_add_certs( x509_cert *chain, unsigned char *buf, int buflen )
      */
     if( ( ret = x509_get_alg( &p, end, &crt->sig_oid2 ) ) != 0 )
     {
-        x509_free_cert( crt );
+          x509_free( crt );
         return( ret );
     }
 
     if( memcmp( crt->sig_oid1.p, crt->sig_oid2.p, 9 ) != 0 )
     {
-        x509_free_cert( crt );
-        return( ERR_X509_CERT_SIG_MISMATCH );
+          x509_free( crt );
+        return( XYSSL_ERR_X509_CERT_SIG_MISMATCH );
     }
 
     if( ( ret = x509_get_sig( &p, end, &crt->sig ) ) != 0 )
     {
-        x509_free_cert( crt );
+          x509_free( crt );
         return( ret );
     }
 
     if( p != end )
     {
-        x509_free_cert( crt );
-        return( ERR_X509_CERT_INVALID_FORMAT |
-                ERR_ASN1_LENGTH_MISMATCH );
+          x509_free( crt );
+        return( XYSSL_ERR_X509_CERT_INVALID_FORMAT |
+                XYSSL_ERR_ASN1_LENGTH_MISMATCH );
     }
 
     crt->next = (x509_cert *) malloc( sizeof( x509_cert ) );
 
     if( crt->next == NULL )
     {
-        x509_free_cert( crt );
+          x509_free( crt );
         return( 1 );
     }
 
@@ -960,15 +966,15 @@ int x509_add_certs( x509_cert *chain, unsigned char *buf, int buflen )
     memset( crt, 0, sizeof( x509_cert ) );
 
     if( buflen > 0 )
-        return( x509_add_certs( crt, buf, buflen ) );
+        return( x509parse_crt( crt, buf, buflen ) );
 
     return( 0 );
 }
 
 /*
- * Load one or more certificates and add them to the chain
+ * Load one or more certificates and add them to the chained list
  */
-int x509_read_crtfile( x509_cert *chain, char *path )
+int x509parse_crtfile( x509_cert *chain, char *path )
 {
     int ret;
     FILE *f;
@@ -994,7 +1000,7 @@ int x509_read_crtfile( x509_cert *chain, char *path )
 
     buf[n] = '\0';
 
-    ret = x509_add_certs( chain, buf, (int) n );
+    ret = x509parse_crt( chain, buf, (int) n );
 
     memset( buf, 0, n + 1 );
     free( buf );
@@ -1003,13 +1009,13 @@ int x509_read_crtfile( x509_cert *chain, char *path )
     return( ret );
 }
 
-#if !defined(NO_DES)
+#if defined(XYSSL_DES_C)
 /*
  * Read a 16-byte hex string and convert it to binary
  */
-static int x509_des3_getiv( unsigned char *s, unsigned char iv[8] )
+static int x509_get_iv( unsigned char *s, unsigned char iv[8] )
 {
-    int i, j;
+    int i, j, k;
 
     memset( iv, 0, 8 );
 
@@ -1018,12 +1024,11 @@ static int x509_des3_getiv( unsigned char *s, unsigned char iv[8] )
         if( *s >= '0' && *s <= '9' ) j = *s - '0'; else
         if( *s >= 'A' && *s <= 'F' ) j = *s - '7'; else
         if( *s >= 'a' && *s <= 'f' ) j = *s - 'W'; else
-            return( ERR_X509_KEY_INVALID_ENC_IV );
+            return( XYSSL_ERR_X509_KEY_INVALID_ENC_IV );
 
-        if( (i & 1) != 0 )
-            iv[i >> 1] |= j;
-        else
-            iv[i >> 1] |= j << 4;
+        k = ( ( i & 1 ) != 0 ) ? j : j << 4;
+
+        iv[i >> 1] = (unsigned char)( iv[i >> 1] | k );
     }
 
     return( 0 );
@@ -1058,10 +1063,11 @@ static void x509_des3_decrypt( unsigned char des3_iv[8],
     md5_finish( &md5_ctx, md5sum );
     memcpy( des3_key + 16, md5sum, 8 );
 
-    des3_set_3keys( &des3_ctx, des3_key );
-    des3_cbc_decrypt( &des3_ctx, des3_iv, buf, buf, buflen );
+    des3_set3key_dec( &des3_ctx, des3_key );
+    des3_crypt_cbc( &des3_ctx, DES_DECRYPT, buflen,
+                     des3_iv, buf, buf );
 
-    memset( & md5_ctx, 0, sizeof(  md5_ctx ) );
+    memset(  &md5_ctx, 0, sizeof(  md5_ctx ) );
     memset( &des3_ctx, 0, sizeof( des3_ctx ) );
     memset( md5sum, 0, 16 );
     memset( des3_key, 0, 24 );
@@ -1071,8 +1077,8 @@ static void x509_des3_decrypt( unsigned char des3_iv[8],
 /*
  * Parse a private RSA key
  */
-int x509_parse_key( rsa_context *rsa, unsigned char *buf, int buflen,
-                                      unsigned char *pwd, int pwdlen )
+int x509parse_key( rsa_context *rsa, unsigned char *buf, int buflen,
+                                     unsigned char *pwd, int pwdlen )
 {
     int ret, len, enc;
     unsigned char *s1, *s2;
@@ -1088,46 +1094,46 @@ int x509_parse_key( rsa_context *rsa, unsigned char *buf, int buflen,
             "-----END RSA PRIVATE KEY-----" );
 
         if( s2 == NULL || s2 <= s1 )
-            return( ERR_X509_KEY_INVALID_PEM );
+            return( XYSSL_ERR_X509_KEY_INVALID_PEM );
 
         s1 += 31;
         if( *s1 == '\r' ) s1++;
         if( *s1 == '\n' ) s1++;
-            else return( ERR_X509_KEY_INVALID_PEM );
+            else return( XYSSL_ERR_X509_KEY_INVALID_PEM );
 
         enc = 0;
 
         if( memcmp( s1, "Proc-Type: 4,ENCRYPTED", 22 ) == 0 )
         {
-#if !defined(NO_DES)
+#if defined(XYSSL_DES_C)
             enc++;
 
             s1 += 22;
             if( *s1 == '\r' ) s1++;
             if( *s1 == '\n' ) s1++;
-                else return( ERR_X509_KEY_INVALID_PEM );
+                else return( XYSSL_ERR_X509_KEY_INVALID_PEM );
 
             if( memcmp( s1, "DEK-Info: DES-EDE3-CBC,", 23 ) != 0 )
-                return( ERR_X509_KEY_UNKNOWN_ENC_ALG );
+                return( XYSSL_ERR_X509_KEY_UNKNOWN_ENC_ALG );
 
             s1 += 23;
-            if( x509_des3_getiv( s1, des3_iv ) != 0 )
-                return( ERR_X509_KEY_INVALID_ENC_IV );
+            if( x509_get_iv( s1, des3_iv ) != 0 )
+                return( XYSSL_ERR_X509_KEY_INVALID_ENC_IV );
 
             s1 += 16;
             if( *s1 == '\r' ) s1++;
             if( *s1 == '\n' ) s1++;
-                else return( ERR_X509_KEY_INVALID_PEM );
+                else return( XYSSL_ERR_X509_KEY_INVALID_PEM );
 #else
-            return( ERR_X509_FEATURE_UNAVAILABLE );
+            return( XYSSL_ERR_X509_FEATURE_UNAVAILABLE );
 #endif
         }
 
         len = 0;
         ret = base64_decode( NULL, &len, s1, s2 - s1 );
 
-        if( ret == ERR_BASE64_INVALID_CHARACTER )
-            return( ret | ERR_X509_KEY_INVALID_PEM );
+        if( ret == XYSSL_ERR_BASE64_INVALID_CHARACTER )
+            return( ret | XYSSL_ERR_X509_KEY_INVALID_PEM );
 
         if( ( buf = (unsigned char *) malloc( len ) ) == NULL )
             return( 1 );
@@ -1135,18 +1141,18 @@ int x509_parse_key( rsa_context *rsa, unsigned char *buf, int buflen,
         if( ( ret = base64_decode( buf, &len, s1, s2 - s1 ) ) != 0 )
         {
             free( buf );
-            return( ret | ERR_X509_KEY_INVALID_PEM );
+            return( ret | XYSSL_ERR_X509_KEY_INVALID_PEM );
         }
 
         buflen = len;
 
-#if !defined(NO_DES)
         if( enc != 0 )
         {
+#if defined(XYSSL_DES_C)
             if( pwd == NULL )
             {
                 free( buf );
-                return( ERR_X509_KEY_PASSWORD_REQUIRED );
+                return( XYSSL_ERR_X509_KEY_PASSWORD_REQUIRED );
             }
 
             x509_des3_decrypt( des3_iv, buf, buflen, pwd, pwdlen );
@@ -1155,10 +1161,12 @@ int x509_parse_key( rsa_context *rsa, unsigned char *buf, int buflen,
                 buf[4] != 0x02 || buf[5] != 0x01 )
             {
                 free( buf );
-                return( ERR_X509_KEY_PASSWORD_MISMATCH );
+                return( XYSSL_ERR_X509_KEY_PASSWORD_MISMATCH );
             }
-        }
+#else
+            return( XYSSL_ERR_X509_FEATURE_UNAVAILABLE );
 #endif
+        }
     }
 
     memset( rsa, 0, sizeof( rsa_context ) );
@@ -1187,7 +1195,7 @@ int x509_parse_key( rsa_context *rsa, unsigned char *buf, int buflen,
             free( buf );
 
         rsa_free( rsa );
-        return( ERR_X509_KEY_INVALID_FORMAT | ret );
+        return( XYSSL_ERR_X509_KEY_INVALID_FORMAT | ret );
     }
 
     end = p + len;
@@ -1198,7 +1206,7 @@ int x509_parse_key( rsa_context *rsa, unsigned char *buf, int buflen,
             free( buf );
 
         rsa_free( rsa );
-        return( ERR_X509_KEY_INVALID_FORMAT | ret );
+        return( XYSSL_ERR_X509_KEY_INVALID_FORMAT | ret );
     }
 
     if( rsa->ver != 0 )
@@ -1207,7 +1215,7 @@ int x509_parse_key( rsa_context *rsa, unsigned char *buf, int buflen,
             free( buf );
 
         rsa_free( rsa );
-        return( ret | ERR_X509_KEY_INVALID_VERSION );
+        return( ret | XYSSL_ERR_X509_KEY_INVALID_VERSION );
     }
 
     if( ( ret = asn1_get_mpi( &p, end, &rsa->N  ) ) != 0 ||
@@ -1223,10 +1231,10 @@ int x509_parse_key( rsa_context *rsa, unsigned char *buf, int buflen,
             free( buf );
 
         rsa_free( rsa );
-        return( ret | ERR_X509_KEY_INVALID_FORMAT );
+        return( ret | XYSSL_ERR_X509_KEY_INVALID_FORMAT );
     }
 
-    rsa->len = ( mpi_msb( &rsa->N ) + 7 ) >> 3;
+    rsa->len = mpi_size( &rsa->N );
 
     if( p != end )
     {
@@ -1234,8 +1242,8 @@ int x509_parse_key( rsa_context *rsa, unsigned char *buf, int buflen,
             free( buf );
 
         rsa_free( rsa );
-        return( ERR_X509_KEY_INVALID_FORMAT |
-                ERR_ASN1_LENGTH_MISMATCH );
+        return( XYSSL_ERR_X509_KEY_INVALID_FORMAT |
+                XYSSL_ERR_ASN1_LENGTH_MISMATCH );
     }
 
     if( ( ret = rsa_check_privkey( rsa ) ) != 0 )
@@ -1256,7 +1264,7 @@ int x509_parse_key( rsa_context *rsa, unsigned char *buf, int buflen,
 /*
  * Load and parse a private RSA key
  */
-int x509_read_keyfile( rsa_context *rsa, char *path, char *pwd )
+int x509parse_keyfile( rsa_context *rsa, char *path, char *pwd )
 {
     int ret;
     FILE *f;
@@ -1283,9 +1291,9 @@ int x509_read_keyfile( rsa_context *rsa, char *path, char *pwd )
     buf[n] = '\0';
 
     if( pwd == NULL )
-        ret = x509_parse_key( rsa, buf, (int) n, NULL, 0 );
+        ret = x509parse_key( rsa, buf, (int) n, NULL, 0 );
     else
-        ret = x509_parse_key( rsa, buf, (int) n,
+        ret = x509parse_key( rsa, buf, (int) n,
                 (unsigned char *) pwd, strlen( pwd ) );
 
     memset( buf, 0, n + 1 );
@@ -1303,7 +1311,7 @@ int x509_read_keyfile( rsa_context *rsa, char *path, char *pwd )
  * Store the name in printable form into buf; no more
  * than (end - buf) characters will be written
  */
-int x509_dn_gets( char *buf, char *end, x509_name *dn )
+int x509parse_dn_gets( char *buf, char *end, x509_name *dn )
 {
     int i;
     unsigned char c;
@@ -1386,7 +1394,7 @@ int x509_dn_gets( char *buf, char *end, x509_name *dn )
  * Return an informational string about the
  * certificate, or NULL if memory allocation failed
  */
-char *x509_cert_info( x509_cert *crt )
+char *x509parse_cert_info( char *prefix, x509_cert *crt )
 {
     int i, n;
     char *buf, *p, *end;
@@ -1399,8 +1407,10 @@ char *x509_cert_info( x509_cert *crt )
     p = buf;
     end = buf + 4096 - 1;
 
-    p += snprintf( p, end - p, "Cert. version : %d\n", crt->version );
-    p += snprintf( p, end - p, "Serial Number : " );
+    p += snprintf( p, end - p, "%scert. version : %d\n",
+                               prefix, crt->version );
+    p += snprintf( p, end - p, "%sserial number : ",
+                               prefix );
 
     n = ( crt->serial.len <= 32 )
         ? crt->serial.len  : 32;
@@ -1409,25 +1419,25 @@ char *x509_cert_info( x509_cert *crt )
         p += snprintf( p, end - p, "%02X%s",
                 crt->serial.p[i], ( i < n - 1 ) ? ":" : "" );
 
-    p += snprintf( p, end - p, "\nIssuer name   : " );
-    p += x509_dn_gets( p, end, &crt->issuer  );
+    p += snprintf( p, end - p, "\n%sissuer  name  : ", prefix );
+    p += x509parse_dn_gets( p, end, &crt->issuer  );
 
-    p += snprintf( p, end - p, "\nSubject name  : " );
-    p += x509_dn_gets( p, end, &crt->subject );
+    p += snprintf( p, end - p, "\n%ssubject name  : ", prefix );
+    p += x509parse_dn_gets( p, end, &crt->subject );
 
-    p += snprintf( p, end - p, "\nIssued on     : " \
-                   "%04d-%02d-%02d %02d:%02d:%02d",
+    p += snprintf( p, end - p, "\n%sissued  on    : " \
+                   "%04d-%02d-%02d %02d:%02d:%02d", prefix,
                    crt->valid_from.year, crt->valid_from.mon,
                    crt->valid_from.day,  crt->valid_from.hour,
                    crt->valid_from.min,  crt->valid_from.sec );
 
-    p += snprintf( p, end - p, "\nExpires on    : " \
-                   "%04d-%02d-%02d %02d:%02d:%02d",
+    p += snprintf( p, end - p, "\n%sexpires on    : " \
+                   "%04d-%02d-%02d %02d:%02d:%02d", prefix,
                    crt->valid_to.year, crt->valid_to.mon,
                    crt->valid_to.day,  crt->valid_to.hour,
                    crt->valid_to.min,  crt->valid_to.sec );
 
-    p += snprintf( p, end - p, "\nSigned using  : RSA+" );
+    p += snprintf( p, end - p, "\n%ssigned using  : RSA+", prefix );
 
     switch( crt->sig_oid1.p[8] )
     {
@@ -1438,16 +1448,16 @@ char *x509_cert_info( x509_cert *crt )
         default: p += snprintf( p, end - p, "???"  ); break;
     }
 
-    p += snprintf( p, end - p, "\nRSA key size  : %u bits\n",
+    p += snprintf( p, end - p, "\n%sRSA key size  : %d bits\n", prefix,
                    crt->rsa.N.n * (int) sizeof( unsigned long ) * 8 );
 
     return( buf );
 }
 
 /*
- * Return 0 if the certificate is still valid, or BADCERT_HAS_EXPIRED
+ * Return 0 if the certificate is still valid, or BADCERT_EXPIRED
  */
-int x509_is_cert_expired( x509_cert *crt )
+int x509parse_expired( x509_cert *crt )
 {
     struct tm *lt;
     time_t tt;
@@ -1456,16 +1466,16 @@ int x509_is_cert_expired( x509_cert *crt )
     lt = localtime( &tt );
 
     if( lt->tm_year  > crt->valid_to.year - 1900 )
-        return( BADCERT_HAS_EXPIRED );
+        return( BADCERT_EXPIRED );
 
     if( lt->tm_year == crt->valid_to.year - 1900 &&
         lt->tm_mon   > crt->valid_to.mon  - 1 )
-        return( BADCERT_HAS_EXPIRED );
+        return( BADCERT_EXPIRED );
 
     if( lt->tm_year == crt->valid_to.year - 1900 &&
         lt->tm_mon  == crt->valid_to.mon  - 1    &&
         lt->tm_mday  > crt->valid_to.day )
-        return( BADCERT_HAS_EXPIRED );
+        return( BADCERT_EXPIRED );
 
     return( 0 );
 }
@@ -1475,10 +1485,10 @@ static void x509_hash( unsigned char *in, int len, int alg,
 {
     switch( alg )
     {
-#if !defined(NO_MD2)
+#if defined(XYSSL_MD2_C)
         case RSA_MD2  :  md2( in, len, out ); break;
 #endif
-#if !defined(NO_MD4)
+#if defined(XYSSL_MD4_C)
         case RSA_MD4  :  md4( in, len, out ); break;
 #endif
         case RSA_MD5  :  md5( in, len, out ); break;
@@ -1492,16 +1502,17 @@ static void x509_hash( unsigned char *in, int len, int alg,
 /*
  * Verify the certificate validity
  */
-int x509_verify_cert( x509_cert *crt, x509_cert *trust_ca,
+int x509parse_verify( x509_cert *crt,
+                      x509_cert *trust_ca,
                       char *cn, int *flags )
 {
-    int alg_id;
+    int hash_id;
     int pathlen;
     x509_cert *cur;
     x509_name *name;
     unsigned char hash[20];
 
-    *flags = x509_is_cert_expired( crt );
+    *flags = x509parse_expired( crt );
 
     if( cn != NULL )
     {
@@ -1541,13 +1552,13 @@ int x509_verify_cert( x509_cert *crt, x509_cert *trust_ca,
             continue;
         }
 
-        alg_id = crt->sig_oid1.p[8];
+        hash_id = crt->sig_oid1.p[8];
 
-        x509_hash( crt->tbs.p, crt->tbs.len, alg_id, hash );
+        x509_hash( crt->tbs.p, crt->tbs.len, hash_id, hash );
 
-        if( rsa_pkcs1_verify( &cur->rsa, alg_id, hash, 0,
-                              crt->sig.p, crt->sig.len ) != 0 )
-            return( ERR_X509_SIG_VERIFY_FAILED );
+        if( rsa_pkcs1_verify( &cur->rsa, RSA_PUBLIC, hash_id,
+                              0, hash, crt->sig.p ) != 0 )
+            return( XYSSL_ERR_X509_CERT_VERIFY_FAILED );
 
         pathlen++;
 
@@ -1570,22 +1581,25 @@ int x509_verify_cert( x509_cert *crt, x509_cert *trust_ca,
 
         if( trust_ca->max_pathlen > 0 &&
             trust_ca->max_pathlen < pathlen )
-            return( ERR_X509_SIG_VERIFY_FAILED );
+            break;
 
-        alg_id = crt->sig_oid1.p[8];
+        hash_id = crt->sig_oid1.p[8];
 
-        x509_hash( crt->tbs.p,  crt->tbs.len, alg_id, hash );
-        if( rsa_pkcs1_verify( &trust_ca->rsa, alg_id, hash, 0,
-                              crt->sig.p, crt->sig.len ) != 0 )
-            return( ERR_X509_SIG_VERIFY_FAILED );
+        x509_hash( crt->tbs.p, crt->tbs.len, hash_id, hash );
 
-        break;
+        if( rsa_pkcs1_verify( &trust_ca->rsa, RSA_PUBLIC, hash_id,
+                              0, hash, crt->sig.p ) == 0 )
+        {
+            /*
+             * cert. is signed by a trusted CA
+             */
+            *flags &= ~BADCERT_NOT_TRUSTED;
+            break;
+        }
     }
 
-    if( trust_ca->version == 0 )
-        return( ERR_X509_SIG_VERIFY_FAILED );
-
-    *flags &= ~BADCERT_NOT_TRUSTED;
+    if( *flags != 0 )
+        return( XYSSL_ERR_X509_CERT_VERIFY_FAILED );
 
     return( 0 );
 }
@@ -1593,7 +1607,7 @@ int x509_verify_cert( x509_cert *crt, x509_cert *trust_ca,
 /*
  * Unallocate all certificate data
  */
-void x509_free_cert( x509_cert *crt )
+void x509_free( x509_cert *crt )
 {
     x509_cert *cert_cur = crt;
     x509_cert *cert_prv;
@@ -1642,9 +1656,7 @@ void x509_free_cert( x509_cert *crt )
     while( cert_cur != NULL );
 }
 
-static const char _x509_read_src[] = "_x509read_src";
-
-#if defined(SELF_TEST)
+#if defined(XYSSL_SELF_TEST)
 
 #include "xyssl/certs.h"
 
@@ -1653,7 +1665,7 @@ static const char _x509_read_src[] = "_x509read_src";
  */
 int x509_self_test( int verbose )
 {
-    int ret, flags;
+    int ret, i, j;
     x509_cert cacert;
     x509_cert clicert;
     rsa_context rsa;
@@ -1663,8 +1675,8 @@ int x509_self_test( int verbose )
 
     memset( &clicert, 0, sizeof( x509_cert ) );
 
-    ret = x509_add_certs( &clicert, (unsigned char *) test_cli_crt,
-                          strlen( test_cli_crt ) );
+    ret = x509parse_crt( &clicert, (unsigned char *) test_cli_crt,
+                         strlen( test_cli_crt ) );
     if( ret != 0 )
     {
         if( verbose != 0 )
@@ -1675,8 +1687,8 @@ int x509_self_test( int verbose )
 
     memset( &cacert, 0, sizeof( x509_cert ) );
 
-    ret = x509_add_certs( &cacert, (unsigned char *) test_ca_crt,
-                          strlen( test_ca_crt ) );
+    ret = x509parse_crt( &cacert, (unsigned char *) test_ca_crt,
+                         strlen( test_ca_crt ) );
     if( ret != 0 )
     {
         if( verbose != 0 )
@@ -1688,11 +1700,12 @@ int x509_self_test( int verbose )
     if( verbose != 0 )
         printf( "passed\n  X.509 private key load: " );
 
-    ret = x509_parse_key( &rsa,
-        (unsigned char *) test_ca_key, strlen( test_ca_key ),
-        (unsigned char *) test_ca_pwd, strlen( test_ca_pwd ) );
+    i = strlen( test_ca_key );
+    j = strlen( test_ca_pwd );
 
-    if( ret != 0 )
+    if( ( ret = x509parse_key( &rsa,
+                    (unsigned char *) test_ca_key, i,
+                    (unsigned char *) test_ca_pwd, j ) ) != 0 )
     {
         if( verbose != 0 )
             printf( "failed\n" );
@@ -1703,7 +1716,7 @@ int x509_self_test( int verbose )
     if( verbose != 0 )
         printf( "passed\n  X.509 signature verify: ");
 
-    ret = x509_verify_cert( &clicert, &cacert, "Joe User", &flags );
+    ret = x509parse_verify( &clicert, &cacert, "Joe User", &i );
     if( ret != 0 )
     {
         if( verbose != 0 )
@@ -1715,15 +1728,13 @@ int x509_self_test( int verbose )
     if( verbose != 0 )
         printf( "passed\n\n" );
 
-    x509_free_cert( &cacert  );
-    x509_free_cert( &clicert );
+    x509_free( &cacert  );
+    x509_free( &clicert );
     rsa_free( &rsa );
 
     return( 0 );
 }
-#else
-int x509_self_test( int verbose )
-{
-    return( 0 );
-}
+
+#endif
+
 #endif

@@ -1,18 +1,19 @@
 
-CFLAGS=/O2 /W3 /MT /nologo /Fo$@ /DWIN32 /DSELF_TEST #\DHAVE_SSE2
+CFLAGS=/O2 /W3 /MT /nologo /Fo$@ /DWIN32
 LDFLAGS=xyssl.lib kernel32.lib shell32.lib user32.lib
 
 LIB_OBJ=library\aes.obj           library\arc4.obj          \
         library\base64.obj        library\bignum.obj        \
-        library\certs.obj         library\des.obj           \
-        library\dhm.obj           library\havege.obj        \
-        library\md2.obj           library\md4.obj           \
-        library\md5.obj           library\net.obj           \
+        library\certs.obj         library\debug.obj         \
+        library\des.obj           library\dhm.obj           \
+        library\havege.obj        library\md2.obj           \
+        library\md4.obj           library\md5.obj           \
+        library\net.obj           library\padlock.obj       \
         library\rsa.obj           library\sha1.obj          \
         library\sha2.obj          library\sha4.obj          \
         library\ssl_cli.obj       library\ssl_srv.obj       \
         library\ssl_tls.obj       library\timing.obj        \
-        library\x509read.obj
+        library\x509parse.obj
 
 PRG_OBJ=programs\aes\aescrypt2.exe      \
         programs\hash\hello.exe         \
@@ -30,7 +31,8 @@ PRG_OBJ=programs\aes\aescrypt2.exe      \
         programs\ssl\ssl_client2.exe    \
         programs\ssl\ssl_server.exe     \
         programs\test\benchmark.exe     \
-        programs\test\selftest.exe
+        programs\test\selftest.exe	\
+        programs\test\ssl_test.exe
 
 default: lib prg
 

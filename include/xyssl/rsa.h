@@ -1,36 +1,37 @@
 /**
  * \file rsa.h
  */
-#ifndef _RSA_H
-#define _RSA_H
+#ifndef XYSSL_RSA_H
+#define XYSSL_RSA_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "xyssl/bignum.h"
 
-#include "bignum.h"
-
-#define ERR_RSA_BAD_INPUT_DATA                  0x0300
-#define ERR_RSA_INVALID_PADDING                 0x0310
-#define ERR_RSA_KEY_GEN_FAILED                  0x0320
-#define ERR_RSA_KEY_CHK_FAILED                  0x0330
-#define ERR_RSA_KEY_RD_FAILED                   0x0340
-#define ERR_RSA_KEY_WR_FAILED                   0x0350
-#define ERR_RSA_PUBLIC_FAILED                   0x0360
-#define ERR_RSA_PRIVATE_FAILED                  0x0370
-#define ERR_RSA_VERIFY_FAILED                   0x0380
+#define XYSSL_ERR_RSA_BAD_INPUT_DATA                    -0x0400
+#define XYSSL_ERR_RSA_INVALID_PADDING                   -0x0410
+#define XYSSL_ERR_RSA_KEY_GEN_FAILED                    -0x0420
+#define XYSSL_ERR_RSA_KEY_CHECK_FAILED                  -0x0430
+#define XYSSL_ERR_RSA_PUBLIC_FAILED                     -0x0440
+#define XYSSL_ERR_RSA_PRIVATE_FAILED                    -0x0450
+#define XYSSL_ERR_RSA_VERIFY_FAILED                     -0x0460
 
 /*
- * PKCS#1 stuff
+ * PKCS#1 constants
  */
-#define RSA_RAW             0
-#define RSA_MD2             2
-#define RSA_MD4             3
-#define RSA_MD5             4
-#define RSA_SHA1            5
+#define RSA_RAW         0
+#define RSA_MD2         2
+#define RSA_MD4         3
+#define RSA_MD5         4
+#define RSA_SHA1        5
+#define RSA_SHA256      6
 
-#define RSA_SIGN            0x01
-#define RSA_CRYPT           0x02
+#define RSA_PUBLIC      0
+#define RSA_PRIVATE     1
+
+#define RSA_PKCS_V15    0
+#define RSA_PKCS_V21    1
+
+#define RSA_SIGN        1
+#define RSA_CRYPT       2
 
 /*
  * DigestInfo ::= SEQUENCE {
@@ -49,187 +50,210 @@ extern "C" {
     "\x30\x21\x30\x09\x06\x05\x2B\x0E\x03"  \
     "\x02\x1A\x05\x00\x04\x14"
 
+/**
+ * \brief          RSA context structure
+ */
 typedef struct
 {
-    int ver;    /*!<  should be 0       */
-    int len;    /*!<  size(N) in chars  */
-    mpi N;      /*!<  public modulus    */
-    mpi E;      /*!<  public exponent   */
-    mpi D;      /*!<  private exponent  */
+    int ver;                    /*!<  always 0          */
+    int len;                    /*!<  size(N) in chars  */
 
-    mpi P;      /*!<  1st prime factor  */
-    mpi Q;      /*!<  2nd prime factor  */
-    mpi DP;     /*!<  D mod (P - 1)     */
-    mpi DQ;     /*!<  D mod (Q - 1)     */
-    mpi QP;     /*!<  inverse of Q % P  */
+    mpi N;                      /*!<  public modulus    */
+    mpi E;                      /*!<  public exponent   */
 
-    mpi RN;     /*!<  cached R^2 mod N  */
-    mpi RP;     /*!<  cached R^2 mod P  */
-    mpi RQ;     /*!<  cached R^2 mod Q  */
+    mpi D;                      /*!<  private exponent  */
+    mpi P;                      /*!<  1st prime factor  */
+    mpi Q;                      /*!<  2nd prime factor  */
+    mpi DP;                     /*!<  D % (P - 1)       */
+    mpi DQ;                     /*!<  D % (Q - 1)       */
+    mpi QP;                     /*!<  1 / (Q % P)       */
+
+    mpi RN;                     /*!<  cached R^2 mod N  */
+    mpi RP;                     /*!<  cached R^2 mod P  */
+    mpi RQ;                     /*!<  cached R^2 mod Q  */
+
+    int padding;                /*!<  1.5 or OAEP/PSS   */
+    int hash_id;                /*!<  hash identifier   */
+    int (*f_rng)(void *);       /*!<  RNG function      */
+    void *p_rng;                /*!<  RNG parameter     */
 }
 rsa_context;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/**
+ * \brief          Initialize an RSA context
+ *
+ * \param ctx      RSA context to be initialized
+ * \param padding  RSA_PKCS_V15 or RSA_PKCS_V21
+ * \param hash_id  RSA_PKCS_V21 hash identifier
+ * \param f_rng    RNG function
+ * \param p_rng    RNG parameter
+ *
+ * \note           The hash_id parameter is actually ignored
+ *                 when using RSA_PKCS_V15 padding.
+ *
+ * \note           Currently (xyssl-0.8), RSA_PKCS_V21 padding
+ *                 is not supported.
+ */
+void rsa_init( rsa_context *ctx,
+               int padding,
+               int hash_id,
+               int (*f_rng)(void *),
+               void *p_rng );
 
 /**
  * \brief          Generate an RSA keypair
  *
- * \param ctx      RSA context to be initialized
+ * \param ctx      RSA context that will hold the key
  * \param nbits    size of the public key in bits
  * \param exponent public exponent (e.g., 65537)
- * \param rng_f    points to the RNG function
- * \param rng_d    points to the RNG data 
  *
- * \return         0 if successful, or an ERR_RSA_XXX error code
+ * \note           rsa_init() must be called beforehand to setup
+ *                 the RSA context (especially f_rng and p_rng).
+ *
+ * \return         0 if successful, or an XYSSL_ERR_RSA_XXX error code
  */
-int rsa_gen_key( rsa_context *ctx, int nbits, int exponent,
-                 int (*rng_f)(void *), void *rng_d );
+int rsa_gen_key( rsa_context *ctx, int nbits, int exponent );
 
 /**
- * \brief          Read the public key from a file
+ * \brief          Check a public RSA key
  *
- * \param ctx      RSA context to be initialized
- * \param f        Handle of the source file
+ * \param ctx      RSA context to be checked
  *
- * \return         0 if successful, or an ERR_RSA_XXX error code
- */
-int rsa_read_public( rsa_context *ctx, FILE *f );
-
-/**
- * \brief          Read the private key from a file
- *
- * \param ctx      RSA context to be initialized
- * \param f        Handle of the source file
- *
- * \return         0 if successful, or an ERR_RSA_XXX error code
- */
-int rsa_read_private( rsa_context *ctx, FILE *f );
-
-/**
- * \brief          Write the public key into a file
- *
- * \param ctx      RSA context holding the key
- * \param f        Handle of the destination file
- *
- * \return         0 if successful, or an ERR_RSA_XXX error code
- */
-int rsa_write_public( rsa_context *ctx, FILE *f );
-
-/**
- * \brief          Write the private key into a file
- *
- * \param ctx      RSA context holding the key
- * \param f        Handle of the destination file
- *
- * \return         0 if successful, or an ERR_RSA_XXX error code
- */
-int rsa_write_private( rsa_context *ctx, FILE *f );
-
-/**
- * \brief          Perform an RSA public key operation
- *
- * \return         0 if successful, or an ERR_RSA_XXX error code
- *
- * \note           This function does not take care of message
- *                 padding: both ilen and olen must be equal to
- *                 the modulus size (ctx->len). Also, be sure
- *                 to set input[0] = 0.
- */
-int rsa_public( rsa_context   *ctx,
-                unsigned char *input,  int ilen,
-                unsigned char *output, int olen );
-
-/**
- * \brief          Perform an RSA private key operation
- *
- * \return         0 if successful, or an ERR_RSA_XXX error code
- *
- * \note           This function does not take care of message
- *                 padding: both ilen and olen must be equal to
- *                 the modulus size (ctx->len). Also, be sure
- *                 to set input[0] = 0.
- */
-int rsa_private( rsa_context   *ctx,
-                 unsigned char *input,  int ilen,
-                 unsigned char *output, int olen );
-
-/**
- * \brief          Return 0 if the public key is valid,
- *                 or ERR_RSA_KEY_CHECK_FAILED
+ * \return         0 if successful, or an XYSSL_ERR_RSA_XXX error code
  */
 int rsa_check_pubkey( rsa_context *ctx );
 
 /**
- * \brief          Return 0 if the private key is valid,
- *                 or ERR_RSA_KEY_CHECK_FAILED
+ * \brief          Check a private RSA key
+ *
+ * \param ctx      RSA context to be checked
+ *
+ * \return         0 if successful, or an XYSSL_ERR_RSA_XXX error code
  */
 int rsa_check_privkey( rsa_context *ctx );
 
 /**
- * \brief          Add the PKCS#1 v1.5 padding and do a public RSA
+ * \brief          Do an RSA public key operation
  *
  * \param ctx      RSA context
+ * \param input    input buffer
+ * \param output   output buffer
+ *
+ * \return         0 if successful, or an XYSSL_ERR_RSA_XXX error code
+ *
+ * \note           This function does NOT take care of message
+ *                 padding. Also, be sure to set input[0] = 0.
+ *
+ * \note           The input and output buffers must be large
+ *                 enough (eg. 128 bytes if RSA-1024 is used).
+ */
+int rsa_public( rsa_context *ctx,
+                unsigned char *input,
+                unsigned char *output );
+
+/**
+ * \brief          Do an RSA private key operation
+ *
+ * \param ctx      RSA context
+ * \param input    input buffer
+ * \param output   output buffer
+ *
+ * \return         0 if successful, or an XYSSL_ERR_RSA_XXX error code
+ *
+ * \note           The input and output buffers must be large
+ *                 enough (eg. 128 bytes if RSA-1024 is used).
+ */
+int rsa_private( rsa_context *ctx,
+                 unsigned char *input,
+                 unsigned char *output );
+
+/**
+ * \brief          Add the message padding, then do an RSA operation
+ *
+ * \param ctx      RSA context
+ * \param mode     RSA_PUBLIC or RSA_PRIVATE
+ * \param ilen     contains the the plaintext length
  * \param input    buffer holding the data to be encrypted
- * \param ilen     length of the plaintext; cannot be longer
- *                 than the modulus, minus 3+8 for padding
  * \param output   buffer that will hold the ciphertext
- * \param olen     must be the same as the modulus size
- *                 (for example, 128 if RSA-1024 is used)
  *
- * \return         0 if successful, or an ERR_RSA_XXX error code
+ * \return         0 if successful, or an XYSSL_ERR_RSA_XXX error code
+ *
+ * \note           The output buffer must be as large as the size
+ *                 of ctx->N (eg. 128 bytes if RSA-1024 is used).
  */
-int rsa_pkcs1_encrypt( rsa_context   *ctx,
-                       unsigned char *input,  int ilen,
-                       unsigned char *output, int olen );
+int rsa_pkcs1_encrypt( rsa_context *ctx,
+                       int mode, int  ilen,
+                       unsigned char *input,
+                       unsigned char *output );
 
 /**
- * \brief          Do a private RSA, removes the PKCS#1 v1.5 padding
+ * \brief          Do an RSA operation, then remove the message padding
  *
  * \param ctx      RSA context
+ * \param mode     RSA_PUBLIC or RSA_PRIVATE
  * \param input    buffer holding the encrypted data
- * \param ilen     must be the same as the modulus size
  * \param output   buffer that will hold the plaintext
- * \param olen     size of output buffer, will be updated
- *                 to contain the length of the plaintext
+ * \param olen     will contain the plaintext length
  *
- * \return         0 if successful, or an ERR_RSA_XXX error code
+ * \return         0 if successful, or an XYSSL_ERR_RSA_XXX error code
+ *
+ * \note           The output buffer must be as large as the size
+ *                 of ctx->N (eg. 128 bytes if RSA-1024 is used).
  */
-int rsa_pkcs1_decrypt( rsa_context   *ctx,
-                       unsigned char *input,  int  ilen,
-                       unsigned char *output, int *olen );
+int rsa_pkcs1_decrypt( rsa_context *ctx,
+                       int mode, int *olen,
+                       unsigned char *input,
+                       unsigned char *output );
 
 /**
- * \brief          Perform a private RSA to sign a message digest
+ * \brief          Do a private RSA to sign a message digest
  *
  * \param ctx      RSA context
- * \param alg_id   RSA_RAW, RSA_MD2/4/5 or RSA_SHA1
+ * \param mode     RSA_PUBLIC or RSA_PRIVATE
+ * \param hash_id  RSA_RAW, RSA_MD{2,4,5} or RSA_SHA{1,256}
+ * \param hashlen  message digest length (for RSA_RAW only)
  * \param hash     buffer holding the message digest
- * \param hashlen  message digest length
  * \param sig      buffer that will hold the ciphertext
- * \param siglen   must be the same as the modulus size
- *                 (for example, 128 if RSA-1024 is used)
  *
  * \return         0 if the signing operation was successful,
- *                 or an ERR_RSA_XXX error code
+ *                 or an XYSSL_ERR_RSA_XXX error code
+ *
+ * \note           The "sig" buffer must be as large as the size
+ *                 of ctx->N (eg. 128 bytes if RSA-1024 is used).
  */
-int rsa_pkcs1_sign( rsa_context   *ctx,  int alg_id,
-                    unsigned char *hash, int hashlen,
-                    unsigned char *sig,  int siglen );
+int rsa_pkcs1_sign( rsa_context *ctx,
+                    int mode,
+                    int hash_id,
+                    int hashlen,
+                    unsigned char *hash,
+                    unsigned char *sig );
 
 /**
- * \brief          Perform a public RSA and check the message digest
+ * \brief          Do a public RSA and check the message digest
  *
  * \param ctx      points to an RSA public key
- * \param alg_id   RSA_RAW, RSA_MD2/4/5 or RSA_SHA1
+ * \param mode     RSA_PUBLIC or RSA_PRIVATE
+ * \param hash_id  RSA_RAW, RSA_MD{2,4,5} or RSA_SHA{1,256}
+ * \param hashlen  message digest length (for RSA_RAW only)
  * \param hash     buffer holding the message digest
- * \param hashlen  message digest length
  * \param sig      buffer holding the ciphertext
- * \param siglen   must be the same as the modulus size
  *
  * \return         0 if the verify operation was successful,
- *                 or an ERR_RSA_XXX error code
+ *                 or an XYSSL_ERR_RSA_XXX error code
+ *
+ * \note           The "sig" buffer must be as large as the size
+ *                 of ctx->N (eg. 128 bytes if RSA-1024 is used).
  */
-int rsa_pkcs1_verify( rsa_context   *ctx,  int alg_id,
-                      unsigned char *hash, int hashlen,
-                      unsigned char *sig,  int siglen );
+int rsa_pkcs1_verify( rsa_context *ctx,
+                      int mode,
+                      int hash_id,
+                      int hashlen,
+                      unsigned char *hash,
+                      unsigned char *sig );
 
 /**
  * \brief          Free the components of an RSA key
@@ -243,58 +267,8 @@ void rsa_free( rsa_context *ctx );
  */
 int rsa_self_test( int verbose );
 
-/*
- * Example RSA-1024 keypair, for test purposes
- */
-#define KEY_LEN 128
-
-#define RSA_N   "9292758453063D803DD603D5E777D788" \
-                "8ED1D5BF35786190FA2F23EBC0848AEA" \
-                "DDA92CA6C3D80B32C4D109BE0F36D6AE" \
-                "7130B9CED7ACDF54CFC7555AC14EEBAB" \
-                "93A89813FBF3C4F8066D2D800F7C38A8" \
-                "1AE31942917403FF4946B0A83D3D3E05" \
-                "EE57C6F5F5606FB5D4BC6CD34EE0801A" \
-                "5E94BB77B07507233A0BC7BAC8F90F79"
-
-#define RSA_E   "10001"
-
-#define RSA_D   "24BF6185468786FDD303083D25E64EFC" \
-                "66CA472BC44D253102F8B4A9D3BFA750" \
-                "91386C0077937FE33FA3252D28855837" \
-                "AE1B484A8A9A45F7EE8C0C634F99E8CD" \
-                "DF79C5CE07EE72C7F123142198164234" \
-                "CABB724CF78B8173B9F880FC86322407" \
-                "AF1FEDFDDE2BEB674CA15F3E81A1521E" \
-                "071513A1E85B5DFA031F21ECAE91A34D"
-
-#define RSA_P   "C36D0EB7FCD285223CFB5AABA5BDA3D8" \
-                "2C01CAD19EA484A87EA4377637E75500" \
-                "FCB2005C5C7DD6EC4AC023CDA285D796" \
-                "C3D9E75E1EFC42488BB4F1D13AC30A57"
-
-#define RSA_Q   "C000DF51A7C77AE8D7C7370C1FF55B69" \
-                "E211C2B9E5DB1ED0BF61D0D9899620F4" \
-                "910E4168387E3C30AA1E00C339A79508" \
-                "8452DD96A9A5EA5D9DCA68DA636032AF"
-
-#define RSA_DP  "C1ACF567564274FB07A0BBAD5D26E298" \
-                "3C94D22288ACD763FD8E5600ED4A702D" \
-                "F84198A5F06C2E72236AE490C93F07F8" \
-                "3CC559CD27BC2D1CA488811730BB5725"
-
-#define RSA_DQ  "4959CBF6F8FEF750AEE6977C155579C7" \
-                "D8AAEA56749EA28623272E4F7D0592AF" \
-                "7C1F1313CAC9471B5C523BFE592F517B" \
-                "407A1BD76C164B93DA2D32A383E58357"
-
-#define RSA_QP  "9AE7FBC99546432DF71896FC239EADAE" \
-                "F38D18D2B2F0E2DD275AA977E2BF4411" \
-                "F5A3B2A5D33605AEBBCCBA7FEB9F2D2F" \
-                "A74206CEC169D74BF5A8C50D6F48EA08"
-
 #ifdef __cplusplus
 }
 #endif
 
-#endif
+#endif /* rsa.h */

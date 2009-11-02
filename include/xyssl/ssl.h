@@ -1,53 +1,54 @@
 /**
  * \file ssl.h
  */
-#ifndef _SSL_H
-#define _SSL_H
+#ifndef XYSSL_SSL_H
+#define XYSSL_SSL_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include <time.h>
 
-#include "x509.h"
-#include "rsa.h"
-#include "dhm.h"
-#include "md5.h"
-#include "sha1.h"
+#include "xyssl/debug.h"
+#include "xyssl/net.h"
+#include "xyssl/dhm.h"
+#include "xyssl/rsa.h"
+#include "xyssl/md5.h"
+#include "xyssl/sha1.h"
+#include "xyssl/x509.h"
 
-#define ERR_SSL_FEATURE_UNAVAILABLE             0x1000
-#define ERR_SSL_INVALID_MAC                     0x1800
-#define ERR_SSL_INVALID_RECORD                  0x2000
-#define ERR_SSL_INVALID_MODULUS_SIZE            0x2800
-#define ERR_SSL_UNKNOWN_CIPHER                  0x3000
-#define ERR_SSL_NO_CIPHER_CHOSEN                0x3800
-#define ERR_SSL_NO_SESSION_FOUND                0x4000
-#define ERR_SSL_NO_CLIENT_CERTIFICATE           0x4800
-#define ERR_SSL_CERTIFICATE_TOO_LARGE           0x5000
-#define ERR_SSL_CERTIFICATE_REQUIRED            0x5800
-#define ERR_SSL_PRIVATE_KEY_REQUIRED            0x6000
-#define ERR_SSL_CA_CHAIN_REQUIRED               0x6800
-#define ERR_SSL_UNEXPECTED_MESSAGE              0x7000
-#define ERR_SSL_FATAL_ALERT_MESSAGE             0x7800
-#define ERR_SSL_PEER_VERIFY_FAILED              0x8000
-#define ERR_SSL_PEER_CLOSE_NOTIFY               0x8800
-#define ERR_SSL_BAD_HS_CLIENT_HELLO             0x9000
-#define ERR_SSL_BAD_HS_SERVER_HELLO             0x9800
-#define ERR_SSL_BAD_HS_CERTIFICATE              0xA000
-#define ERR_SSL_BAD_HS_CERTIFICATE_REQUEST      0xA800
-#define ERR_SSL_BAD_HS_SERVER_KEY_EXCHANGE      0xB000
-#define ERR_SSL_BAD_HS_SERVER_HELLO_DONE        0xB800
-#define ERR_SSL_BAD_HS_CLIENT_KEY_EXCHANGE      0xC000
-#define ERR_SSL_BAD_HS_CERTIFICATE_VERIFY       0xC800
-#define ERR_SSL_BAD_HS_CHANGE_CIPHER_SPEC       0xD000
-#define ERR_SSL_BAD_HS_FINISHED                 0xD800
+#define XYSSL_ERR_SSL_FEATURE_UNAVAILABLE               -0x1000
+#define XYSSL_ERR_SSL_BAD_INPUT_DATA                    -0x1800
+#define XYSSL_ERR_SSL_INVALID_MAC                       -0x2000
+#define XYSSL_ERR_SSL_INVALID_RECORD                    -0x2800
+#define XYSSL_ERR_SSL_INVALID_MODULUS_SIZE              -0x3000
+#define XYSSL_ERR_SSL_UNKNOWN_CIPHER                    -0x3800
+#define XYSSL_ERR_SSL_NO_CIPHER_CHOSEN                  -0x4000
+#define XYSSL_ERR_SSL_NO_SESSION_FOUND                  -0x4800
+#define XYSSL_ERR_SSL_NO_CLIENT_CERTIFICATE             -0x5000
+#define XYSSL_ERR_SSL_CERTIFICATE_TOO_LARGE             -0x5800
+#define XYSSL_ERR_SSL_CERTIFICATE_REQUIRED              -0x6000
+#define XYSSL_ERR_SSL_PRIVATE_KEY_REQUIRED              -0x6800
+#define XYSSL_ERR_SSL_CA_CHAIN_REQUIRED                 -0x7000
+#define XYSSL_ERR_SSL_UNEXPECTED_MESSAGE                -0x7800
+#define XYSSL_ERR_SSL_FATAL_ALERT_MESSAGE               -0x8000
+#define XYSSL_ERR_SSL_PEER_VERIFY_FAILED                -0x8800
+#define XYSSL_ERR_SSL_PEER_CLOSE_NOTIFY                 -0x9000
+#define XYSSL_ERR_SSL_BAD_HS_CLIENT_HELLO               -0x9800
+#define XYSSL_ERR_SSL_BAD_HS_SERVER_HELLO               -0xA000
+#define XYSSL_ERR_SSL_BAD_HS_CERTIFICATE                -0xA800
+#define XYSSL_ERR_SSL_BAD_HS_CERTIFICATE_REQUEST        -0xB000
+#define XYSSL_ERR_SSL_BAD_HS_SERVER_KEY_EXCHANGE        -0xB800
+#define XYSSL_ERR_SSL_BAD_HS_SERVER_HELLO_DONE          -0xC000
+#define XYSSL_ERR_SSL_BAD_HS_CLIENT_KEY_EXCHANGE        -0xC800
+#define XYSSL_ERR_SSL_BAD_HS_CERTIFICATE_VERIFY         -0xD000
+#define XYSSL_ERR_SSL_BAD_HS_CHANGE_CIPHER_SPEC         -0xD800
+#define XYSSL_ERR_SSL_BAD_HS_FINISHED                   -0xE000
 
 /*
  * Various constants
  */
-#define SSLV3_MAJOR_VERSION             3
-#define SSLV3_MINOR_VERSION             0
-#define TLS10_MINOR_VERSION             1
-#define TLS11_MINOR_VERSION             2
+#define SSL_MAJOR_VERSION_3             3
+#define SSL_MINOR_VERSION_0             0   /*!< SSL v3.0 */
+#define SSL_MINOR_VERSION_1             1   /*!< TLS v1.0 */
+#define SSL_MINOR_VERSION_2             2   /*!< TLS v1.1 */
 
 #define SSL_IS_CLIENT                   0
 #define SSL_IS_SERVER                   1
@@ -57,9 +58,7 @@ extern "C" {
 #define SSL_VERIFY_OPTIONAL             1
 #define SSL_VERIFY_REQUIRED             2
 
-#define SSL_SESSION_TBL_LEN          8192
 #define SSL_MAX_CONTENT_LEN         16384
-#define SSL_EXPIRATION_TIME         86400
 
 /*
  * Allow an extra 512 bytes for the record header
@@ -70,12 +69,12 @@ extern "C" {
 /*
  * Supported ciphersuites
  */
-#define SSL3_RSA_RC4_128_MD5            4
-#define SSL3_RSA_RC4_128_SHA            5
-#define SSL3_RSA_DES_168_SHA           10
-#define SSL3_EDH_RSA_DES_168_SHA       22
-#define TLS1_RSA_AES_256_SHA           53
-#define TLS1_EDH_RSA_AES_256_SHA       57
+#define SSL_RSA_RC4_128_MD5              4
+#define SSL_RSA_RC4_128_SHA              5
+#define SSL_RSA_DES_168_SHA             10
+#define SSL_EDH_RSA_DES_168_SHA         22
+#define SSL_RSA_AES_256_SHA             53
+#define SSL_EDH_RSA_AES_256_SHA         57
 
 extern int ssl_default_ciphers[];
 
@@ -122,55 +121,89 @@ typedef enum
     SSL_CLIENT_FINISHED,
     SSL_SERVER_CHANGE_CIPHER_SPEC,
     SSL_SERVER_FINISHED,
+    SSL_FLUSH_BUFFERS,
     SSL_HANDSHAKE_OVER
 }
 ssl_states;
 
-typedef struct
+typedef struct _ssl_session ssl_session;
+typedef struct _ssl_context ssl_context;
+
+/*
+ * This structure is used for session resuming.
+ */
+struct _ssl_session
 {
-    int state;                  /*!<  SSL handshake: current state    */
+    time_t start;               /*!< starting time      */
+    int cipher;                 /*!< chosen cipher      */
+    int length;                 /*!< session id length  */
+    unsigned char id[32];       /*!< session identifier */
+    unsigned char master[48];   /*!< the master secret  */
+    ssl_session *next;          /*!< next session entry */
+};
 
+struct _ssl_context
+{
     /*
-     * Negotiated protocol version
+     * Miscellaneous
      */
-    int major_ver;              /*!< equal to  SSLV3_MAJOR_VERSION    */
-    int minor_ver;              /*!< either 0: SSLv3, or 1: TLSv1.0   */
-    unsigned char max_ver[2];   /*!< max. version supported by client */
+    int state;                  /*!< SSL handshake: current state     */
+    int debuglvl;               /*!< debug level (0 = disabled)       */
+
+    int major_ver;              /*!< equal to  SSL_MAJOR_VERSION_3    */
+    int minor_ver;              /*!< either 0 (SSL3) or 1 (TLS1.0)    */
+
+    int max_major_ver;          /*!< max. major version from client   */
+    int max_minor_ver;          /*!< max. minor version from client   */
 
     /*
-     * Record layer -- incoming data
+     * BIO layer
+     */
+    int (*f_recv)(void *, unsigned char *, int);
+    int (*f_send)(void *, unsigned char *, int);
+
+    void *p_recv;               /*!< context for reading operations   */
+    void *p_send;               /*!< context for writing operations   */
+
+    /*
+     * Session layer
+     */
+    int resume;                         /*!<  session resuming flag   */
+    int timeout;                        /*!<  sess. expiration time   */
+    ssl_session *session;               /*!<  current session data    */
+    int (*s_get)(ssl_context *);        /*!<  (server) get callback   */
+    int (*s_set)(ssl_context *);        /*!<  (server) set callback   */
+
+    /*
+     * Record layer (incoming data)
      */
     unsigned char *in_ctr;      /*!< 64-bit incoming message counter  */
     unsigned char *in_hdr;      /*!< 5-byte record header (in_ctr+8)  */
-    unsigned char *in_msg;      /*!< the message payload  (in_hdr+5)  */
-    unsigned char *in_offt;     /*!< read offset in message payload   */
+    unsigned char *in_msg;      /*!< the message contents (in_hdr+5)  */
+    unsigned char *in_offt;     /*!< read offset in application data  */
 
-    int read_fd;                /*!< descriptor for read operations   */
     int in_msgtype;             /*!< record header: message type      */
     int in_msglen;              /*!< record header: message length    */
+    int in_left;                /*!< amount of data read so far       */
 
-    int in_left;                /*!< amount of (tcp) data read so far */
     int in_hslen;               /*!< current handshake message length */
     int nb_zero;                /*!< # of 0-length encrypted messages */
 
     /*
-     * Record layer -- outgoing data
+     * Record layer (outgoing data)
      */
     unsigned char *out_ctr;     /*!< 64-bit outgoing message counter  */
     unsigned char *out_hdr;     /*!< 5-byte record header (out_ctr+8) */
-    unsigned char *out_msg;     /*!< the message payload  (out_hdr+5) */
+    unsigned char *out_msg;     /*!< the message contents (out_hdr+5) */
 
-    int write_fd;               /*!< descriptor for write operations  */
     int out_msgtype;            /*!< record header: message type      */
     int out_msglen;             /*!< record header: message length    */
-
     int out_left;               /*!< amount of data not yet written   */
-    int out_uoff;               /*!< offset in user-supplied buffer   */
 
     /*
-     * PKI stuff
+     * PKI layer
      */
-    rsa_context *own_key;               /*!<  own RSA private key     */
+    rsa_context *rsa_key;               /*!<  own RSA private key     */
     x509_cert *own_cert;                /*!<  own X.509 certificate   */
     x509_cert *ca_chain;                /*!<  own trusted CA chain    */
     x509_cert *peer_cert;               /*!<  peer X.509 cert chain   */
@@ -182,94 +215,78 @@ typedef struct
     int verify_result;                  /*!<  verification result     */
 
     /*
-     * Session stuff
+     * Crypto layer
      */
-    int resumed;                        /*!<  session resuming flag   */
-    int sidlen;                         /*!<  session id length       */
-    unsigned char sessid[32];           /*!<  session id              */
-    unsigned char *sidtable;            /*!<  table of session IDs    */
-
-    /*
-     * Crypto stuff
-     */
-     md5_context hs_md5;                /*!<   MD5( Handshake msgs )  */
-    sha1_context hs_sha1;               /*!<  SHA1( Handshake msgs )  */
      dhm_context dhm_ctx;               /*!<  DHM key exchange        */
+     md5_context fin_md5;               /*!<  Finished MD5 checksum   */
+    sha1_context fin_sha1;              /*!<  Finished SHA-1 checksum */
 
-    int (*rng_f)(void *);               /*!<  RNG function            */
-    void *rng_d;                        /*!<  RNG data                */
+    int (*f_rng)(void *);               /*!<  RNG function            */
+    void *p_rng;                        /*!<  RNG parameter           */
 
+    int do_crypt;                       /*!<  en(de)cryption flag     */
+    int *ciphers;                       /*!<  allowed ciphersuites    */
     int pmslen;                         /*!<  premaster length        */
-    unsigned char premaster[256];       /*!<  premaster secret        */
-    unsigned char randbytes[64];        /*!<  random bytes            */
-    unsigned char master[48];           /*!<  master secret           */
-
-    int *cipherlist;                    /*!<  accepted ciphersuites   */
-    int cipher;                         /*!<  current chosen cipher   */
     int keylen;                         /*!<  symmetric key length    */
     int minlen;                         /*!<  min. ciphertext length  */
-
-    int ctxlen;                         /*!<  cipher context length   */
-    void *ctx_enc;                      /*!<  encryption context      */
-    void *ctx_dec;                      /*!<  decryption context      */
-
     int ivlen;                          /*!<  IV length               */
+    int maclen;                         /*!<  MAC length              */
+
+    unsigned char randbytes[64];        /*!<  random bytes            */
+    unsigned char premaster[256];       /*!<  premaster secret        */
+
     unsigned char iv_enc[16];           /*!<  IV (encryption)         */
     unsigned char iv_dec[16];           /*!<  IV (decryption)         */
 
-    int maclen;                         /*!<  MAC length              */
     unsigned char mac_enc[32];          /*!<  MAC (encryption)        */
     unsigned char mac_dec[32];          /*!<  MAC (decryption)        */
-}
-ssl_context;
 
-/*
- * Internal functions (do not call directly)
- */
-int ssl_client_start( ssl_context *ssl );
-int ssl_server_start( ssl_context *ssl );
+    unsigned long ctx_enc[128];         /*!<  encryption context      */
+    unsigned long ctx_dec[128];         /*!<  decryption context      */
+};
 
-int ssl_derive_keys( ssl_context *ssl );
-int ssl_calc_verify( ssl_context *ssl, unsigned char hash[36] );
-
-int ssl_read_record(  ssl_context *ssl, int do_crypt );
-int ssl_write_record( ssl_context *ssl, int do_crypt );
-int ssl_flush_output( ssl_context *ssl );
-
-int ssl_write_certificate( ssl_context *ssl );
-int ssl_parse_certificate( ssl_context *ssl );
-
-int ssl_write_change_cipher_spec( ssl_context *ssl );
-int ssl_parse_change_cipher_spec( ssl_context *ssl );
-
-int ssl_write_finished( ssl_context *ssl );
-int ssl_parse_finished( ssl_context *ssl );
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /**
- * \brief          Initialize the SSL context. If client_resume is
- *                 not null, the session id and premaster secret
- *                 are preserved (client-side only).
+ * \brief          Initialize an SSL context
+ *
+ * \param ssl      SSL context
  *
  * \return         0 if successful, or 1 if memory allocation failed
  */
-int ssl_init( ssl_context *ssl, int client_resume );
+int ssl_init( ssl_context *ssl );
 
 /**
- * \brief          Set the current endpoint type,
- *                 SSL_IS_CLIENT or SSL_IS_SERVER
+ * \brief          Set the debug level (default: 0 = disabled)
+ *
+ * \param ssl      SSL context
+ * \param debuglvl from 0 (none) to 4 (dump everything)
+ */
+void ssl_set_debuglvl( ssl_context *ssl, int debuglvl );
+
+/**
+ * \brief          Set the current endpoint type
+ *
+ * \param ssl      SSL context
+ * \param endpoint must be SSL_IS_CLIENT or SSL_IS_SERVER
  */
 void ssl_set_endpoint( ssl_context *ssl, int endpoint );
 
 /**
  * \brief          Set the certificate verification mode
  *
+ * \param ssl      SSL context
  * \param mode     can be:
  *
- *  SSL_VERIFY_NONE:      peer certificate is not checked (default).
+ *  SSL_VERIFY_NONE:      peer certificate is not checked (default),
+ *                        this is insecure and SHOULD be avoided.
  *
  *  SSL_VERIFY_OPTIONAL:  peer certificate is checked, however the
  *                        handshake continues even if verification failed;
- *                        you may want to check ssl->verify_result after.
+ *                        ssl_get_verify_result() can be called after the
+ *                        handshake is complete.
  *
  *  SSL_VERIFY_REQUIRED:  peer *must* present a valid certificate,
  *                        handshake is aborted if verification failed.
@@ -277,89 +294,155 @@ void ssl_set_endpoint( ssl_context *ssl, int endpoint );
 void ssl_set_authmode( ssl_context *ssl, int authmode );
 
 /**
- * \brief          Set the random number generator function
+ * \brief          Set the random number generator callback
+ *
+ * \param ssl      SSL context
+ * \param f_rng    RNG function
+ * \param p_rng    RNG parameter
  */
-void ssl_set_rng_func( ssl_context *ssl,
-                       int (*rng_f)(void *),
-                       void *rng_d );
+void ssl_set_rng( ssl_context *ssl, int (*f_rng)(void *), void *p_rng );
 
 /**
- * \brief          Set the read and write file descriptors
+ * \brief          Set the underlying BIO read and write callbacks
+ *
+ * \param ssl      SSL context
+ * \param f_recv   read callback
+ * \param p_recv   read parameter
+ * \param f_send   write callback
+ * \param p_send   write parameter
  */
-void ssl_set_io_files( ssl_context *ssl, int read_fd, int write_fd );
+void ssl_set_bio( ssl_context *ssl,
+            int (*f_recv)(void *, unsigned char *, int), void *p_recv,
+            int (*f_send)(void *, unsigned char *, int), void *p_send );
+
+/**
+ * \brief          Set the session callbacks (server-side only)
+ *
+ * \param ssl      SSL context
+ * \param s_get    session get callback
+ * \param s_set    session set callback
+ */
+void ssl_set_scb( ssl_context *ssl,
+                  int (*s_get)(ssl_context *),
+                  int (*s_set)(ssl_context *) );
+
+/**
+ * \brief          Set the session resuming flag, timeout and data
+ *
+ * \param ssl      SSL context
+ * \param resume   if 0 (default), the session will not be resumed
+ * \param timeout  session timeout in seconds, or 0 (no timeout)
+ * \param session  session context
+ */
+void ssl_set_session( ssl_context *ssl, int resume, int timeout,
+                      ssl_session *session );
 
 /**
  * \brief          Set the list of allowed ciphersuites
+ *
+ * \param ssl      SSL context
+ * \param ciphers  0-terminated list of allowed ciphers
  */
-void ssl_set_ciphlist( ssl_context *ssl, int *ciphers );
+void ssl_set_ciphers( ssl_context *ssl, int *ciphers );
 
 /**
- * \brief          Set the CA certificate chain used to verify peer
- *                 cert, and the peer's expected CommonName (or NULL)
+ * \brief          Set the data required to verify peer certificate
+ *
+ * \param ssl      SSL context
+ * \param ca_chain trusted CA chain
+ * \param peer_cn  expected peer CommonName (or NULL)
+ *
+ * \note           TODO: add two more parameters: depth and crl
  */
-void ssl_set_ca_chain( ssl_context *ssl, x509_cert *ca, char *cn );
+void ssl_set_ca_chain( ssl_context *ssl, x509_cert *ca_chain,
+                       char *peer_cn );
 
 /**
- * \brief          Set own certificate and private RSA key
+ * \brief          Set own certificate and private key
+ *
+ * \param ssl      SSL context
+ * \param own_cert own public certificate
+ * \param rsa_key  own private RSA key
  */
-void ssl_set_rsa_cert( ssl_context *ssl, x509_cert *own_cert,
-                       rsa_context *own_key );
-
-/**
- * \brief          Set the global session ID table (server-side only)
- */
-void ssl_set_sidtable( ssl_context *ssl, unsigned char *sidtable );
+void ssl_set_own_cert( ssl_context *ssl, x509_cert *own_cert,
+                       rsa_context *rsa_key );
 
 /**
  * \brief          Set the Diffie-Hellman public P and G values,
- *                 provided as hexadecimal strings (server-side only)
+ *                 read as hexadecimal strings (server-side only)
  *
- * \return         0 if successful, or 1 if the values could not be read
+ * \param ssl      SSL context
+ * \param dhm_P    Diffie-Hellman-Merkle modulus
+ * \param dhm_G    Diffie-Hellman-Merkle generator
+ *
+ * \return         0 if successful
  */
-int ssl_set_dhm_vals( ssl_context *ssl, char *dhm_P, char *dhm_G );
+int ssl_set_dh_param( ssl_context *ssl, char *dhm_P, char *dhm_G );
+
+/**
+ * \brief          Return the number of data bytes available to read
+ *
+ * \param ssl      SSL context
+ *
+ * \return         how many bytes are available in the read buffer
+ */
+int ssl_get_bytes_avail( ssl_context *ssl );
 
 /**
  * \brief          Return the result of the certificate verification
+ *
+ * \param ssl      SSL context
+ *
+ * \return         0 if successful, or a combination of:
+ *                      BADCERT_EXPIRED
+ *                      BADCERT_REVOKED
+ *                      BADCERT_CN_MISMATCH
+ *                      BADCERT_NOT_TRUSTED
  */
 int ssl_get_verify_result( ssl_context *ssl );
 
 /**
  * \brief          Return the name of the current cipher
+ *
+ * \param ssl      SSL context
+ *
+ * \return         a string containing the cipher name
  */
-char *ssl_get_cipher_name( ssl_context *ssl );
+char *ssl_get_cipher( ssl_context *ssl );
 
 /**
  * \brief          Perform the SSL handshake
  *
- * \return         0 if successful, ERR_NET_WOULD_BLOCK (only when
- *                 the socket is set to non-blocking), or a specific
- *                 SSL error code.
+ * \param ssl      SSL context
+ *
+ * \return         0 if successful, XYSSL_ERR_NET_TRY_AGAIN,
+ *                 or a specific SSL error code.
  */
 int ssl_handshake( ssl_context *ssl );
 
 /**
  * \brief          Read at most 'len' application data bytes
  *
- * \return         0 if successful, ERR_NET_WOULD_BLOCK (only when
- *                 the socket is set to non-blocking), or a specific
- *                 SSL error code.
+ * \param ssl      SSL context
+ * \param buf      buffer that will hold the data
+ * \param len      how many bytes must be read
  *
- * \note           len is updated to reflect the actual number of
- *                 data bytes read.
+ * \return         This function returns the number of bytes read
+ *                 or a negative error code; XYSSL_ERR_NET_TRY_AGAIN
+ *                 indicates the socket is blocking.
  */
-int ssl_read( ssl_context *ssl, unsigned char *buf, int *len );
+int ssl_read( ssl_context *ssl, unsigned char *buf, int len );
 
 /**
- * \brief          Write 'len' application data bytes
+ * \brief          Write exactly 'len' application data bytes
  *
- * \return         0 if successful, ERR_NET_WOULD_BLOCK (only when
- *                 the socket is set to non-blocking), or a specific
- *                 SSL error code.
+ * \param ssl      SSL context
+ * \param buf      buffer holding the data
+ * \param len      how many bytes must be written
  *
- * \note           When the socket is set to non-blocking and this
- *                 function returns ERR_NET_WOULD_BLOCK, it should
- *                 be called again with the *same* arguments until
- *                 it returns 0.
+ * \return         This function returns the number of bytes written
+ *                 or a negative error code; XYSSL_ERR_NET_TRY_AGAIN
+ *                 indicates the socket is blocking.
  */
 int ssl_write( ssl_context *ssl, unsigned char *buf, int len );
 
@@ -372,6 +455,29 @@ int ssl_close_notify( ssl_context *ssl );
  * \brief          Free an SSL context
  */
 void ssl_free( ssl_context *ssl );
+
+/*
+ * Internal functions (do not call directly)
+ */
+int ssl_handshake_client( ssl_context *ssl );
+int ssl_handshake_server( ssl_context *ssl );
+
+int ssl_derive_keys( ssl_context *ssl );
+int ssl_read_record( ssl_context *ssl );
+int ssl_write_record( ssl_context *ssl );
+int ssl_fetch_input( ssl_context *ssl, int nb_want );
+int ssl_flush_output( ssl_context *ssl );
+
+int ssl_write_certificate( ssl_context *ssl );
+int ssl_parse_certificate( ssl_context *ssl );
+
+int ssl_write_change_cipher_spec( ssl_context *ssl );
+int ssl_parse_change_cipher_spec( ssl_context *ssl );
+
+int ssl_write_finished( ssl_context *ssl );
+int ssl_parse_finished( ssl_context *ssl );
+
+void ssl_calc_verify( ssl_context *ssl, unsigned char hash[36] );
 
 #ifdef __cplusplus
 }

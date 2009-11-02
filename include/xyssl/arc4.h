@@ -1,23 +1,23 @@
 /**
  * \file arc4.h
  */
-#ifndef _ARC4_H
-#define _ARC4_H
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#ifndef XYSSL_ARC4_H
+#define XYSSL_ARC4_H
 
 /**
  * \brief          ARC4 context structure
  */
 typedef struct
 {
-    int m[256];         /*!< permutation table */
-    int x;              /*!< permutation index */
-    int y;              /*!< permutation index */
+    int x;                      /*!< permutation index */
+    int y;                      /*!< permutation index */
+    unsigned char m[256];       /*!< permutation table */
 }
 arc4_context;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /**
  * \brief          ARC4 key schedule

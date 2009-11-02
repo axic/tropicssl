@@ -1,4 +1,29 @@
 
+= Version 0.8 released on 2007-10-20
+
+    * Modified the HMAC functions to handle keys larger
+      than 64 bytes, thanks to Stephane Desneux and gary ng
+    * Fixed ssl_read_record() to properly update the handshake
+      message digests, which fixes IE6/IE7 client authentication
+    * Cleaned up the XYSSL* #defines, suggested by Azriel Fasten
+    * Fixed net_recv(), thanks to Lorenz Schori and Egon Kocjan
+    * Added user-defined callbacks for handling I/O and sessions
+    * Added lots of debugging output in the SSL/TLS functions
+    * Added preliminary X.509 cert. writing by Pascal Vizeli
+    * Added preliminary support for the VIA PadLock routines
+    * Added AES-CFB mode of operation, contributed by chmike
+    * Added an SSL/TLS stress testing program (ssl_test.c)
+    * Updated the RSA PKCS#1 code to allow choosing between
+      RSA_PUBLIC and RSA_PRIVATE, as suggested by David Barrett
+    * Updated ssl_read() to skip 0-length records from OpenSSL
+    * Fixed the make install target to comply with *BSD make
+    * Fixed a bug in mpi_read_binary() on 64-bit platforms
+    * mpi_is_prime() speedups, thanks to Kevin McLaughlin
+    * Fixed a long standing memory leak in mpi_is_prime()
+    * Replaced realloc with malloc in mpi_grow(), and set
+      the sign of zero as positive in mpi_init() (reported
+      by Jonathan M. McCune)
+
 = Version 0.7 released on 2007-07-07
 
     * Added support for the MicroBlaze soft-core processor

@@ -1,51 +1,46 @@
 /**
  * \file bignum.h
  */
-#ifndef _BIGNUM_H
-#define _BIGNUM_H
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#ifndef XYSSL_BIGNUM_H
+#define XYSSL_BIGNUM_H
 
 #include <stdio.h>
 
-#include "ssl_conf.h"
+#define XYSSL_ERR_MPI_FILE_IO_ERROR                     -0x0002
+#define XYSSL_ERR_MPI_BAD_INPUT_DATA                    -0x0004
+#define XYSSL_ERR_MPI_INVALID_CHARACTER                 -0x0006
+#define XYSSL_ERR_MPI_BUFFER_TOO_SMALL                  -0x0008
+#define XYSSL_ERR_MPI_NEGATIVE_VALUE                    -0x000A
+#define XYSSL_ERR_MPI_DIVISION_BY_ZERO                  -0x000C
+#define XYSSL_ERR_MPI_NOT_ACCEPTABLE                    -0x000E
 
-#define ERR_MPI_FILE_IO_ERROR                   0x0002
-#define ERR_MPI_INVALID_CHARACTER               0x0004
-#define ERR_MPI_INVALID_PARAMETER               0x0006
-#define ERR_MPI_BUFFER_TOO_SMALL                0x0008
-#define ERR_MPI_NEGATIVE_VALUE                  0x000A
-#define ERR_MPI_DIVISION_BY_ZERO                0x000C
-#define ERR_MPI_NOT_ACCEPTABLE                  0x000E
-
-#define CHK(fc) if( ( ret = fc ) != 0 ) goto cleanup
+#define MPI_CHK(f) if( ( ret = f ) != 0 ) goto cleanup
 
 /*
- * Define the base limb type
+ * Define the base integer type, architecture-wise
  */
-#if defined(HAVE_INT16) /* 8086 */
-typedef unsigned int  t_int;
-typedef unsigned long t_dbl;
+#if defined(XYSSL_HAVE_INT8)
+typedef unsigned char  t_int;
+typedef unsigned short t_dbl;
+#else
+#if defined(XYSSL_HAVE_INT16)
+typedef unsigned short t_int;
+typedef unsigned long  t_dbl;
 #else
   typedef unsigned long t_int;
   #if defined(_MSC_VER) && defined(_M_IX86)
-    typedef unsigned __int64 t_dbl;
+  typedef unsigned __int64 t_dbl;
   #else
     #if defined(__amd64__) || defined(__x86_64__)    || \
         defined(__ppc64__) || defined(__powerpc64__) || \
         defined(__ia64__)  || defined(__alpha__)
-      typedef unsigned int t_dbl __attribute__((mode(TI)));
+    typedef unsigned int t_dbl __attribute__((mode(TI)));
     #else
-      typedef unsigned long long t_dbl;
+    typedef unsigned long long t_dbl;
     #endif
   #endif
 #endif
-
-#define ciL    (int) sizeof(t_int)      /* chars in limb  */
-#define biL    (ciL << 3)               /* bits  in limb  */
-#define biH    (ciL << 2)               /* half limb size */
+#endif
 
 /**
  * \brief          MPI structure
@@ -58,6 +53,10 @@ typedef struct
 }
 mpi;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * \brief          Initialize one or more mpi
  */
@@ -69,7 +68,7 @@ void mpi_init( mpi *X, ... );
 void mpi_free( mpi *X, ... );
 
 /**
- * \brief          Enlarge X to the specified number of limbs
+ * \brief          Enlarge to the specified number of limbs
  *
  * \return         0 if successful,
  *                 1 if memory allocation failed
@@ -98,25 +97,40 @@ void mpi_swap( mpi *X, mpi *Y );
 int mpi_lset( mpi *X, int z );
 
 /**
- * \brief          Import X from an ASCII string
+ * \brief          Return the number of least significant bits
+ */
+int mpi_lsb( mpi *X );
+
+/**
+ * \brief          Return the number of most significant bits
+ */
+int mpi_msb( mpi *X );
+
+/**
+ * \brief          Return the total size in bytes
+ */
+int mpi_size( mpi *X );
+
+/**
+ * \brief          Import from an ASCII string
  *
  * \param X        destination mpi
  * \param radix    input numeric base
  * \param s        null-terminated string buffer
  *
- * \return         0 if successful, or an ERR_MPI_XXX error code
+ * \return         0 if successful, or an XYSSL_ERR_MPI_XXX error code
  */
 int mpi_read_string( mpi *X, int radix, char *s );
 
 /**
- * \brief          Export X into an ASCII string
+ * \brief          Export into an ASCII string
  *
  * \param X        source mpi
  * \param radix    output numeric base
  * \param s        string buffer
  * \param slen     string buffer size
  *
- * \return         0 if successful, or an ERR_MPI_XXX error code
+ * \return         0 if successful, or an XYSSL_ERR_MPI_XXX error code
  *
  * \note           Call this function with *slen = 0 to obtain the
  *                 minimum required buffer size in *slen.
@@ -130,7 +144,7 @@ int mpi_write_string( mpi *X, int radix, char *s, int *slen );
  * \param radix    input numeric base
  * \param fin      input file handle
  *
- * \return         0 if successful, or an ERR_MPI_XXX error code
+ * \return         0 if successful, or an XYSSL_ERR_MPI_XXX error code
  */
 int mpi_read_file( mpi *X, int radix, FILE *fin );
 
@@ -142,7 +156,7 @@ int mpi_read_file( mpi *X, int radix, FILE *fin );
  * \param radix    output numeric base
  * \param fout     output file handle
  *
- * \return         0 if successful, or an ERR_MPI_XXX error code
+ * \return         0 if successful, or an XYSSL_ERR_MPI_XXX error code
  *
  * \note           Set fout == NULL to print X on the console.
  */
@@ -168,22 +182,12 @@ int mpi_read_binary( mpi *X, unsigned char *buf, int buflen );
  * \param buflen   output buffer size
  *
  * \return         0 if successful,
- *                 ERR_MPI_BUFFER_TOO_SMALL if buf isn't large enough
+ *                 XYSSL_ERR_MPI_BUFFER_TOO_SMALL if buf isn't large enough
  *
  * \note           Call this function with *buflen = 0 to obtain the
  *                 minimum required buffer size in *buflen.
  */
-int mpi_write_binary( mpi *X, unsigned char *buf, int *buflen );
-
-/**
- * \brief          Return the total size in bits, without leading 0s
- */
-int mpi_msb( mpi *X );
-
-/**
- * \brief          Return the number of least significant bits
- */
-int mpi_lsb( mpi *X );
+int mpi_write_binary( mpi *X, unsigned char *buf, int buflen );
 
 /**
  * \brief          Left-shift: X <<= count
@@ -240,7 +244,7 @@ int mpi_add_abs( mpi *X, mpi *A, mpi *B );
  * \brief          Unsigned substraction: X = |A| - |B|
  *
  * \return         0 if successful,
- *                 ERR_MPI_NEGATIVE_VALUE if B is greater than A
+ *                 XYSSL_ERR_MPI_NEGATIVE_VALUE if B is greater than A
  */
 int mpi_sub_abs( mpi *X, mpi *A, mpi *B );
 
@@ -297,7 +301,7 @@ int mpi_mul_int( mpi *X, mpi *A, t_int b );
  *
  * \return         0 if successful,
  *                 1 if memory allocation failed,
- *                 ERR_MPI_DIVISION_BY_ZERO if B == 0
+ *                 XYSSL_ERR_MPI_DIVISION_BY_ZERO if B == 0
  *
  * \note           Either Q or R can be NULL.
  */
@@ -308,7 +312,7 @@ int mpi_div_mpi( mpi *Q, mpi *R, mpi *A, mpi *B );
  *
  * \return         0 if successful,
  *                 1 if memory allocation failed,
- *                 ERR_MPI_DIVISION_BY_ZERO if b == 0
+ *                 XYSSL_ERR_MPI_DIVISION_BY_ZERO if b == 0
  *
  * \note           Either Q or R can be NULL.
  */
@@ -319,7 +323,7 @@ int mpi_div_int( mpi *Q, mpi *R, mpi *A, int b );
  *
  * \return         0 if successful,
  *                 1 if memory allocation failed,
- *                 ERR_MPI_DIVISION_BY_ZERO if B == 0
+ *                 XYSSL_ERR_MPI_DIVISION_BY_ZERO if B == 0
  */
 int mpi_mod_mpi( mpi *R, mpi *A, mpi *B );
 
@@ -328,7 +332,7 @@ int mpi_mod_mpi( mpi *R, mpi *A, mpi *B );
  *
  * \return         0 if successful,
  *                 1 if memory allocation failed,
- *                 ERR_MPI_DIVISION_BY_ZERO if b == 0,
+ *                 XYSSL_ERR_MPI_DIVISION_BY_ZERO if b == 0
  */
 int mpi_mod_int( t_int *r, mpi *A, int b );
 
@@ -337,7 +341,7 @@ int mpi_mod_int( t_int *r, mpi *A, int b );
  *
  * \return         0 if successful,
  *                 1 if memory allocation failed,
- *                 ERR_MPI_INVALID_PARAMETER if N is negative or even
+ *                 XYSSL_ERR_MPI_BAD_INPUT_DATA if N is negative or even
  *
  * \note           _RR is used to avoid re-computing R*R mod N across
  *                 multiple calls, which speeds up things a bit. It can
@@ -358,8 +362,8 @@ int mpi_gcd( mpi *G, mpi *A, mpi *B );
  *
  * \return         0 if successful,
  *                 1 if memory allocation failed,
- *                 ERR_MPI_INVALID_PARAMETER if N is negative or nil
- *                 ERR_MPI_NOT_ACCEPTABLE if A has no inverse mod N
+ *                 XYSSL_ERR_MPI_BAD_INPUT_DATA if N is negative or nil
+ *                 XYSSL_ERR_MPI_NOT_ACCEPTABLE if A has no inverse mod N
  */
 int mpi_inv_mod( mpi *X, mpi *A, mpi *N );
 
@@ -368,9 +372,9 @@ int mpi_inv_mod( mpi *X, mpi *A, mpi *N );
  *
  * \return         0 if successful (probably prime),
  *                 1 if memory allocation failed,
- *                 ERR_MPI_NOT_ACCEPTABLE if X is not prime
+ *                 XYSSL_ERR_MPI_NOT_ACCEPTABLE if X is not prime
  */
-int mpi_is_prime( mpi *X );
+int mpi_is_prime( mpi *X, int (*f_rng)(void *), void *p_rng );
 
 /**
  * \brief          Prime number generation
@@ -378,15 +382,15 @@ int mpi_is_prime( mpi *X );
  * \param X        destination mpi
  * \param nbits    required size of X in bits
  * \param dh_flag  if 1, then (X-1)/2 will be prime too
- * \param rng_f    points to the RNG function
- * \param rng_d    points to the RNG data 
+ * \param f_rng    RNG function
+ * \param p_rng    RNG parameter
  *
  * \return         0 if successful (probably prime),
  *                 1 if memory allocation failed,
- *                 ERR_MPI_INVALID_PARAMETER if nbits is < 3
+ *                 XYSSL_ERR_MPI_BAD_INPUT_DATA if nbits is < 3
  */
 int mpi_gen_prime( mpi *X, int nbits, int dh_flag,
-                   int (*rng_f)(void *), void *rng_d );
+                   int (*f_rng)(void *), void *p_rng );
 
 /**
  * \brief          Checkup routine

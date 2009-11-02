@@ -1,21 +1,32 @@
-/*
- *  FIPS-197 compliant AES implementation
- *
- *  Copyright (C) 2006-2007  Christophe Devine
- *
- *  This library is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU Lesser General Public
- *  License, version 2.1 as published by the Free Software Foundation.
- *
- *  This library is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  Lesser General Public License for more details.
- *
- *  You should have received a copy of the GNU Lesser General Public
- *  License along with this library; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- *  MA  02110-1301  USA
+/* 
+ * Copyright (c) 2006-2007, Christophe Devine
+ * All rights reserved.
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer
+ *       in the documentation and/or other materials provided with the
+ *       distribution.
+ *     * Neither the name of the XySSL nor the names of its contributors
+ *       may be used to endorse or promote products derived from this
+ *       software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
  *  The AES block cipher was designed by Vincent Rijmen and Joan Daemen.
@@ -24,167 +35,43 @@
  *  http://csrc.nist.gov/publications/fips/fips197/fips-197.pdf
  */
 
-#ifndef _CRT_SECURE_NO_DEPRECATE
-#define _CRT_SECURE_NO_DEPRECATE 1
-#endif
+#include "xyssl/config.h"
+
+#if defined(XYSSL_AES_C)
+
+#include "xyssl/aes.h"
+#include "xyssl/padlock.h"
 
 #include <string.h>
 
-#include "xyssl/aes.h"
-
-#ifndef uint8
-#define uint8 unsigned char
-#endif
-
-#ifndef uint32
-#define uint32 unsigned long
-#endif
-
 /*
- * 32-bit integer manipulation macros (big endian)
+ * 32-bit integer manipulation macros (little endian)
  */
-#ifndef GET_UINT32_BE
-#define GET_UINT32_BE(n,b,i)                            \
+#ifndef GET_ULONG_LE
+#define GET_ULONG_LE(n,b,i)                             \
 {                                                       \
-    (n) = ( (uint32) (b)[(i)    ] << 24 )        \
-        | ( (uint32) (b)[(i) + 1] << 16 )        \
-        | ( (uint32) (b)[(i) + 2] <<  8 )        \
-        | ( (uint32) (b)[(i) + 3]       );       \
+    (n) = ( (unsigned long) (b)[(i)    ]       )        \
+        | ( (unsigned long) (b)[(i) + 1] <<  8 )        \
+        | ( (unsigned long) (b)[(i) + 2] << 16 )        \
+        | ( (unsigned long) (b)[(i) + 3] << 24 );       \
 }
 #endif
-#ifndef PUT_UINT32_BE
-#define PUT_UINT32_BE(n,b,i)                            \
+
+#ifndef PUT_ULONG_LE
+#define PUT_ULONG_LE(n,b,i)                             \
 {                                                       \
-    (b)[(i)    ] = (uint8) ( (n) >> 24 );       \
-    (b)[(i) + 1] = (uint8) ( (n) >> 16 );       \
-    (b)[(i) + 2] = (uint8) ( (n) >>  8 );       \
-    (b)[(i) + 3] = (uint8) ( (n)       );       \
+    (b)[(i)    ] = (unsigned char) ( (n)       );       \
+    (b)[(i) + 1] = (unsigned char) ( (n) >>  8 );       \
+    (b)[(i) + 2] = (unsigned char) ( (n) >> 16 );       \
+    (b)[(i) + 3] = (unsigned char) ( (n) >> 24 );       \
 }
 #endif
 
-/*
- * Uncomment the following line to use pre-computed tables,
- * otherwise the tables will be generated at the first run.
- *
- * #define FIXED_TABLES
- */
-
-#if !defined(FIXED_TABLES)
-
-/*
- * Forward S-box & tables
- */
-static uint8  FSb[256];
-static uint32 FT0[256]; 
-static uint32 FT1[256]; 
-static uint32 FT2[256]; 
-static uint32 FT3[256]; 
-
-/*
- * Reverse S-box & tables
- */
-static uint8  RSb[256];
-static uint32 RT0[256];
-static uint32 RT1[256];
-static uint32 RT2[256];
-static uint32 RT3[256];
-
-/*
- * Round constants
- */
-static uint32 RCON[10];
-
-/*
- * Tables generation code
- */
-#define ROTR8(x) ( ( ( x << 24 ) & 0xFFFFFFFF ) | \
-                   ( ( x & 0xFFFFFFFF ) >> 8 ) )
-#define XTIME(x) ( ( x << 1 ) ^ ( ( x & 0x80 ) ? 0x1B : 0x00 ) )
-#define MUL(x,y) ( ( x && y ) ? pow[(log[x] + log[y]) % 255] : 0 )
-
-static void aes_gen_tables( void )
-{
-    int i;
-    uint8 x, y;
-    uint8 pow[256];
-    uint8 log[256];
-
-    /*
-     * compute pow and log tables over GF(2^8)
-     */
-    for( i = 0, x = 1; i < 256; i++, x ^= XTIME( x ) )
-    {
-        pow[i] = x;
-        log[x] = i;
-    }
-
-    /*
-     * calculate the round constants
-     */
-    for( i = 0, x = 1; i < 10; i++, x = XTIME( x ) )
-    {
-        RCON[i] = (uint32) x << 24;
-    }
-
-    /*
-     * generate the forward and reverse S-boxes
-     */
-    FSb[0x00] = 0x63;
-    RSb[0x63] = 0x00;
-
-    for( i = 1; i < 256; i++ )
-    {
-        x = pow[255 - log[i]];
-
-        y  = x; y = ( y << 1 ) | ( y >> 7 );
-        x ^= y; y = ( y << 1 ) | ( y >> 7 );
-        x ^= y; y = ( y << 1 ) | ( y >> 7 );
-        x ^= y; y = ( y << 1 ) | ( y >> 7 );
-        x ^= y ^ 0x63;
-
-        FSb[i] = x;
-        RSb[x] = i;
-    }
-
-    /*
-     * generate the forward and reverse tables
-     */
-    for( i = 0; i < 256; i++ )
-    {
-        x = FSb[i]; y = XTIME( x );
-
-        FT0[i] =   (uint32) ( x ^ y ) ^
-                 ( (uint32) x <<  8 ) ^
-                 ( (uint32) x << 16 ) ^
-                 ( (uint32) y << 24 );
-
-        FT0[i] &= 0xFFFFFFFF;
-
-        FT1[i] = ROTR8( FT0[i] );
-        FT2[i] = ROTR8( FT1[i] );
-        FT3[i] = ROTR8( FT2[i] );
-
-        y = RSb[i];
-
-        RT0[i] = ( (uint32) MUL( 0x0B, y )       ) ^
-                 ( (uint32) MUL( 0x0D, y ) <<  8 ) ^
-                 ( (uint32) MUL( 0x09, y ) << 16 ) ^
-                 ( (uint32) MUL( 0x0E, y ) << 24 );
-
-        RT0[i] &= 0xFFFFFFFF;
-
-        RT1[i] = ROTR8( RT0[i] );
-        RT2[i] = ROTR8( RT1[i] );
-        RT3[i] = ROTR8( RT2[i] );
-    }
-}
-
-#else
-
+#if defined(XYSSL_AES_ROM_TABLES)
 /*
  * Forward S-box
  */
-static const uint8 FSb[256] =
+static const unsigned char FSb[256] =
 {
     0x63, 0x7C, 0x77, 0x7B, 0xF2, 0x6B, 0x6F, 0xC5,
     0x30, 0x01, 0x67, 0x2B, 0xFE, 0xD7, 0xAB, 0x76,
@@ -225,85 +112,85 @@ static const uint8 FSb[256] =
  */
 #define FT \
 \
-    V(C6,63,63,A5), V(F8,7C,7C,84), V(EE,77,77,99), V(F6,7B,7B,8D), \
-    V(FF,F2,F2,0D), V(D6,6B,6B,BD), V(DE,6F,6F,B1), V(91,C5,C5,54), \
-    V(60,30,30,50), V(02,01,01,03), V(CE,67,67,A9), V(56,2B,2B,7D), \
-    V(E7,FE,FE,19), V(B5,D7,D7,62), V(4D,AB,AB,E6), V(EC,76,76,9A), \
-    V(8F,CA,CA,45), V(1F,82,82,9D), V(89,C9,C9,40), V(FA,7D,7D,87), \
-    V(EF,FA,FA,15), V(B2,59,59,EB), V(8E,47,47,C9), V(FB,F0,F0,0B), \
-    V(41,AD,AD,EC), V(B3,D4,D4,67), V(5F,A2,A2,FD), V(45,AF,AF,EA), \
-    V(23,9C,9C,BF), V(53,A4,A4,F7), V(E4,72,72,96), V(9B,C0,C0,5B), \
-    V(75,B7,B7,C2), V(E1,FD,FD,1C), V(3D,93,93,AE), V(4C,26,26,6A), \
-    V(6C,36,36,5A), V(7E,3F,3F,41), V(F5,F7,F7,02), V(83,CC,CC,4F), \
-    V(68,34,34,5C), V(51,A5,A5,F4), V(D1,E5,E5,34), V(F9,F1,F1,08), \
-    V(E2,71,71,93), V(AB,D8,D8,73), V(62,31,31,53), V(2A,15,15,3F), \
-    V(08,04,04,0C), V(95,C7,C7,52), V(46,23,23,65), V(9D,C3,C3,5E), \
-    V(30,18,18,28), V(37,96,96,A1), V(0A,05,05,0F), V(2F,9A,9A,B5), \
-    V(0E,07,07,09), V(24,12,12,36), V(1B,80,80,9B), V(DF,E2,E2,3D), \
-    V(CD,EB,EB,26), V(4E,27,27,69), V(7F,B2,B2,CD), V(EA,75,75,9F), \
-    V(12,09,09,1B), V(1D,83,83,9E), V(58,2C,2C,74), V(34,1A,1A,2E), \
-    V(36,1B,1B,2D), V(DC,6E,6E,B2), V(B4,5A,5A,EE), V(5B,A0,A0,FB), \
-    V(A4,52,52,F6), V(76,3B,3B,4D), V(B7,D6,D6,61), V(7D,B3,B3,CE), \
-    V(52,29,29,7B), V(DD,E3,E3,3E), V(5E,2F,2F,71), V(13,84,84,97), \
-    V(A6,53,53,F5), V(B9,D1,D1,68), V(00,00,00,00), V(C1,ED,ED,2C), \
-    V(40,20,20,60), V(E3,FC,FC,1F), V(79,B1,B1,C8), V(B6,5B,5B,ED), \
-    V(D4,6A,6A,BE), V(8D,CB,CB,46), V(67,BE,BE,D9), V(72,39,39,4B), \
-    V(94,4A,4A,DE), V(98,4C,4C,D4), V(B0,58,58,E8), V(85,CF,CF,4A), \
-    V(BB,D0,D0,6B), V(C5,EF,EF,2A), V(4F,AA,AA,E5), V(ED,FB,FB,16), \
-    V(86,43,43,C5), V(9A,4D,4D,D7), V(66,33,33,55), V(11,85,85,94), \
-    V(8A,45,45,CF), V(E9,F9,F9,10), V(04,02,02,06), V(FE,7F,7F,81), \
-    V(A0,50,50,F0), V(78,3C,3C,44), V(25,9F,9F,BA), V(4B,A8,A8,E3), \
-    V(A2,51,51,F3), V(5D,A3,A3,FE), V(80,40,40,C0), V(05,8F,8F,8A), \
-    V(3F,92,92,AD), V(21,9D,9D,BC), V(70,38,38,48), V(F1,F5,F5,04), \
-    V(63,BC,BC,DF), V(77,B6,B6,C1), V(AF,DA,DA,75), V(42,21,21,63), \
-    V(20,10,10,30), V(E5,FF,FF,1A), V(FD,F3,F3,0E), V(BF,D2,D2,6D), \
-    V(81,CD,CD,4C), V(18,0C,0C,14), V(26,13,13,35), V(C3,EC,EC,2F), \
-    V(BE,5F,5F,E1), V(35,97,97,A2), V(88,44,44,CC), V(2E,17,17,39), \
-    V(93,C4,C4,57), V(55,A7,A7,F2), V(FC,7E,7E,82), V(7A,3D,3D,47), \
-    V(C8,64,64,AC), V(BA,5D,5D,E7), V(32,19,19,2B), V(E6,73,73,95), \
-    V(C0,60,60,A0), V(19,81,81,98), V(9E,4F,4F,D1), V(A3,DC,DC,7F), \
-    V(44,22,22,66), V(54,2A,2A,7E), V(3B,90,90,AB), V(0B,88,88,83), \
-    V(8C,46,46,CA), V(C7,EE,EE,29), V(6B,B8,B8,D3), V(28,14,14,3C), \
-    V(A7,DE,DE,79), V(BC,5E,5E,E2), V(16,0B,0B,1D), V(AD,DB,DB,76), \
-    V(DB,E0,E0,3B), V(64,32,32,56), V(74,3A,3A,4E), V(14,0A,0A,1E), \
-    V(92,49,49,DB), V(0C,06,06,0A), V(48,24,24,6C), V(B8,5C,5C,E4), \
-    V(9F,C2,C2,5D), V(BD,D3,D3,6E), V(43,AC,AC,EF), V(C4,62,62,A6), \
-    V(39,91,91,A8), V(31,95,95,A4), V(D3,E4,E4,37), V(F2,79,79,8B), \
-    V(D5,E7,E7,32), V(8B,C8,C8,43), V(6E,37,37,59), V(DA,6D,6D,B7), \
-    V(01,8D,8D,8C), V(B1,D5,D5,64), V(9C,4E,4E,D2), V(49,A9,A9,E0), \
-    V(D8,6C,6C,B4), V(AC,56,56,FA), V(F3,F4,F4,07), V(CF,EA,EA,25), \
-    V(CA,65,65,AF), V(F4,7A,7A,8E), V(47,AE,AE,E9), V(10,08,08,18), \
-    V(6F,BA,BA,D5), V(F0,78,78,88), V(4A,25,25,6F), V(5C,2E,2E,72), \
-    V(38,1C,1C,24), V(57,A6,A6,F1), V(73,B4,B4,C7), V(97,C6,C6,51), \
-    V(CB,E8,E8,23), V(A1,DD,DD,7C), V(E8,74,74,9C), V(3E,1F,1F,21), \
-    V(96,4B,4B,DD), V(61,BD,BD,DC), V(0D,8B,8B,86), V(0F,8A,8A,85), \
-    V(E0,70,70,90), V(7C,3E,3E,42), V(71,B5,B5,C4), V(CC,66,66,AA), \
-    V(90,48,48,D8), V(06,03,03,05), V(F7,F6,F6,01), V(1C,0E,0E,12), \
-    V(C2,61,61,A3), V(6A,35,35,5F), V(AE,57,57,F9), V(69,B9,B9,D0), \
-    V(17,86,86,91), V(99,C1,C1,58), V(3A,1D,1D,27), V(27,9E,9E,B9), \
-    V(D9,E1,E1,38), V(EB,F8,F8,13), V(2B,98,98,B3), V(22,11,11,33), \
-    V(D2,69,69,BB), V(A9,D9,D9,70), V(07,8E,8E,89), V(33,94,94,A7), \
-    V(2D,9B,9B,B6), V(3C,1E,1E,22), V(15,87,87,92), V(C9,E9,E9,20), \
-    V(87,CE,CE,49), V(AA,55,55,FF), V(50,28,28,78), V(A5,DF,DF,7A), \
-    V(03,8C,8C,8F), V(59,A1,A1,F8), V(09,89,89,80), V(1A,0D,0D,17), \
-    V(65,BF,BF,DA), V(D7,E6,E6,31), V(84,42,42,C6), V(D0,68,68,B8), \
-    V(82,41,41,C3), V(29,99,99,B0), V(5A,2D,2D,77), V(1E,0F,0F,11), \
-    V(7B,B0,B0,CB), V(A8,54,54,FC), V(6D,BB,BB,D6), V(2C,16,16,3A)
+    V(A5,63,63,C6), V(84,7C,7C,F8), V(99,77,77,EE), V(8D,7B,7B,F6), \
+    V(0D,F2,F2,FF), V(BD,6B,6B,D6), V(B1,6F,6F,DE), V(54,C5,C5,91), \
+    V(50,30,30,60), V(03,01,01,02), V(A9,67,67,CE), V(7D,2B,2B,56), \
+    V(19,FE,FE,E7), V(62,D7,D7,B5), V(E6,AB,AB,4D), V(9A,76,76,EC), \
+    V(45,CA,CA,8F), V(9D,82,82,1F), V(40,C9,C9,89), V(87,7D,7D,FA), \
+    V(15,FA,FA,EF), V(EB,59,59,B2), V(C9,47,47,8E), V(0B,F0,F0,FB), \
+    V(EC,AD,AD,41), V(67,D4,D4,B3), V(FD,A2,A2,5F), V(EA,AF,AF,45), \
+    V(BF,9C,9C,23), V(F7,A4,A4,53), V(96,72,72,E4), V(5B,C0,C0,9B), \
+    V(C2,B7,B7,75), V(1C,FD,FD,E1), V(AE,93,93,3D), V(6A,26,26,4C), \
+    V(5A,36,36,6C), V(41,3F,3F,7E), V(02,F7,F7,F5), V(4F,CC,CC,83), \
+    V(5C,34,34,68), V(F4,A5,A5,51), V(34,E5,E5,D1), V(08,F1,F1,F9), \
+    V(93,71,71,E2), V(73,D8,D8,AB), V(53,31,31,62), V(3F,15,15,2A), \
+    V(0C,04,04,08), V(52,C7,C7,95), V(65,23,23,46), V(5E,C3,C3,9D), \
+    V(28,18,18,30), V(A1,96,96,37), V(0F,05,05,0A), V(B5,9A,9A,2F), \
+    V(09,07,07,0E), V(36,12,12,24), V(9B,80,80,1B), V(3D,E2,E2,DF), \
+    V(26,EB,EB,CD), V(69,27,27,4E), V(CD,B2,B2,7F), V(9F,75,75,EA), \
+    V(1B,09,09,12), V(9E,83,83,1D), V(74,2C,2C,58), V(2E,1A,1A,34), \
+    V(2D,1B,1B,36), V(B2,6E,6E,DC), V(EE,5A,5A,B4), V(FB,A0,A0,5B), \
+    V(F6,52,52,A4), V(4D,3B,3B,76), V(61,D6,D6,B7), V(CE,B3,B3,7D), \
+    V(7B,29,29,52), V(3E,E3,E3,DD), V(71,2F,2F,5E), V(97,84,84,13), \
+    V(F5,53,53,A6), V(68,D1,D1,B9), V(00,00,00,00), V(2C,ED,ED,C1), \
+    V(60,20,20,40), V(1F,FC,FC,E3), V(C8,B1,B1,79), V(ED,5B,5B,B6), \
+    V(BE,6A,6A,D4), V(46,CB,CB,8D), V(D9,BE,BE,67), V(4B,39,39,72), \
+    V(DE,4A,4A,94), V(D4,4C,4C,98), V(E8,58,58,B0), V(4A,CF,CF,85), \
+    V(6B,D0,D0,BB), V(2A,EF,EF,C5), V(E5,AA,AA,4F), V(16,FB,FB,ED), \
+    V(C5,43,43,86), V(D7,4D,4D,9A), V(55,33,33,66), V(94,85,85,11), \
+    V(CF,45,45,8A), V(10,F9,F9,E9), V(06,02,02,04), V(81,7F,7F,FE), \
+    V(F0,50,50,A0), V(44,3C,3C,78), V(BA,9F,9F,25), V(E3,A8,A8,4B), \
+    V(F3,51,51,A2), V(FE,A3,A3,5D), V(C0,40,40,80), V(8A,8F,8F,05), \
+    V(AD,92,92,3F), V(BC,9D,9D,21), V(48,38,38,70), V(04,F5,F5,F1), \
+    V(DF,BC,BC,63), V(C1,B6,B6,77), V(75,DA,DA,AF), V(63,21,21,42), \
+    V(30,10,10,20), V(1A,FF,FF,E5), V(0E,F3,F3,FD), V(6D,D2,D2,BF), \
+    V(4C,CD,CD,81), V(14,0C,0C,18), V(35,13,13,26), V(2F,EC,EC,C3), \
+    V(E1,5F,5F,BE), V(A2,97,97,35), V(CC,44,44,88), V(39,17,17,2E), \
+    V(57,C4,C4,93), V(F2,A7,A7,55), V(82,7E,7E,FC), V(47,3D,3D,7A), \
+    V(AC,64,64,C8), V(E7,5D,5D,BA), V(2B,19,19,32), V(95,73,73,E6), \
+    V(A0,60,60,C0), V(98,81,81,19), V(D1,4F,4F,9E), V(7F,DC,DC,A3), \
+    V(66,22,22,44), V(7E,2A,2A,54), V(AB,90,90,3B), V(83,88,88,0B), \
+    V(CA,46,46,8C), V(29,EE,EE,C7), V(D3,B8,B8,6B), V(3C,14,14,28), \
+    V(79,DE,DE,A7), V(E2,5E,5E,BC), V(1D,0B,0B,16), V(76,DB,DB,AD), \
+    V(3B,E0,E0,DB), V(56,32,32,64), V(4E,3A,3A,74), V(1E,0A,0A,14), \
+    V(DB,49,49,92), V(0A,06,06,0C), V(6C,24,24,48), V(E4,5C,5C,B8), \
+    V(5D,C2,C2,9F), V(6E,D3,D3,BD), V(EF,AC,AC,43), V(A6,62,62,C4), \
+    V(A8,91,91,39), V(A4,95,95,31), V(37,E4,E4,D3), V(8B,79,79,F2), \
+    V(32,E7,E7,D5), V(43,C8,C8,8B), V(59,37,37,6E), V(B7,6D,6D,DA), \
+    V(8C,8D,8D,01), V(64,D5,D5,B1), V(D2,4E,4E,9C), V(E0,A9,A9,49), \
+    V(B4,6C,6C,D8), V(FA,56,56,AC), V(07,F4,F4,F3), V(25,EA,EA,CF), \
+    V(AF,65,65,CA), V(8E,7A,7A,F4), V(E9,AE,AE,47), V(18,08,08,10), \
+    V(D5,BA,BA,6F), V(88,78,78,F0), V(6F,25,25,4A), V(72,2E,2E,5C), \
+    V(24,1C,1C,38), V(F1,A6,A6,57), V(C7,B4,B4,73), V(51,C6,C6,97), \
+    V(23,E8,E8,CB), V(7C,DD,DD,A1), V(9C,74,74,E8), V(21,1F,1F,3E), \
+    V(DD,4B,4B,96), V(DC,BD,BD,61), V(86,8B,8B,0D), V(85,8A,8A,0F), \
+    V(90,70,70,E0), V(42,3E,3E,7C), V(C4,B5,B5,71), V(AA,66,66,CC), \
+    V(D8,48,48,90), V(05,03,03,06), V(01,F6,F6,F7), V(12,0E,0E,1C), \
+    V(A3,61,61,C2), V(5F,35,35,6A), V(F9,57,57,AE), V(D0,B9,B9,69), \
+    V(91,86,86,17), V(58,C1,C1,99), V(27,1D,1D,3A), V(B9,9E,9E,27), \
+    V(38,E1,E1,D9), V(13,F8,F8,EB), V(B3,98,98,2B), V(33,11,11,22), \
+    V(BB,69,69,D2), V(70,D9,D9,A9), V(89,8E,8E,07), V(A7,94,94,33), \
+    V(B6,9B,9B,2D), V(22,1E,1E,3C), V(92,87,87,15), V(20,E9,E9,C9), \
+    V(49,CE,CE,87), V(FF,55,55,AA), V(78,28,28,50), V(7A,DF,DF,A5), \
+    V(8F,8C,8C,03), V(F8,A1,A1,59), V(80,89,89,09), V(17,0D,0D,1A), \
+    V(DA,BF,BF,65), V(31,E6,E6,D7), V(C6,42,42,84), V(B8,68,68,D0), \
+    V(C3,41,41,82), V(B0,99,99,29), V(77,2D,2D,5A), V(11,0F,0F,1E), \
+    V(CB,B0,B0,7B), V(FC,54,54,A8), V(D6,BB,BB,6D), V(3A,16,16,2C)
 
 #define V(a,b,c,d) 0x##a##b##c##d
-static const uint32 FT0[256] = { FT };
-#undef V
-
-#define V(a,b,c,d) 0x##d##a##b##c
-static const uint32 FT1[256] = { FT };
-#undef V
-
-#define V(a,b,c,d) 0x##c##d##a##b
-static const uint32 FT2[256] = { FT };
+static const unsigned long FT0[256] = { FT };
 #undef V
 
 #define V(a,b,c,d) 0x##b##c##d##a
-static const uint32 FT3[256] = { FT };
+static const unsigned long FT1[256] = { FT };
+#undef V
+
+#define V(a,b,c,d) 0x##c##d##a##b
+static const unsigned long FT2[256] = { FT };
+#undef V
+
+#define V(a,b,c,d) 0x##d##a##b##c
+static const unsigned long FT3[256] = { FT };
 #undef V
 
 #undef FT
@@ -311,7 +198,7 @@ static const uint32 FT3[256] = { FT };
 /*
  * Reverse S-box
  */
-static const uint8 RSb[256] =
+static const unsigned char RSb[256] =
 {
     0x52, 0x09, 0x6A, 0xD5, 0x30, 0x36, 0xA5, 0x38,
     0xBF, 0x40, 0xA3, 0x9E, 0x81, 0xF3, 0xD7, 0xFB,
@@ -352,85 +239,85 @@ static const uint8 RSb[256] =
  */
 #define RT \
 \
-    V(51,F4,A7,50), V(7E,41,65,53), V(1A,17,A4,C3), V(3A,27,5E,96), \
-    V(3B,AB,6B,CB), V(1F,9D,45,F1), V(AC,FA,58,AB), V(4B,E3,03,93), \
-    V(20,30,FA,55), V(AD,76,6D,F6), V(88,CC,76,91), V(F5,02,4C,25), \
-    V(4F,E5,D7,FC), V(C5,2A,CB,D7), V(26,35,44,80), V(B5,62,A3,8F), \
-    V(DE,B1,5A,49), V(25,BA,1B,67), V(45,EA,0E,98), V(5D,FE,C0,E1), \
-    V(C3,2F,75,02), V(81,4C,F0,12), V(8D,46,97,A3), V(6B,D3,F9,C6), \
-    V(03,8F,5F,E7), V(15,92,9C,95), V(BF,6D,7A,EB), V(95,52,59,DA), \
-    V(D4,BE,83,2D), V(58,74,21,D3), V(49,E0,69,29), V(8E,C9,C8,44), \
-    V(75,C2,89,6A), V(F4,8E,79,78), V(99,58,3E,6B), V(27,B9,71,DD), \
-    V(BE,E1,4F,B6), V(F0,88,AD,17), V(C9,20,AC,66), V(7D,CE,3A,B4), \
-    V(63,DF,4A,18), V(E5,1A,31,82), V(97,51,33,60), V(62,53,7F,45), \
-    V(B1,64,77,E0), V(BB,6B,AE,84), V(FE,81,A0,1C), V(F9,08,2B,94), \
-    V(70,48,68,58), V(8F,45,FD,19), V(94,DE,6C,87), V(52,7B,F8,B7), \
-    V(AB,73,D3,23), V(72,4B,02,E2), V(E3,1F,8F,57), V(66,55,AB,2A), \
-    V(B2,EB,28,07), V(2F,B5,C2,03), V(86,C5,7B,9A), V(D3,37,08,A5), \
-    V(30,28,87,F2), V(23,BF,A5,B2), V(02,03,6A,BA), V(ED,16,82,5C), \
-    V(8A,CF,1C,2B), V(A7,79,B4,92), V(F3,07,F2,F0), V(4E,69,E2,A1), \
-    V(65,DA,F4,CD), V(06,05,BE,D5), V(D1,34,62,1F), V(C4,A6,FE,8A), \
-    V(34,2E,53,9D), V(A2,F3,55,A0), V(05,8A,E1,32), V(A4,F6,EB,75), \
-    V(0B,83,EC,39), V(40,60,EF,AA), V(5E,71,9F,06), V(BD,6E,10,51), \
-    V(3E,21,8A,F9), V(96,DD,06,3D), V(DD,3E,05,AE), V(4D,E6,BD,46), \
-    V(91,54,8D,B5), V(71,C4,5D,05), V(04,06,D4,6F), V(60,50,15,FF), \
-    V(19,98,FB,24), V(D6,BD,E9,97), V(89,40,43,CC), V(67,D9,9E,77), \
-    V(B0,E8,42,BD), V(07,89,8B,88), V(E7,19,5B,38), V(79,C8,EE,DB), \
-    V(A1,7C,0A,47), V(7C,42,0F,E9), V(F8,84,1E,C9), V(00,00,00,00), \
-    V(09,80,86,83), V(32,2B,ED,48), V(1E,11,70,AC), V(6C,5A,72,4E), \
-    V(FD,0E,FF,FB), V(0F,85,38,56), V(3D,AE,D5,1E), V(36,2D,39,27), \
-    V(0A,0F,D9,64), V(68,5C,A6,21), V(9B,5B,54,D1), V(24,36,2E,3A), \
-    V(0C,0A,67,B1), V(93,57,E7,0F), V(B4,EE,96,D2), V(1B,9B,91,9E), \
-    V(80,C0,C5,4F), V(61,DC,20,A2), V(5A,77,4B,69), V(1C,12,1A,16), \
-    V(E2,93,BA,0A), V(C0,A0,2A,E5), V(3C,22,E0,43), V(12,1B,17,1D), \
-    V(0E,09,0D,0B), V(F2,8B,C7,AD), V(2D,B6,A8,B9), V(14,1E,A9,C8), \
-    V(57,F1,19,85), V(AF,75,07,4C), V(EE,99,DD,BB), V(A3,7F,60,FD), \
-    V(F7,01,26,9F), V(5C,72,F5,BC), V(44,66,3B,C5), V(5B,FB,7E,34), \
-    V(8B,43,29,76), V(CB,23,C6,DC), V(B6,ED,FC,68), V(B8,E4,F1,63), \
-    V(D7,31,DC,CA), V(42,63,85,10), V(13,97,22,40), V(84,C6,11,20), \
-    V(85,4A,24,7D), V(D2,BB,3D,F8), V(AE,F9,32,11), V(C7,29,A1,6D), \
-    V(1D,9E,2F,4B), V(DC,B2,30,F3), V(0D,86,52,EC), V(77,C1,E3,D0), \
-    V(2B,B3,16,6C), V(A9,70,B9,99), V(11,94,48,FA), V(47,E9,64,22), \
-    V(A8,FC,8C,C4), V(A0,F0,3F,1A), V(56,7D,2C,D8), V(22,33,90,EF), \
-    V(87,49,4E,C7), V(D9,38,D1,C1), V(8C,CA,A2,FE), V(98,D4,0B,36), \
-    V(A6,F5,81,CF), V(A5,7A,DE,28), V(DA,B7,8E,26), V(3F,AD,BF,A4), \
-    V(2C,3A,9D,E4), V(50,78,92,0D), V(6A,5F,CC,9B), V(54,7E,46,62), \
-    V(F6,8D,13,C2), V(90,D8,B8,E8), V(2E,39,F7,5E), V(82,C3,AF,F5), \
-    V(9F,5D,80,BE), V(69,D0,93,7C), V(6F,D5,2D,A9), V(CF,25,12,B3), \
-    V(C8,AC,99,3B), V(10,18,7D,A7), V(E8,9C,63,6E), V(DB,3B,BB,7B), \
-    V(CD,26,78,09), V(6E,59,18,F4), V(EC,9A,B7,01), V(83,4F,9A,A8), \
-    V(E6,95,6E,65), V(AA,FF,E6,7E), V(21,BC,CF,08), V(EF,15,E8,E6), \
-    V(BA,E7,9B,D9), V(4A,6F,36,CE), V(EA,9F,09,D4), V(29,B0,7C,D6), \
-    V(31,A4,B2,AF), V(2A,3F,23,31), V(C6,A5,94,30), V(35,A2,66,C0), \
-    V(74,4E,BC,37), V(FC,82,CA,A6), V(E0,90,D0,B0), V(33,A7,D8,15), \
-    V(F1,04,98,4A), V(41,EC,DA,F7), V(7F,CD,50,0E), V(17,91,F6,2F), \
-    V(76,4D,D6,8D), V(43,EF,B0,4D), V(CC,AA,4D,54), V(E4,96,04,DF), \
-    V(9E,D1,B5,E3), V(4C,6A,88,1B), V(C1,2C,1F,B8), V(46,65,51,7F), \
-    V(9D,5E,EA,04), V(01,8C,35,5D), V(FA,87,74,73), V(FB,0B,41,2E), \
-    V(B3,67,1D,5A), V(92,DB,D2,52), V(E9,10,56,33), V(6D,D6,47,13), \
-    V(9A,D7,61,8C), V(37,A1,0C,7A), V(59,F8,14,8E), V(EB,13,3C,89), \
-    V(CE,A9,27,EE), V(B7,61,C9,35), V(E1,1C,E5,ED), V(7A,47,B1,3C), \
-    V(9C,D2,DF,59), V(55,F2,73,3F), V(18,14,CE,79), V(73,C7,37,BF), \
-    V(53,F7,CD,EA), V(5F,FD,AA,5B), V(DF,3D,6F,14), V(78,44,DB,86), \
-    V(CA,AF,F3,81), V(B9,68,C4,3E), V(38,24,34,2C), V(C2,A3,40,5F), \
-    V(16,1D,C3,72), V(BC,E2,25,0C), V(28,3C,49,8B), V(FF,0D,95,41), \
-    V(39,A8,01,71), V(08,0C,B3,DE), V(D8,B4,E4,9C), V(64,56,C1,90), \
-    V(7B,CB,84,61), V(D5,32,B6,70), V(48,6C,5C,74), V(D0,B8,57,42)
+    V(50,A7,F4,51), V(53,65,41,7E), V(C3,A4,17,1A), V(96,5E,27,3A), \
+    V(CB,6B,AB,3B), V(F1,45,9D,1F), V(AB,58,FA,AC), V(93,03,E3,4B), \
+    V(55,FA,30,20), V(F6,6D,76,AD), V(91,76,CC,88), V(25,4C,02,F5), \
+    V(FC,D7,E5,4F), V(D7,CB,2A,C5), V(80,44,35,26), V(8F,A3,62,B5), \
+    V(49,5A,B1,DE), V(67,1B,BA,25), V(98,0E,EA,45), V(E1,C0,FE,5D), \
+    V(02,75,2F,C3), V(12,F0,4C,81), V(A3,97,46,8D), V(C6,F9,D3,6B), \
+    V(E7,5F,8F,03), V(95,9C,92,15), V(EB,7A,6D,BF), V(DA,59,52,95), \
+    V(2D,83,BE,D4), V(D3,21,74,58), V(29,69,E0,49), V(44,C8,C9,8E), \
+    V(6A,89,C2,75), V(78,79,8E,F4), V(6B,3E,58,99), V(DD,71,B9,27), \
+    V(B6,4F,E1,BE), V(17,AD,88,F0), V(66,AC,20,C9), V(B4,3A,CE,7D), \
+    V(18,4A,DF,63), V(82,31,1A,E5), V(60,33,51,97), V(45,7F,53,62), \
+    V(E0,77,64,B1), V(84,AE,6B,BB), V(1C,A0,81,FE), V(94,2B,08,F9), \
+    V(58,68,48,70), V(19,FD,45,8F), V(87,6C,DE,94), V(B7,F8,7B,52), \
+    V(23,D3,73,AB), V(E2,02,4B,72), V(57,8F,1F,E3), V(2A,AB,55,66), \
+    V(07,28,EB,B2), V(03,C2,B5,2F), V(9A,7B,C5,86), V(A5,08,37,D3), \
+    V(F2,87,28,30), V(B2,A5,BF,23), V(BA,6A,03,02), V(5C,82,16,ED), \
+    V(2B,1C,CF,8A), V(92,B4,79,A7), V(F0,F2,07,F3), V(A1,E2,69,4E), \
+    V(CD,F4,DA,65), V(D5,BE,05,06), V(1F,62,34,D1), V(8A,FE,A6,C4), \
+    V(9D,53,2E,34), V(A0,55,F3,A2), V(32,E1,8A,05), V(75,EB,F6,A4), \
+    V(39,EC,83,0B), V(AA,EF,60,40), V(06,9F,71,5E), V(51,10,6E,BD), \
+    V(F9,8A,21,3E), V(3D,06,DD,96), V(AE,05,3E,DD), V(46,BD,E6,4D), \
+    V(B5,8D,54,91), V(05,5D,C4,71), V(6F,D4,06,04), V(FF,15,50,60), \
+    V(24,FB,98,19), V(97,E9,BD,D6), V(CC,43,40,89), V(77,9E,D9,67), \
+    V(BD,42,E8,B0), V(88,8B,89,07), V(38,5B,19,E7), V(DB,EE,C8,79), \
+    V(47,0A,7C,A1), V(E9,0F,42,7C), V(C9,1E,84,F8), V(00,00,00,00), \
+    V(83,86,80,09), V(48,ED,2B,32), V(AC,70,11,1E), V(4E,72,5A,6C), \
+    V(FB,FF,0E,FD), V(56,38,85,0F), V(1E,D5,AE,3D), V(27,39,2D,36), \
+    V(64,D9,0F,0A), V(21,A6,5C,68), V(D1,54,5B,9B), V(3A,2E,36,24), \
+    V(B1,67,0A,0C), V(0F,E7,57,93), V(D2,96,EE,B4), V(9E,91,9B,1B), \
+    V(4F,C5,C0,80), V(A2,20,DC,61), V(69,4B,77,5A), V(16,1A,12,1C), \
+    V(0A,BA,93,E2), V(E5,2A,A0,C0), V(43,E0,22,3C), V(1D,17,1B,12), \
+    V(0B,0D,09,0E), V(AD,C7,8B,F2), V(B9,A8,B6,2D), V(C8,A9,1E,14), \
+    V(85,19,F1,57), V(4C,07,75,AF), V(BB,DD,99,EE), V(FD,60,7F,A3), \
+    V(9F,26,01,F7), V(BC,F5,72,5C), V(C5,3B,66,44), V(34,7E,FB,5B), \
+    V(76,29,43,8B), V(DC,C6,23,CB), V(68,FC,ED,B6), V(63,F1,E4,B8), \
+    V(CA,DC,31,D7), V(10,85,63,42), V(40,22,97,13), V(20,11,C6,84), \
+    V(7D,24,4A,85), V(F8,3D,BB,D2), V(11,32,F9,AE), V(6D,A1,29,C7), \
+    V(4B,2F,9E,1D), V(F3,30,B2,DC), V(EC,52,86,0D), V(D0,E3,C1,77), \
+    V(6C,16,B3,2B), V(99,B9,70,A9), V(FA,48,94,11), V(22,64,E9,47), \
+    V(C4,8C,FC,A8), V(1A,3F,F0,A0), V(D8,2C,7D,56), V(EF,90,33,22), \
+    V(C7,4E,49,87), V(C1,D1,38,D9), V(FE,A2,CA,8C), V(36,0B,D4,98), \
+    V(CF,81,F5,A6), V(28,DE,7A,A5), V(26,8E,B7,DA), V(A4,BF,AD,3F), \
+    V(E4,9D,3A,2C), V(0D,92,78,50), V(9B,CC,5F,6A), V(62,46,7E,54), \
+    V(C2,13,8D,F6), V(E8,B8,D8,90), V(5E,F7,39,2E), V(F5,AF,C3,82), \
+    V(BE,80,5D,9F), V(7C,93,D0,69), V(A9,2D,D5,6F), V(B3,12,25,CF), \
+    V(3B,99,AC,C8), V(A7,7D,18,10), V(6E,63,9C,E8), V(7B,BB,3B,DB), \
+    V(09,78,26,CD), V(F4,18,59,6E), V(01,B7,9A,EC), V(A8,9A,4F,83), \
+    V(65,6E,95,E6), V(7E,E6,FF,AA), V(08,CF,BC,21), V(E6,E8,15,EF), \
+    V(D9,9B,E7,BA), V(CE,36,6F,4A), V(D4,09,9F,EA), V(D6,7C,B0,29), \
+    V(AF,B2,A4,31), V(31,23,3F,2A), V(30,94,A5,C6), V(C0,66,A2,35), \
+    V(37,BC,4E,74), V(A6,CA,82,FC), V(B0,D0,90,E0), V(15,D8,A7,33), \
+    V(4A,98,04,F1), V(F7,DA,EC,41), V(0E,50,CD,7F), V(2F,F6,91,17), \
+    V(8D,D6,4D,76), V(4D,B0,EF,43), V(54,4D,AA,CC), V(DF,04,96,E4), \
+    V(E3,B5,D1,9E), V(1B,88,6A,4C), V(B8,1F,2C,C1), V(7F,51,65,46), \
+    V(04,EA,5E,9D), V(5D,35,8C,01), V(73,74,87,FA), V(2E,41,0B,FB), \
+    V(5A,1D,67,B3), V(52,D2,DB,92), V(33,56,10,E9), V(13,47,D6,6D), \
+    V(8C,61,D7,9A), V(7A,0C,A1,37), V(8E,14,F8,59), V(89,3C,13,EB), \
+    V(EE,27,A9,CE), V(35,C9,61,B7), V(ED,E5,1C,E1), V(3C,B1,47,7A), \
+    V(59,DF,D2,9C), V(3F,73,F2,55), V(79,CE,14,18), V(BF,37,C7,73), \
+    V(EA,CD,F7,53), V(5B,AA,FD,5F), V(14,6F,3D,DF), V(86,DB,44,78), \
+    V(81,F3,AF,CA), V(3E,C4,68,B9), V(2C,34,24,38), V(5F,40,A3,C2), \
+    V(72,C3,1D,16), V(0C,25,E2,BC), V(8B,49,3C,28), V(41,95,0D,FF), \
+    V(71,01,A8,39), V(DE,B3,0C,08), V(9C,E4,B4,D8), V(90,C1,56,64), \
+    V(61,84,CB,7B), V(70,B6,32,D5), V(74,5C,6C,48), V(42,57,B8,D0)
 
 #define V(a,b,c,d) 0x##a##b##c##d
-static const uint32 RT0[256] = { RT };
-#undef V
-
-#define V(a,b,c,d) 0x##d##a##b##c
-static const uint32 RT1[256] = { RT };
-#undef V
-
-#define V(a,b,c,d) 0x##c##d##a##b
-static const uint32 RT2[256] = { RT };
+static const unsigned long RT0[256] = { RT };
 #undef V
 
 #define V(a,b,c,d) 0x##b##c##d##a
-static const uint32 RT3[256] = { RT };
+static const unsigned long RT1[256] = { RT };
+#undef V
+
+#define V(a,b,c,d) 0x##c##d##a##b
+static const unsigned long RT2[256] = { RT };
+#undef V
+
+#define V(a,b,c,d) 0x##d##a##b##c
+static const unsigned long RT3[256] = { RT };
 #undef V
 
 #undef RT
@@ -438,41 +325,140 @@ static const uint32 RT3[256] = { RT };
 /*
  * Round constants
  */
-static const uint32 RCON[10] =
+static const unsigned long RCON[10] =
 {
-    0x01000000, 0x02000000, 0x04000000, 0x08000000,
-    0x10000000, 0x20000000, 0x40000000, 0x80000000,
-    0x1B000000, 0x36000000
+    0x00000001, 0x00000002, 0x00000004, 0x00000008,
+    0x00000010, 0x00000020, 0x00000040, 0x00000080,
+    0x0000001B, 0x00000036
 };
 
-static void aes_gen_tables( void ) {}
+#else
+
+/*
+ * Forward S-box & tables
+ */
+static unsigned char FSb[256];
+static unsigned long FT0[256]; 
+static unsigned long FT1[256]; 
+static unsigned long FT2[256]; 
+static unsigned long FT3[256]; 
+
+/*
+ * Reverse S-box & tables
+ */
+static unsigned char RSb[256];
+static unsigned long RT0[256];
+static unsigned long RT1[256];
+static unsigned long RT2[256];
+static unsigned long RT3[256];
+
+/*
+ * Round constants
+ */
+static unsigned long RCON[10];
+
+/*
+ * Tables generation code
+ */
+#define ROTL8(x) ( ( x << 8 ) & 0xFFFFFFFF ) | ( x >> 24 )
+#define XTIME(x) ( ( x << 1 ) ^ ( ( x & 0x80 ) ? 0x1B : 0x00 ) )
+#define MUL(x,y) ( ( x && y ) ? pow[(log[x]+log[y]) % 255] : 0 )
+
+static int aes_init_done = 0;
+
+static void aes_gen_tables( void )
+{
+    int i, x, y, z;
+    int pow[256];
+    int log[256];
+
+    /*
+     * compute pow and log tables over GF(2^8)
+     */
+    for( i = 0, x = 1; i < 256; i++ )
+    {
+        pow[i] = x;
+        log[x] = i;
+        x = ( x ^ XTIME( x ) ) & 0xFF;
+    }
+
+    /*
+     * calculate the round constants
+     */
+    for( i = 0, x = 1; i < 10; i++ )
+    {
+        RCON[i] = (unsigned long) x;
+        x = XTIME( x ) & 0xFF;
+    }
+
+    /*
+     * generate the forward and reverse S-boxes
+     */
+    FSb[0x00] = 0x63;
+    RSb[0x63] = 0x00;
+
+    for( i = 1; i < 256; i++ )
+    {
+        x = pow[255 - log[i]];
+
+        y  = x; y = ( (y << 1) | (y >> 7) ) & 0xFF;
+        x ^= y; y = ( (y << 1) | (y >> 7) ) & 0xFF;
+        x ^= y; y = ( (y << 1) | (y >> 7) ) & 0xFF;
+        x ^= y; y = ( (y << 1) | (y >> 7) ) & 0xFF;
+        x ^= y ^ 0x63;
+
+        FSb[i] = (unsigned char) x;
+        RSb[x] = (unsigned char) i;
+    }
+
+    /*
+     * generate the forward and reverse tables
+     */
+    for( i = 0; i < 256; i++ )
+    {
+        x = FSb[i];
+        y = XTIME( x ) & 0xFF;
+        z =  ( y ^ x ) & 0xFF;
+
+        FT0[i] = ( (unsigned long) y       ) ^
+                 ( (unsigned long) x <<  8 ) ^
+                 ( (unsigned long) x << 16 ) ^
+                 ( (unsigned long) z << 24 );
+
+        FT1[i] = ROTL8( FT0[i] );
+        FT2[i] = ROTL8( FT1[i] );
+        FT3[i] = ROTL8( FT2[i] );
+
+        x = RSb[i];
+
+        RT0[i] = ( (unsigned long) MUL( 0x0E, x )       ) ^
+                 ( (unsigned long) MUL( 0x09, x ) <<  8 ) ^
+                 ( (unsigned long) MUL( 0x0D, x ) << 16 ) ^
+                 ( (unsigned long) MUL( 0x0B, x ) << 24 );
+
+        RT1[i] = ROTL8( RT0[i] );
+        RT2[i] = ROTL8( RT1[i] );
+        RT3[i] = ROTL8( RT2[i] );
+    }
+}
 
 #endif
 
 /*
- * Decryption key schedule tables
+ * AES key schedule (encryption)
  */
-static uint32 KT0[256];
-static uint32 KT1[256];
-static uint32 KT2[256];
-static uint32 KT3[256];
-
-/*
- * AES key schedule
- */
-void aes_set_key( aes_context *ctx, uint8 *key, int keysize )
+void aes_setkey_enc( aes_context *ctx, unsigned char *key, int keysize )
 {
     int i;
-    uint32 *RK, *SK;
-    static int ft_init = 0;
-    static int kt_init = 0;
+    unsigned long *RK;
 
-    if( ft_init == 0 )
+#if !defined(XYSSL_AES_ROM_TABLES)
+    if( aes_init_done == 0 )
     {
         aes_gen_tables();
-
-        ft_init = 1;
+        aes_init_done = 1;
     }
+#endif
 
     switch( keysize )
     {
@@ -482,384 +468,381 @@ void aes_set_key( aes_context *ctx, uint8 *key, int keysize )
         default : return;
     }
 
-    RK = ctx->erk;
+#if defined(PADLOCK_ALIGN16)
+    ctx->rk = RK = PADLOCK_ALIGN16( ctx->buf );
+#else
+    ctx->rk = RK = ctx->buf;
+#endif
 
     for( i = 0; i < (keysize >> 5); i++ )
     {
-        GET_UINT32_BE( RK[i], key, i << 2 );
+        GET_ULONG_LE( RK[i], key, i << 2 );
     }
 
-    /*
-     * setup encryption round keys
-     */
     switch( ctx->nr )
     {
-    case 10:
+        case 10:
 
-        for( i = 0; i < 10; i++, RK += 4 )
-        {
-            RK[4]  = RK[0] ^ RCON[i] ^
-                ( FSb[ (uint8) ( RK[3] >> 16 ) ] << 24 ) ^
-                ( FSb[ (uint8) ( RK[3] >>  8 ) ] << 16 ) ^
-                ( FSb[ (uint8) ( RK[3]       ) ] <<  8 ) ^
-                ( FSb[ (uint8) ( RK[3] >> 24 ) ]       );
+            for( i = 0; i < 10; i++, RK += 4 )
+            {
+                RK[4]  = RK[0] ^ RCON[i] ^
+                    ( FSb[ ( RK[3] >>  8 ) & 0xFF ]       ) ^
+                    ( FSb[ ( RK[3] >> 16 ) & 0xFF ] <<  8 ) ^
+                    ( FSb[ ( RK[3] >> 24 ) & 0xFF ] << 16 ) ^
+                    ( FSb[ ( RK[3]       ) & 0xFF ] << 24 );
 
-            RK[5]  = RK[1] ^ RK[4];
-            RK[6]  = RK[2] ^ RK[5];
-            RK[7]  = RK[3] ^ RK[6];
-        }
-        break;
+                RK[5]  = RK[1] ^ RK[4];
+                RK[6]  = RK[2] ^ RK[5];
+                RK[7]  = RK[3] ^ RK[6];
+            }
+            break;
 
-    case 12:
+        case 12:
 
-        for( i = 0; i < 8; i++, RK += 6 )
-        {
-            RK[6]  = RK[0] ^ RCON[i] ^
-                ( FSb[ (uint8) ( RK[5] >> 16 ) ] << 24 ) ^
-                ( FSb[ (uint8) ( RK[5] >>  8 ) ] << 16 ) ^
-                ( FSb[ (uint8) ( RK[5]       ) ] <<  8 ) ^
-                ( FSb[ (uint8) ( RK[5] >> 24 ) ]       );
+            for( i = 0; i < 8; i++, RK += 6 )
+            {
+                RK[6]  = RK[0] ^ RCON[i] ^
+                    ( FSb[ ( RK[5] >>  8 ) & 0xFF ]       ) ^
+                    ( FSb[ ( RK[5] >> 16 ) & 0xFF ] <<  8 ) ^
+                    ( FSb[ ( RK[5] >> 24 ) & 0xFF ] << 16 ) ^
+                    ( FSb[ ( RK[5]       ) & 0xFF ] << 24 );
 
-            RK[7]  = RK[1] ^ RK[6];
-            RK[8]  = RK[2] ^ RK[7];
-            RK[9]  = RK[3] ^ RK[8];
-            RK[10] = RK[4] ^ RK[9];
-            RK[11] = RK[5] ^ RK[10];
-        }
-        break;
+                RK[7]  = RK[1] ^ RK[6];
+                RK[8]  = RK[2] ^ RK[7];
+                RK[9]  = RK[3] ^ RK[8];
+                RK[10] = RK[4] ^ RK[9];
+                RK[11] = RK[5] ^ RK[10];
+            }
+            break;
 
-    case 14:
+        case 14:
 
-        for( i = 0; i < 7; i++, RK += 8 )
-        {
-            RK[8]  = RK[0] ^ RCON[i] ^
-                ( FSb[ (uint8) ( RK[7] >> 16 ) ] << 24 ) ^
-                ( FSb[ (uint8) ( RK[7] >>  8 ) ] << 16 ) ^
-                ( FSb[ (uint8) ( RK[7]       ) ] <<  8 ) ^
-                ( FSb[ (uint8) ( RK[7] >> 24 ) ]       );
+            for( i = 0; i < 7; i++, RK += 8 )
+            {
+                RK[8]  = RK[0] ^ RCON[i] ^
+                    ( FSb[ ( RK[7] >>  8 ) & 0xFF ]       ) ^
+                    ( FSb[ ( RK[7] >> 16 ) & 0xFF ] <<  8 ) ^
+                    ( FSb[ ( RK[7] >> 24 ) & 0xFF ] << 16 ) ^
+                    ( FSb[ ( RK[7]       ) & 0xFF ] << 24 );
 
-            RK[9]  = RK[1] ^ RK[8];
-            RK[10] = RK[2] ^ RK[9];
-            RK[11] = RK[3] ^ RK[10];
+                RK[9]  = RK[1] ^ RK[8];
+                RK[10] = RK[2] ^ RK[9];
+                RK[11] = RK[3] ^ RK[10];
 
-            RK[12] = RK[4] ^
-                ( FSb[ (uint8) ( RK[11] >> 24 ) ] << 24 ) ^
-                ( FSb[ (uint8) ( RK[11] >> 16 ) ] << 16 ) ^
-                ( FSb[ (uint8) ( RK[11] >>  8 ) ] <<  8 ) ^
-                ( FSb[ (uint8) ( RK[11]       ) ]       );
+                RK[12] = RK[4] ^
+                    ( FSb[ ( RK[11]       ) & 0xFF ]       ) ^
+                    ( FSb[ ( RK[11] >>  8 ) & 0xFF ] <<  8 ) ^
+                    ( FSb[ ( RK[11] >> 16 ) & 0xFF ] << 16 ) ^
+                    ( FSb[ ( RK[11] >> 24 ) & 0xFF ] << 24 );
 
-            RK[13] = RK[5] ^ RK[12];
-            RK[14] = RK[6] ^ RK[13];
-            RK[15] = RK[7] ^ RK[14];
-        }
-        break;
+                RK[13] = RK[5] ^ RK[12];
+                RK[14] = RK[6] ^ RK[13];
+                RK[15] = RK[7] ^ RK[14];
+            }
+            break;
 
-    default:
+        default:
 
-        break;
+            break;
     }
-
-    /*
-     * setup decryption round keys
-     */
-    if( kt_init == 0 )
-    {
-        for( i = 0; i < 256; i++ )
-        {
-            KT0[i] = RT0[ FSb[i] ];
-            KT1[i] = RT1[ FSb[i] ];
-            KT2[i] = RT2[ FSb[i] ];
-            KT3[i] = RT3[ FSb[i] ];
-        }
-
-        kt_init = 1;
-    }
-
-    SK = ctx->drk;
-
-    *SK++ = *RK++;
-    *SK++ = *RK++;
-    *SK++ = *RK++;
-    *SK++ = *RK++;
-
-    for( i = 1; i < ctx->nr; i++ )
-    {
-        RK -= 8;
-
-        *SK++ = KT0[ (uint8) ( *RK >> 24 ) ] ^
-                KT1[ (uint8) ( *RK >> 16 ) ] ^
-                KT2[ (uint8) ( *RK >>  8 ) ] ^
-                KT3[ (uint8) ( *RK       ) ]; RK++;
-
-        *SK++ = KT0[ (uint8) ( *RK >> 24 ) ] ^
-                KT1[ (uint8) ( *RK >> 16 ) ] ^
-                KT2[ (uint8) ( *RK >>  8 ) ] ^
-                KT3[ (uint8) ( *RK       ) ]; RK++;
-
-        *SK++ = KT0[ (uint8) ( *RK >> 24 ) ] ^
-                KT1[ (uint8) ( *RK >> 16 ) ] ^
-                KT2[ (uint8) ( *RK >>  8 ) ] ^
-                KT3[ (uint8) ( *RK       ) ]; RK++;
-
-        *SK++ = KT0[ (uint8) ( *RK >> 24 ) ] ^
-                KT1[ (uint8) ( *RK >> 16 ) ] ^
-                KT2[ (uint8) ( *RK >>  8 ) ] ^
-                KT3[ (uint8) ( *RK       ) ]; RK++;
-    }
-
-    RK -= 8;
-
-    *SK++ = *RK++;
-    *SK++ = *RK++;
-    *SK++ = *RK++;
-    *SK++ = *RK++;
-}
-
-/**
- * AES block encryption (ECB mode)
- */
-void aes_encrypt( aes_context *ctx,
-                  unsigned char input[16],
-                  unsigned char output[16] )
-{
-    uint32 *RK, X0, X1, X2, X3, Y0, Y1, Y2, Y3;
-
-    RK = ctx->erk;
-
-    GET_UINT32_BE( X0, input,  0 ); X0 ^= RK[0];
-    GET_UINT32_BE( X1, input,  4 ); X1 ^= RK[1];
-    GET_UINT32_BE( X2, input,  8 ); X2 ^= RK[2];
-    GET_UINT32_BE( X3, input, 12 ); X3 ^= RK[3];
-
-#define AES_FROUND(X0,X1,X2,X3,Y0,Y1,Y2,Y3)             \
-{                                                       \
-    RK += 4;                                            \
-                                                        \
-    X0 = RK[0] ^ FT0[ (uint8) ( Y0 >> 24 ) ] ^          \
-                 FT1[ (uint8) ( Y1 >> 16 ) ] ^          \
-                 FT2[ (uint8) ( Y2 >>  8 ) ] ^          \
-                 FT3[ (uint8) ( Y3       ) ];           \
-                                                        \
-    X1 = RK[1] ^ FT0[ (uint8) ( Y1 >> 24 ) ] ^          \
-                 FT1[ (uint8) ( Y2 >> 16 ) ] ^          \
-                 FT2[ (uint8) ( Y3 >>  8 ) ] ^          \
-                 FT3[ (uint8) ( Y0       ) ];           \
-                                                        \
-    X2 = RK[2] ^ FT0[ (uint8) ( Y2 >> 24 ) ] ^          \
-                 FT1[ (uint8) ( Y3 >> 16 ) ] ^          \
-                 FT2[ (uint8) ( Y0 >>  8 ) ] ^          \
-                 FT3[ (uint8) ( Y1       ) ];           \
-                                                        \
-    X3 = RK[3] ^ FT0[ (uint8) ( Y3 >> 24 ) ] ^          \
-                 FT1[ (uint8) ( Y0 >> 16 ) ] ^          \
-                 FT2[ (uint8) ( Y1 >>  8 ) ] ^          \
-                 FT3[ (uint8) ( Y2       ) ];           \
-}
-
-    AES_FROUND( Y0, Y1, Y2, Y3, X0, X1, X2, X3 );
-    AES_FROUND( X0, X1, X2, X3, Y0, Y1, Y2, Y3 );
-    AES_FROUND( Y0, Y1, Y2, Y3, X0, X1, X2, X3 );
-    AES_FROUND( X0, X1, X2, X3, Y0, Y1, Y2, Y3 );
-    AES_FROUND( Y0, Y1, Y2, Y3, X0, X1, X2, X3 );
-    AES_FROUND( X0, X1, X2, X3, Y0, Y1, Y2, Y3 );
-    AES_FROUND( Y0, Y1, Y2, Y3, X0, X1, X2, X3 );
-    AES_FROUND( X0, X1, X2, X3, Y0, Y1, Y2, Y3 );
-    AES_FROUND( Y0, Y1, Y2, Y3, X0, X1, X2, X3 );
-
-    if( ctx->nr > 10 )
-    {
-        AES_FROUND( X0, X1, X2, X3, Y0, Y1, Y2, Y3 );
-        AES_FROUND( Y0, Y1, Y2, Y3, X0, X1, X2, X3 );
-    }
-
-    if( ctx->nr > 12 )
-    {
-        AES_FROUND( X0, X1, X2, X3, Y0, Y1, Y2, Y3 );
-        AES_FROUND( Y0, Y1, Y2, Y3, X0, X1, X2, X3 );
-    }
-
-    RK += 4;
-
-    X0 = RK[0] ^ ( FSb[ (uint8) ( Y0 >> 24 ) ] << 24 ) ^
-                 ( FSb[ (uint8) ( Y1 >> 16 ) ] << 16 ) ^
-                 ( FSb[ (uint8) ( Y2 >>  8 ) ] <<  8 ) ^
-                 ( FSb[ (uint8) ( Y3       ) ]       );
-
-    X1 = RK[1] ^ ( FSb[ (uint8) ( Y1 >> 24 ) ] << 24 ) ^
-                 ( FSb[ (uint8) ( Y2 >> 16 ) ] << 16 ) ^
-                 ( FSb[ (uint8) ( Y3 >>  8 ) ] <<  8 ) ^
-                 ( FSb[ (uint8) ( Y0       ) ]       );
-
-    X2 = RK[2] ^ ( FSb[ (uint8) ( Y2 >> 24 ) ] << 24 ) ^
-                 ( FSb[ (uint8) ( Y3 >> 16 ) ] << 16 ) ^
-                 ( FSb[ (uint8) ( Y0 >>  8 ) ] <<  8 ) ^
-                 ( FSb[ (uint8) ( Y1       ) ]       );
-
-    X3 = RK[3] ^ ( FSb[ (uint8) ( Y3 >> 24 ) ] << 24 ) ^
-                 ( FSb[ (uint8) ( Y0 >> 16 ) ] << 16 ) ^
-                 ( FSb[ (uint8) ( Y1 >>  8 ) ] <<  8 ) ^
-                 ( FSb[ (uint8) ( Y2       ) ]       );
-
-    PUT_UINT32_BE( X0, output,  0 );
-    PUT_UINT32_BE( X1, output,  4 );
-    PUT_UINT32_BE( X2, output,  8 );
-    PUT_UINT32_BE( X3, output, 12 );
 }
 
 /*
- * AES block decryption (ECB mode)
+ * AES key schedule (decryption)
  */
-void aes_decrypt( aes_context *ctx,
-                  unsigned char input[16],
-                  unsigned char output[16] )
+void aes_setkey_dec( aes_context *ctx, unsigned char *key, int keysize )
 {
-    uint32 *RK, X0, X1, X2, X3, Y0, Y1, Y2, Y3;
+    int i, j;
+    aes_context cty;
+    unsigned long *RK;
+    unsigned long *SK;
 
-    RK = ctx->drk;
+    switch( keysize )
+    {
+        case 128: ctx->nr = 10; break;
+        case 192: ctx->nr = 12; break;
+        case 256: ctx->nr = 14; break;
+        default : return;
+    }
 
-    GET_UINT32_BE( X0, input,  0 ); X0 ^= RK[0];
-    GET_UINT32_BE( X1, input,  4 ); X1 ^= RK[1];
-    GET_UINT32_BE( X2, input,  8 ); X2 ^= RK[2];
-    GET_UINT32_BE( X3, input, 12 ); X3 ^= RK[3];
+#if defined(PADLOCK_ALIGN16)
+    ctx->rk = RK = PADLOCK_ALIGN16( ctx->buf );
+#else
+    ctx->rk = RK = ctx->buf;
+#endif
 
-#define AES_RROUND(X0,X1,X2,X3,Y0,Y1,Y2,Y3)             \
-{                                                       \
-    RK += 4;                                            \
-                                                        \
-    X0 = RK[0] ^ RT0[ (uint8) ( Y0 >> 24 ) ] ^          \
-                 RT1[ (uint8) ( Y3 >> 16 ) ] ^          \
-                 RT2[ (uint8) ( Y2 >>  8 ) ] ^          \
-                 RT3[ (uint8) ( Y1       ) ];           \
-                                                        \
-    X1 = RK[1] ^ RT0[ (uint8) ( Y1 >> 24 ) ] ^          \
-                 RT1[ (uint8) ( Y0 >> 16 ) ] ^          \
-                 RT2[ (uint8) ( Y3 >>  8 ) ] ^          \
-                 RT3[ (uint8) ( Y2       ) ];           \
-                                                        \
-    X2 = RK[2] ^ RT0[ (uint8) ( Y2 >> 24 ) ] ^          \
-                 RT1[ (uint8) ( Y1 >> 16 ) ] ^          \
-                 RT2[ (uint8) ( Y0 >>  8 ) ] ^          \
-                 RT3[ (uint8) ( Y3       ) ];           \
-                                                        \
-    X3 = RK[3] ^ RT0[ (uint8) ( Y3 >> 24 ) ] ^          \
-                 RT1[ (uint8) ( Y2 >> 16 ) ] ^          \
-                 RT2[ (uint8) ( Y1 >>  8 ) ] ^          \
-                 RT3[ (uint8) ( Y0       ) ];           \
+    aes_setkey_enc( &cty, key, keysize );
+    SK = cty.rk + cty.nr * 4;
+
+    *RK++ = *SK++;
+    *RK++ = *SK++;
+    *RK++ = *SK++;
+    *RK++ = *SK++;
+
+    for( i = ctx->nr, SK -= 8; i > 1; i--, SK -= 8 )
+    {
+        for( j = 0; j < 4; j++, SK++ )
+        {
+            *RK++ = RT0[ FSb[ ( *SK       ) & 0xFF ] ] ^
+                    RT1[ FSb[ ( *SK >>  8 ) & 0xFF ] ] ^
+                    RT2[ FSb[ ( *SK >> 16 ) & 0xFF ] ] ^
+                    RT3[ FSb[ ( *SK >> 24 ) & 0xFF ] ];
+        }
+    }
+
+    *RK++ = *SK++;
+    *RK++ = *SK++;
+    *RK++ = *SK++;
+    *RK++ = *SK++;
+
+    memset( &cty, 0, sizeof( aes_context ) );
 }
 
-    AES_RROUND( Y0, Y1, Y2, Y3, X0, X1, X2, X3 );
-    AES_RROUND( X0, X1, X2, X3, Y0, Y1, Y2, Y3 );
-    AES_RROUND( Y0, Y1, Y2, Y3, X0, X1, X2, X3 );
-    AES_RROUND( X0, X1, X2, X3, Y0, Y1, Y2, Y3 );
-    AES_RROUND( Y0, Y1, Y2, Y3, X0, X1, X2, X3 );
-    AES_RROUND( X0, X1, X2, X3, Y0, Y1, Y2, Y3 );
-    AES_RROUND( Y0, Y1, Y2, Y3, X0, X1, X2, X3 );
-    AES_RROUND( X0, X1, X2, X3, Y0, Y1, Y2, Y3 );
-    AES_RROUND( Y0, Y1, Y2, Y3, X0, X1, X2, X3 );
+#define AES_FROUND(X0,X1,X2,X3,Y0,Y1,Y2,Y3)     \
+{                                               \
+    X0 = *RK++ ^ FT0[ ( Y0       ) & 0xFF ] ^   \
+                 FT1[ ( Y1 >>  8 ) & 0xFF ] ^   \
+                 FT2[ ( Y2 >> 16 ) & 0xFF ] ^   \
+                 FT3[ ( Y3 >> 24 ) & 0xFF ];    \
+                                                \
+    X1 = *RK++ ^ FT0[ ( Y1       ) & 0xFF ] ^   \
+                 FT1[ ( Y2 >>  8 ) & 0xFF ] ^   \
+                 FT2[ ( Y3 >> 16 ) & 0xFF ] ^   \
+                 FT3[ ( Y0 >> 24 ) & 0xFF ];    \
+                                                \
+    X2 = *RK++ ^ FT0[ ( Y2       ) & 0xFF ] ^   \
+                 FT1[ ( Y3 >>  8 ) & 0xFF ] ^   \
+                 FT2[ ( Y0 >> 16 ) & 0xFF ] ^   \
+                 FT3[ ( Y1 >> 24 ) & 0xFF ];    \
+                                                \
+    X3 = *RK++ ^ FT0[ ( Y3       ) & 0xFF ] ^   \
+                 FT1[ ( Y0 >>  8 ) & 0xFF ] ^   \
+                 FT2[ ( Y1 >> 16 ) & 0xFF ] ^   \
+                 FT3[ ( Y2 >> 24 ) & 0xFF ];    \
+}
 
-    if( ctx->nr > 10 )
-    {
-        AES_RROUND( X0, X1, X2, X3, Y0, Y1, Y2, Y3 );
-        AES_RROUND( Y0, Y1, Y2, Y3, X0, X1, X2, X3 );
-    }
-
-    if( ctx->nr > 12 )
-    {
-        AES_RROUND( X0, X1, X2, X3, Y0, Y1, Y2, Y3 );
-        AES_RROUND( Y0, Y1, Y2, Y3, X0, X1, X2, X3 );
-    }
-
-    RK += 4;
-
-    X0 = RK[0] ^ ( RSb[ (uint8) ( Y0 >> 24 ) ] << 24 ) ^
-                 ( RSb[ (uint8) ( Y3 >> 16 ) ] << 16 ) ^
-                 ( RSb[ (uint8) ( Y2 >>  8 ) ] <<  8 ) ^
-                 ( RSb[ (uint8) ( Y1       ) ]       );
-
-    X1 = RK[1] ^ ( RSb[ (uint8) ( Y1 >> 24 ) ] << 24 ) ^
-                 ( RSb[ (uint8) ( Y0 >> 16 ) ] << 16 ) ^
-                 ( RSb[ (uint8) ( Y3 >>  8 ) ] <<  8 ) ^
-                 ( RSb[ (uint8) ( Y2       ) ]       );
-
-    X2 = RK[2] ^ ( RSb[ (uint8) ( Y2 >> 24 ) ] << 24 ) ^
-                 ( RSb[ (uint8) ( Y1 >> 16 ) ] << 16 ) ^
-                 ( RSb[ (uint8) ( Y0 >>  8 ) ] <<  8 ) ^
-                 ( RSb[ (uint8) ( Y3       ) ]       );
-
-    X3 = RK[3] ^ ( RSb[ (uint8) ( Y3 >> 24 ) ] << 24 ) ^
-                 ( RSb[ (uint8) ( Y2 >> 16 ) ] << 16 ) ^
-                 ( RSb[ (uint8) ( Y1 >>  8 ) ] <<  8 ) ^
-                 ( RSb[ (uint8) ( Y0       ) ]       );
-
-    PUT_UINT32_BE( X0, output,  0 );
-    PUT_UINT32_BE( X1, output,  4 );
-    PUT_UINT32_BE( X2, output,  8 );
-    PUT_UINT32_BE( X3, output, 12 );
+#define AES_RROUND(X0,X1,X2,X3,Y0,Y1,Y2,Y3)     \
+{                                               \
+    X0 = *RK++ ^ RT0[ ( Y0       ) & 0xFF ] ^   \
+                 RT1[ ( Y3 >>  8 ) & 0xFF ] ^   \
+                 RT2[ ( Y2 >> 16 ) & 0xFF ] ^   \
+                 RT3[ ( Y1 >> 24 ) & 0xFF ];    \
+                                                \
+    X1 = *RK++ ^ RT0[ ( Y1       ) & 0xFF ] ^   \
+                 RT1[ ( Y0 >>  8 ) & 0xFF ] ^   \
+                 RT2[ ( Y3 >> 16 ) & 0xFF ] ^   \
+                 RT3[ ( Y2 >> 24 ) & 0xFF ];    \
+                                                \
+    X2 = *RK++ ^ RT0[ ( Y2       ) & 0xFF ] ^   \
+                 RT1[ ( Y1 >>  8 ) & 0xFF ] ^   \
+                 RT2[ ( Y0 >> 16 ) & 0xFF ] ^   \
+                 RT3[ ( Y3 >> 24 ) & 0xFF ];    \
+                                                \
+    X3 = *RK++ ^ RT0[ ( Y3       ) & 0xFF ] ^   \
+                 RT1[ ( Y2 >>  8 ) & 0xFF ] ^   \
+                 RT2[ ( Y1 >> 16 ) & 0xFF ] ^   \
+                 RT3[ ( Y0 >> 24 ) & 0xFF ];    \
 }
 
 /*
- * AES-CBC buffer encryption
+ * AES-ECB block encryption/decryption
  */
-void aes_cbc_encrypt( aes_context *ctx,
-                      unsigned char iv[16],
-                      unsigned char *input,
-                      unsigned char *output,
-                      int len )
+void aes_crypt_ecb( aes_context *ctx,
+                    int mode,
+                    unsigned char input[16],
+                    unsigned char output[16] )
 {
     int i;
+    unsigned long *RK, X0, X1, X2, X3, Y0, Y1, Y2, Y3;
 
-    while( len > 0 )
+#if defined(XYSSL_PADLOCK_C) && defined(XYSSL_HAVE_X86)
+    if( padlock_supports( PADLOCK_ACE ) )
     {
-        for( i = 0; i < 16; i++ )
-            output[i] = input[i] ^ iv[i];
-
-        aes_encrypt( ctx, output, output );
-        memcpy( iv, output, 16 );
-
-        input  += 16;
-        output += 16;
-        len    -= 16;
+        padlock_xcryptecb( ctx, mode, input, output );
+        return;
     }
+#endif
+
+    RK = ctx->rk;
+
+    GET_ULONG_LE( X0, input,  0 ); X0 ^= *RK++;
+    GET_ULONG_LE( X1, input,  4 ); X1 ^= *RK++;
+    GET_ULONG_LE( X2, input,  8 ); X2 ^= *RK++;
+    GET_ULONG_LE( X3, input, 12 ); X3 ^= *RK++;
+
+    if( mode == AES_ENCRYPT )
+    {
+        for( i = (ctx->nr >> 1); i > 1; i-- )
+        {
+            AES_FROUND( Y0, Y1, Y2, Y3, X0, X1, X2, X3 );
+            AES_FROUND( X0, X1, X2, X3, Y0, Y1, Y2, Y3 );
+        }
+
+        AES_FROUND( Y0, Y1, Y2, Y3, X0, X1, X2, X3 );
+
+        X0 = *RK++ ^ ( FSb[ ( Y0       ) & 0xFF ]       ) ^
+                     ( FSb[ ( Y1 >>  8 ) & 0xFF ] <<  8 ) ^
+                     ( FSb[ ( Y2 >> 16 ) & 0xFF ] << 16 ) ^
+                     ( FSb[ ( Y3 >> 24 ) & 0xFF ] << 24 );
+
+        X1 = *RK++ ^ ( FSb[ ( Y1       ) & 0xFF ]       ) ^
+                     ( FSb[ ( Y2 >>  8 ) & 0xFF ] <<  8 ) ^
+                     ( FSb[ ( Y3 >> 16 ) & 0xFF ] << 16 ) ^
+                     ( FSb[ ( Y0 >> 24 ) & 0xFF ] << 24 );
+
+        X2 = *RK++ ^ ( FSb[ ( Y2       ) & 0xFF ]       ) ^
+                     ( FSb[ ( Y3 >>  8 ) & 0xFF ] <<  8 ) ^
+                     ( FSb[ ( Y0 >> 16 ) & 0xFF ] << 16 ) ^
+                     ( FSb[ ( Y1 >> 24 ) & 0xFF ] << 24 );
+
+        X3 = *RK++ ^ ( FSb[ ( Y3       ) & 0xFF ]       ) ^
+                     ( FSb[ ( Y0 >>  8 ) & 0xFF ] <<  8 ) ^
+                     ( FSb[ ( Y1 >> 16 ) & 0xFF ] << 16 ) ^
+                     ( FSb[ ( Y2 >> 24 ) & 0xFF ] << 24 );
+    }
+    else /* AES_DECRYPT */
+    {
+        for( i = (ctx->nr >> 1); i > 1; i-- )
+        {
+            AES_RROUND( Y0, Y1, Y2, Y3, X0, X1, X2, X3 );
+            AES_RROUND( X0, X1, X2, X3, Y0, Y1, Y2, Y3 );
+        }
+
+        AES_RROUND( Y0, Y1, Y2, Y3, X0, X1, X2, X3 );
+
+        X0 = *RK++ ^ ( RSb[ ( Y0       ) & 0xFF ]       ) ^
+                     ( RSb[ ( Y3 >>  8 ) & 0xFF ] <<  8 ) ^
+                     ( RSb[ ( Y2 >> 16 ) & 0xFF ] << 16 ) ^
+                     ( RSb[ ( Y1 >> 24 ) & 0xFF ] << 24 );
+
+        X1 = *RK++ ^ ( RSb[ ( Y1       ) & 0xFF ]       ) ^
+                     ( RSb[ ( Y0 >>  8 ) & 0xFF ] <<  8 ) ^
+                     ( RSb[ ( Y3 >> 16 ) & 0xFF ] << 16 ) ^
+                     ( RSb[ ( Y2 >> 24 ) & 0xFF ] << 24 );
+
+        X2 = *RK++ ^ ( RSb[ ( Y2       ) & 0xFF ]       ) ^
+                     ( RSb[ ( Y1 >>  8 ) & 0xFF ] <<  8 ) ^
+                     ( RSb[ ( Y0 >> 16 ) & 0xFF ] << 16 ) ^
+                     ( RSb[ ( Y3 >> 24 ) & 0xFF ] << 24 );
+
+        X3 = *RK++ ^ ( RSb[ ( Y3       ) & 0xFF ]       ) ^
+                     ( RSb[ ( Y2 >>  8 ) & 0xFF ] <<  8 ) ^
+                     ( RSb[ ( Y1 >> 16 ) & 0xFF ] << 16 ) ^
+                     ( RSb[ ( Y0 >> 24 ) & 0xFF ] << 24 );
+    }
+
+    PUT_ULONG_LE( X0, output,  0 );
+    PUT_ULONG_LE( X1, output,  4 );
+    PUT_ULONG_LE( X2, output,  8 );
+    PUT_ULONG_LE( X3, output, 12 );
 }
 
 /*
- * AES-CBC buffer decryption
+ * AES-CBC buffer encryption/decryption
  */
-void aes_cbc_decrypt( aes_context *ctx,
-                      unsigned char iv[16],
-                      unsigned char *input,
-                      unsigned char *output,
-                      int len )
+void aes_crypt_cbc( aes_context *ctx,
+                    int mode,
+                    int length,
+                    unsigned char iv[16],
+                    unsigned char *input,
+                    unsigned char *output )
 {
     int i;
     unsigned char temp[16];
 
-    while( len > 0 )
+#if defined(XYSSL_PADLOCK_C) && defined(XYSSL_HAVE_X86)
+    if( padlock_supports( PADLOCK_ACE ) )
     {
-        memcpy( temp, input, 16 );
-        aes_decrypt( ctx, input, output );
+        padlock_xcryptcbc( ctx, mode, length, iv, input, output );
+        return;
+    }
+#endif
 
-        for( i = 0; i < 16; i++ )
-            output[i] = output[i] ^ iv[i];
+    if( mode == AES_ENCRYPT )
+    {
+        while( length > 0 )
+        {
+            for( i = 0; i < 16; i++ )
+                output[i] = (unsigned char)( input[i] ^ iv[i] );
 
-        memcpy( iv, temp, 16 );
+            aes_crypt_ecb( ctx, mode, output, output );
+            memcpy( iv, output, 16 );
 
-        input  += 16;
-        output += 16;
-        len    -= 16;
+            input  += 16;
+            output += 16;
+            length -= 16;
+        }
+    }
+    else
+    {
+        while( length > 0 )
+        {
+            memcpy( temp, input, 16 );
+            aes_crypt_ecb( ctx, mode, input, output );
+
+            for( i = 0; i < 16; i++ )
+                output[i] = (unsigned char)( output[i] ^ iv[i] );
+
+            memcpy( iv, temp, 16 );
+
+            input  += 16;
+            output += 16;
+            length -= 16;
+        }
     }
 }
 
-static const char _aes_src[] = "_aes_src";
+/*
+ * AES-CFB buffer encryption/decryption
+ */
+void aes_crypt_cfb( aes_context *ctx,
+                    int mode,
+                    int length,
+                    int *iv_off,
+                    unsigned char iv[16],
+                    unsigned char *input,
+                    unsigned char *output )
+{
+    int c, n = *iv_off;
 
-#if defined(SELF_TEST)
+    if( mode == AES_ENCRYPT )
+    {
+        while( length-- )
+        {
+            if( n == 0 )
+                aes_crypt_ecb( ctx, mode, iv, iv );
+
+            iv[n] = *output++ = (unsigned char)( iv[n] ^ *input++ );
+
+            n = (n + 1) & 0x0F;
+        }
+    }
+    else
+    {
+        while( length-- )
+        {
+            if( n == 0 )
+                aes_crypt_ecb( ctx, mode, iv, iv );
+
+            c = *input++;
+            *output++ = (unsigned char)( c ^ iv[n] );
+            iv[n] = (unsigned char) c;
+
+            n = (n + 1) & 0x0F;
+        }
+    }
+
+    *iv_off = n;
+}
+
+#if defined(XYSSL_SELF_TEST)
 
 #include <stdio.h>
 
 /*
  * AES-ECB test vectors (source: NIST, rijndael-vals.zip)
  */
-static const uint8 aes_enc_test[3][16] =
+static const unsigned char aes_enc_test[3][16] =
 {
     { 0xC3, 0x4C, 0x05, 0x2C, 0xC0, 0xDA, 0x8D, 0x73,
       0x45, 0x1A, 0xFE, 0x5F, 0x03, 0xBE, 0x29, 0x7F },
@@ -869,7 +852,7 @@ static const uint8 aes_enc_test[3][16] =
       0xFF, 0x30, 0xB4, 0xEA, 0x21, 0x63, 0x6D, 0xA4 }
 };
     
-static const uint8 aes_dec_test[3][16] =
+static const unsigned char aes_dec_test[3][16] =
 {
     { 0x44, 0x41, 0x6A, 0xC2, 0xD1, 0xF5, 0x3C, 0x58,
       0x33, 0x03, 0x91, 0x7E, 0x6B, 0xE9, 0xEB, 0xE0 },
@@ -895,24 +878,40 @@ int aes_self_test( int verbose )
 
         if( verbose != 0 )
             printf( "  AES-ECB-%3d (%s): ", 128 + u * 64,
-                    ( v == 0 ) ? "enc" : "dec" );
+                    ( v == AES_ENCRYPT ) ? "enc" : "dec" );
 
         memset( buf, 0, 32 );
-        aes_set_key( &ctx, buf, 128 + u * 64 );
 
-        for( j = 0; j < 10000; j++ )
+        if( v == AES_ENCRYPT )
         {
-            if( v == 0 ) aes_encrypt( &ctx, buf, buf );
-            if( v == 1 ) aes_decrypt( &ctx, buf, buf );
+            aes_setkey_enc( &ctx, buf, 128 + u * 64 );
+
+            for( j = 0; j < 10000; j++ )
+                aes_crypt_ecb( &ctx, v, buf, buf );
+
+            if( memcmp( buf, aes_enc_test[u], 16 ) != 0 )
+            {
+                if( verbose != 0 )
+                    printf( "failed\n" );
+
+                return( 1 );
+            }
         }
 
-        if( ( v == 0 && memcmp( buf, aes_enc_test[u], 16 ) != 0 ) ||
-            ( v == 1 && memcmp( buf, aes_dec_test[u], 16 ) != 0 ) )
+        if( v == AES_DECRYPT )
         {
-            if( verbose != 0 )
-                printf( "failed\n" );
+            aes_setkey_dec( &ctx, buf, 128 + u * 64 );
 
-            return( 1 );
+            for( j = 0; j < 10000; j++ )
+                aes_crypt_ecb( &ctx, v, buf, buf );
+
+            if( memcmp( buf, aes_dec_test[u], 16 ) != 0 )
+            {
+                if( verbose != 0 )
+                    printf( "failed\n" );
+
+                return( 1 );
+            }
         }
 
         if( verbose != 0 )
@@ -924,9 +923,7 @@ int aes_self_test( int verbose )
 
     return( 0 );
 }
-#else
-int aes_self_test( int verbose )
-{
-    return( 0 );
-}
+
+#endif
+
 #endif

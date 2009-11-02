@@ -1,31 +1,42 @@
-/*
- *  An implementation of the ARCFOUR algorithm
- *
- *  Copyright (C) 2006-2007  Christophe Devine
- *
- *  This library is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU Lesser General Public
- *  License, version 2.1 as published by the Free Software Foundation.
- *
- *  This library is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  Lesser General Public License for more details.
- *
- *  You should have received a copy of the GNU Lesser General Public
- *  License along with this library; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- *  MA  02110-1301  USA
+/* 
+ * Copyright (c) 2006-2007, Christophe Devine
+ * All rights reserved.
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer
+ *       in the documentation and/or other materials provided with the
+ *       distribution.
+ *     * Neither the name of the XySSL nor the names of its contributors
+ *       may be used to endorse or promote products derived from this
+ *       software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- *  The ARC4 algorithm was publicly disclosed on 94/09.
+ *  The ARCFOUR algorithm was publicly disclosed on 94/09.
  *
  *  http://groups.google.com/group/sci.crypt/msg/10a300c9d21afca0
  */
 
-#ifndef _CRT_SECURE_NO_DEPRECATE
-#define _CRT_SECURE_NO_DEPRECATE 1
-#endif
+#include "xyssl/config.h"
+
+#if defined(XYSSL_ARC4_C)
 
 #include "xyssl/arc4.h"
 
@@ -34,23 +45,26 @@
  */
 void arc4_setup( arc4_context *ctx, unsigned char *key, int keylen )
 {
-    int i, j, k, *m, a;
+    int i, j, k, a;
+    unsigned char *m;
 
     ctx->x = 0;
     ctx->y = 0;
     m = ctx->m;
 
     for( i = 0; i < 256; i++ )
-        m[i] = i;
+        m[i] = (unsigned char) i;
 
     j = k = 0;
 
-    for( i = 0; i < 256; i++ )
+    for( i = 0; i < 256; i++, k++ )
     {
+        if( k >= keylen ) k = 0;
+
         a = m[i];
-        j = (unsigned char)( j + a + key[k] );
-        m[i] = m[j]; m[j] = a;
-        if( ++k >= keylen ) k = 0;
+        j = ( j + a + key[k] ) & 0xFF;
+        m[i] = m[j];
+        m[j] = (unsigned char) a;
     }
 }
 
@@ -59,7 +73,8 @@ void arc4_setup( arc4_context *ctx, unsigned char *key, int keylen )
  */
 void arc4_crypt( arc4_context *ctx, unsigned char *buf, int buflen )
 {
-    int i, x, y, *m, a, b;
+    int i, x, y, a, b;
+    unsigned char *m;
 
     x = ctx->x;
     y = ctx->y;
@@ -67,26 +82,29 @@ void arc4_crypt( arc4_context *ctx, unsigned char *buf, int buflen )
 
     for( i = 0; i < buflen; i++ )
     {
-        x = (unsigned char)( x + 1 ); a = m[x];
-        y = (unsigned char)( y + a );
-        m[x] = b = m[y];
-        m[y] = a;
-        buf[i] ^= m[(unsigned char)( a + b )];
+        x = ( x + 1 ) & 0xFF; a = m[x];
+        y = ( y + a ) & 0xFF; b = m[y];
+
+        m[x] = (unsigned char) b;
+        m[y] = (unsigned char) a;
+
+        buf[i] = (unsigned char)
+            ( buf[i] ^ m[(unsigned char)( a + b )] );
     }
 
     ctx->x = x;
     ctx->y = y;
 }
 
-static const char _arc4_src[] = "_arc4_src";
-
-#if defined(SELF_TEST)
+#if defined(XYSSL_SELF_TEST)
 
 #include <string.h>
 #include <stdio.h>
 
 /*
- * ARC4 tests vectors as posted by Eric Rescorla
+ * ARC4 tests vectors as posted by Eric Rescorla in sep. 1994:
+ *
+ * http://groups.google.com/group/comp.security.misc/msg/10a300c9d21afca0
  */
 static const unsigned char arc4_test_key[3][8] =
 {
@@ -145,9 +163,7 @@ int arc4_self_test( int verbose )
 
     return( 0 );
 }
-#else
-int arc4_self_test( int verbose )
-{
-    return( 0 );
-}
+
+#endif
+
 #endif

@@ -1,21 +1,32 @@
-/*
- *  FIPS-180-2 compliant SHA-256 implementation
- *
- *  Copyright (C) 2006-2007  Christophe Devine
- *
- *  This library is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU Lesser General Public
- *  License, version 2.1 as published by the Free Software Foundation.
- *
- *  This library is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  Lesser General Public License for more details.
- *
- *  You should have received a copy of the GNU Lesser General Public
- *  License along with this library; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- *  MA  02110-1301  USA
+/* 
+ * Copyright (c) 2006-2007, Christophe Devine
+ * All rights reserved.
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer
+ *       in the documentation and/or other materials provided with the
+ *       distribution.
+ *     * Neither the name of the XySSL nor the names of its contributors
+ *       may be used to endorse or promote products derived from this
+ *       software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
  *  The SHA-256 Secure Hash Standard was published by NIST in 2002.
@@ -23,20 +34,20 @@
  *  http://csrc.nist.gov/publications/fips/fips180-2/fips180-2.pdf
  */
 
-#ifndef _CRT_SECURE_NO_DEPRECATE
-#define _CRT_SECURE_NO_DEPRECATE 1
-#endif
+#include "xyssl/config.h"
+
+#if defined(XYSSL_SHA2_C)
+
+#include "xyssl/sha2.h"
 
 #include <string.h>
 #include <stdio.h>
 
-#include "xyssl/sha2.h"
-
 /*
  * 32-bit integer manipulation macros (big endian)
  */
-#ifndef GET_UINT32_BE
-#define GET_UINT32_BE(n,b,i)                            \
+#ifndef GET_ULONG_BE
+#define GET_ULONG_BE(n,b,i)                             \
 {                                                       \
     (n) = ( (unsigned long) (b)[(i)    ] << 24 )        \
         | ( (unsigned long) (b)[(i) + 1] << 16 )        \
@@ -45,8 +56,8 @@
 }
 #endif
 
-#ifndef PUT_UINT32_BE
-#define PUT_UINT32_BE(n,b,i)                            \
+#ifndef PUT_ULONG_BE
+#define PUT_ULONG_BE(n,b,i)                             \
 {                                                       \
     (b)[(i)    ] = (unsigned char) ( (n) >> 24 );       \
     (b)[(i) + 1] = (unsigned char) ( (n) >> 16 );       \
@@ -96,22 +107,22 @@ static void sha2_process( sha2_context *ctx, unsigned char data[64] )
     unsigned long temp1, temp2, W[64];
     unsigned long A, B, C, D, E, F, G, H;
 
-    GET_UINT32_BE( W[ 0], data,  0 );
-    GET_UINT32_BE( W[ 1], data,  4 );
-    GET_UINT32_BE( W[ 2], data,  8 );
-    GET_UINT32_BE( W[ 3], data, 12 );
-    GET_UINT32_BE( W[ 4], data, 16 );
-    GET_UINT32_BE( W[ 5], data, 20 );
-    GET_UINT32_BE( W[ 6], data, 24 );
-    GET_UINT32_BE( W[ 7], data, 28 );
-    GET_UINT32_BE( W[ 8], data, 32 );
-    GET_UINT32_BE( W[ 9], data, 36 );
-    GET_UINT32_BE( W[10], data, 40 );
-    GET_UINT32_BE( W[11], data, 44 );
-    GET_UINT32_BE( W[12], data, 48 );
-    GET_UINT32_BE( W[13], data, 52 );
-    GET_UINT32_BE( W[14], data, 56 );
-    GET_UINT32_BE( W[15], data, 60 );
+    GET_ULONG_BE( W[ 0], data,  0 );
+    GET_ULONG_BE( W[ 1], data,  4 );
+    GET_ULONG_BE( W[ 2], data,  8 );
+    GET_ULONG_BE( W[ 3], data, 12 );
+    GET_ULONG_BE( W[ 4], data, 16 );
+    GET_ULONG_BE( W[ 5], data, 20 );
+    GET_ULONG_BE( W[ 6], data, 24 );
+    GET_ULONG_BE( W[ 7], data, 28 );
+    GET_ULONG_BE( W[ 8], data, 32 );
+    GET_ULONG_BE( W[ 9], data, 36 );
+    GET_ULONG_BE( W[10], data, 40 );
+    GET_ULONG_BE( W[11], data, 44 );
+    GET_ULONG_BE( W[12], data, 48 );
+    GET_ULONG_BE( W[13], data, 52 );
+    GET_ULONG_BE( W[14], data, 56 );
+    GET_ULONG_BE( W[15], data, 60 );
 
 #define  SHR(x,n) ((x & 0xFFFFFFFF) >> n)
 #define ROTR(x,n) (SHR(x,n) | (x << (32 - n)))
@@ -277,7 +288,7 @@ static const unsigned char sha2_padding[64] =
 /*
  * SHA-256 final digest
  */
-void sha2_finish( sha2_context *ctx, unsigned char *output )
+void sha2_finish( sha2_context *ctx, unsigned char output[32] )
 {
     unsigned long last, padn;
     unsigned long high, low;
@@ -287,8 +298,8 @@ void sha2_finish( sha2_context *ctx, unsigned char *output )
          | ( ctx->total[1] <<  3 );
     low  = ( ctx->total[0] <<  3 );
 
-    PUT_UINT32_BE( high, msglen, 0 );
-    PUT_UINT32_BE( low,  msglen, 4 );
+    PUT_ULONG_BE( high, msglen, 0 );
+    PUT_ULONG_BE( low,  msglen, 4 );
 
     last = ctx->total[0] & 0x3F;
     padn = ( last < 56 ) ? ( 56 - last ) : ( 120 - last );
@@ -296,23 +307,23 @@ void sha2_finish( sha2_context *ctx, unsigned char *output )
     sha2_update( ctx, (unsigned char *) sha2_padding, padn );
     sha2_update( ctx, msglen, 8 );
 
-    PUT_UINT32_BE( ctx->state[0], output,  0 );
-    PUT_UINT32_BE( ctx->state[1], output,  4 );
-    PUT_UINT32_BE( ctx->state[2], output,  8 );
-    PUT_UINT32_BE( ctx->state[3], output, 12 );
-    PUT_UINT32_BE( ctx->state[4], output, 16 );
-    PUT_UINT32_BE( ctx->state[5], output, 20 );
-    PUT_UINT32_BE( ctx->state[6], output, 24 );
+    PUT_ULONG_BE( ctx->state[0], output,  0 );
+    PUT_ULONG_BE( ctx->state[1], output,  4 );
+    PUT_ULONG_BE( ctx->state[2], output,  8 );
+    PUT_ULONG_BE( ctx->state[3], output, 12 );
+    PUT_ULONG_BE( ctx->state[4], output, 16 );
+    PUT_ULONG_BE( ctx->state[5], output, 20 );
+    PUT_ULONG_BE( ctx->state[6], output, 24 );
 
     if( ctx->is224 == 0 )
-        PUT_UINT32_BE( ctx->state[7], output, 28 );
+        PUT_ULONG_BE( ctx->state[7], output, 28 );
 }
 
 /*
- * Output = SHA-256( input buffer )
+ * output = SHA-256( input buffer )
  */
-void sha2( unsigned char *input,  int ilen,
-           unsigned char *output, int is224 )
+void sha2( unsigned char *input, int ilen,
+           unsigned char output[32], int is224 )
 {
     sha2_context ctx;
 
@@ -324,9 +335,9 @@ void sha2( unsigned char *input,  int ilen,
 }
 
 /*
- * Output = SHA-256( file contents )
+ * output = SHA-256( file contents )
  */
-int sha2_file( char *path, unsigned char *output, int is224 )
+int sha2_file( char *path, unsigned char output[32], int is224 )
 {
     FILE *f;
     size_t n;
@@ -358,31 +369,38 @@ int sha2_file( char *path, unsigned char *output, int is224 )
 /*
  * SHA-256 HMAC context setup
  */
-void sha2_hmac_starts( sha2_context *ctx,  int is224,
-                       unsigned char *key, int keylen )
+void sha2_hmac_starts( sha2_context *ctx, unsigned char *key, int keylen,
+                       int is224 )
 {
     int i;
+    unsigned char sum[32];
+
+    if( keylen > 64 )
+    {
+        sha2( key, keylen, sum, is224 );
+        keylen = ( is224 ) ? 28 : 32;
+        key = sum;
+    }
 
     memset( ctx->ipad, 0x36, 64 );
     memset( ctx->opad, 0x5C, 64 );
 
     for( i = 0; i < keylen; i++ )
     {
-        if( i >= 64 ) break;
-
-        ctx->ipad[i] ^= key[i];
-        ctx->opad[i] ^= key[i];
+        ctx->ipad[i] = (unsigned char)( ctx->ipad[i] ^ key[i] );
+        ctx->opad[i] = (unsigned char)( ctx->opad[i] ^ key[i] );
     }
 
     sha2_starts( ctx, is224 );
     sha2_update( ctx, ctx->ipad, 64 );
+
+    memset( sum, 0, sizeof( sum ) );
 }
 
 /*
  * SHA-256 HMAC process buffer
  */
-void sha2_hmac_update( sha2_context *ctx,
-                       unsigned char *input, int ilen )
+void sha2_hmac_update( sha2_context *ctx, unsigned char *input, int ilen )
 {
     sha2_update( ctx, input, ilen );
 }
@@ -390,7 +408,7 @@ void sha2_hmac_update( sha2_context *ctx,
 /*
  * SHA-256 HMAC final digest
  */
-void sha2_hmac_finish( sha2_context *ctx, unsigned char *output )
+void sha2_hmac_finish( sha2_context *ctx, unsigned char output[32] )
 {
     int is224, hlen;
     unsigned char tmpbuf[32];
@@ -408,24 +426,22 @@ void sha2_hmac_finish( sha2_context *ctx, unsigned char *output )
 }
 
 /*
- * Output = HMAC-SHA-256( hmac key, input buffer )
+ * output = HMAC-SHA-256( hmac key, input buffer )
  */
-void sha2_hmac( unsigned char *key,  int keylen,
-                unsigned char *input,  int ilen,
-                unsigned char *output, int is224 )
+void sha2_hmac( unsigned char *key, int keylen,
+                unsigned char *input, int ilen,
+                unsigned char output[32], int is224 )
 {
     sha2_context ctx;
 
-    sha2_hmac_starts( &ctx, is224, key, keylen );
+    sha2_hmac_starts( &ctx, key, keylen, is224 );
     sha2_hmac_update( &ctx, input, ilen );
     sha2_hmac_finish( &ctx, output );
 
     memset( &ctx, 0, sizeof( sha2_context ) );
 }
 
-static const char _sha2_src[] = "_sha2_src";
-
-#if defined(SELF_TEST)
+#if defined(XYSSL_SELF_TEST)
 /*
  * FIPS-180-2 test vectors
  */
@@ -522,9 +538,7 @@ int sha2_self_test( int verbose )
 
     return( 0 );
 }
-#else
-int sha2_self_test( int verbose )
-{
-    return( 0 );
-}
+
+#endif
+
 #endif

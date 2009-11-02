@@ -1,21 +1,17 @@
 /**
  * \file dhm.h
  */
-#ifndef _DHM_H
-#define _DHM_H
+#ifndef XYSSL_DHM_H
+#define XYSSL_DHM_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "xyssl/bignum.h"
 
-#include "bignum.h"
-
-#define ERR_DHM_BAD_INPUT_DATA                  0x0380
-#define ERR_DHM_READ_PARAMS_FAILED              0x0390
-#define ERR_DHM_MAKE_PARAMS_FAILED              0x03A0
-#define ERR_DHM_READ_PUBLIC_FAILED              0x03B0
-#define ERR_DHM_MAKE_PUBLIC_FAILED              0x03C0
-#define ERR_DHM_CALC_SECRET_FAILED              0x03D0
+#define XYSSL_ERR_DHM_BAD_INPUT_DATA                    -0x0480
+#define XYSSL_ERR_DHM_READ_PARAMS_FAILED                -0x0490
+#define XYSSL_ERR_DHM_MAKE_PARAMS_FAILED                -0x04A0
+#define XYSSL_ERR_DHM_READ_PUBLIC_FAILED                -0x04B0
+#define XYSSL_ERR_DHM_MAKE_PUBLIC_FAILED                -0x04C0
+#define XYSSL_ERR_DHM_CALC_SECRET_FAILED                -0x04D0
 
 typedef struct
 {
@@ -30,6 +26,10 @@ typedef struct
 }
 dhm_context;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * \brief          Parse the ServerKeyExchange parameters
  *
@@ -37,7 +37,7 @@ dhm_context;
  * \param p        &(start of input buffer)
  * \param end      end of buffer
  *
- * \return         0 if successful, or ERR_DHM_READ_PARAMS_FAILED
+ * \return         0 if successful, or an XYSSL_ERR_DHM_XXX error code
  */
 int dhm_read_params( dhm_context *ctx,
                      unsigned char **p,
@@ -47,47 +47,49 @@ int dhm_read_params( dhm_context *ctx,
  * \brief          Setup and write the ServerKeyExchange parameters
  *
  * \param ctx      DHM context
- * \param rng_f    points to the RNG function
- * \param rng_d    points to the RNG data 
+ * \param x_size   private value size in bits
  * \param output   destination buffer
  * \param olen     number of chars written
+ * \param f_rng    RNG function
+ * \param p_rng    RNG parameter
  *
  * \note           This function assumes that ctx->P and ctx->G
  *                 have already been properly set (for example
- *                 using mpi_read_string).
+ *                 using mpi_read_string or mpi_read_binary).
  *
- * \return         0 if successful, or an MPI error code
+ * \return         0 if successful, or an XYSSL_ERR_DHM_XXX error code
  */
-int dhm_make_params( dhm_context *ctx,
-                     int (*rng_f)(void *), void *rng_d,
-                     unsigned char *output, int *olen );
+int dhm_make_params( dhm_context *ctx, int s_size,
+                     unsigned char *output, int *olen,
+                     int (*f_rng)(void *), void *p_rng );
 
 /**
- * \brief          Import the peer's public value (G^Y)
+ * \brief          Import the peer's public value G^Y
  *
  * \param ctx      DHM context
  * \param input    input buffer
  * \param ilen     size of buffer
  *
- * \return         0 if successful, or ERR_DHM_READ_PUBLIC_FAILED
+ * \return         0 if successful, or an XYSSL_ERR_DHM_XXX error code
  */
 int dhm_read_public( dhm_context *ctx,
                      unsigned char *input, int ilen );
 
 /**
- * \brief          Create private value X and export G^X
+ * \brief          Create own private value X and export G^X
  *
  * \param ctx      DHM context
+ * \param x_size   private value size in bits
  * \param output   destination buffer
- * \param olen     must be == ctx->P.len
- * \param rng_f    points to the RNG function
- * \param rng_d    points to the RNG data 
+ * \param olen     must be equal to ctx->P.len
+ * \param f_rng    RNG function
+ * \param p_rng    RNG parameter
  *
- * \return         0 if successful, or ERR_DHM_MAKE_PUBLIC_FAILED
+ * \return         0 if successful, or an XYSSL_ERR_DHM_XXX error code
  */
-int dhm_make_public( dhm_context *ctx,
+int dhm_make_public( dhm_context *ctx, int s_size,
                      unsigned char *output, int olen,
-                     int (*rng_f)(void *), void *rng_d );
+                     int (*f_rng)(void *), void *p_rng );
 
 /**
  * \brief          Derive and export the shared secret (G^Y)^X mod P
@@ -96,7 +98,7 @@ int dhm_make_public( dhm_context *ctx,
  * \param output   destination buffer
  * \param olen     number of chars written
  *
- * \return         0 if successful, or ERR_DHM_MAKE_PUBLIC_FAILED
+ * \return         0 if successful, or an XYSSL_ERR_DHM_XXX error code
  */
 int dhm_calc_secret( dhm_context *ctx,
                      unsigned char *output, int *olen );

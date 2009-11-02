@@ -1,28 +1,22 @@
 /**
- * \file bn_asm.h
- *
+ * \file bn_mul.h
+ */
+/*
  *      Multiply source vector [s] with b, add result
  *       to destination vector [d] and set carry c.
  *
  *      Currently supports:
  *
- *         . IA-32 (386+)
- *         . IA-32 (SSE2)
- *         . AMD64 / EM64T
- *         . Motorola 68000
- *         . PowerPC, 32-bit
- *         . PowerPC, 64-bit
- *         . SPARC v8
- *         . MicroBlaze
- *         . TriCore
- *         . ARM v3+
- *         . Alpha
- *         . MIPS32
- *         . C, generic
- *         . C, longlong
+ *         . IA-32 (386+)         . AMD64 / EM64T
+ *         . IA-32 (SSE2)         . Motorola 68000
+ *         . PowerPC, 32-bit      . MicroBlaze
+ *         . PowerPC, 64-bit      . TriCore
+ *         . SPARC v8             . ARM v3+
+ *         . Alpha                . MIPS32
+ *         . C, longlong          . C, generic
  */
-#ifndef _BN_ASM_H
-#define _BN_ASM_H
+#ifndef XYSSL_BN_MUL_H
+#define XYSSL_BN_MUL_H
 
 #if defined(__GNUC__)
 #if defined(__i386__)
@@ -45,13 +39,13 @@
     asm( "stosl                 " );
 
 #define MULADDC_STOP                            \
+    asm( "movl   %0, %%ebx      " :: "m" (t));  \
     asm( "movl   %%ecx, %0      " : "=m" (c));  \
     asm( "movl   %%edi, %0      " : "=m" (d));  \
-    asm( "movl   %%esi, %0      " : "=m" (s));  \
-    asm( "movl   %0, %%ebx      " :: "m" (t) :  \
+    asm( "movl   %%esi, %0      " : "=m" (s) :: \
     "eax", "ecx", "edx", "esi", "edi" );
 
-#if defined(HAVE_SSE2)
+#if defined(XYSSL_HAVE_SSE2)
 
 #define MULADDC_HUIT                            \
     asm( "movd     %ecx,     %mm1     " );      \
@@ -494,7 +488,7 @@
     __asm   mov     d, edi                      \
     __asm   mov     s, esi                      \
 
-#if defined HAVE_SSE2
+#if defined(XYSSL_HAVE_SSE2)
 
 #define EMIT __asm _emit
 
@@ -565,7 +559,7 @@
 #endif /* MSVC */
 
 #if !defined(MULADDC_CORE)
-#if defined(HAVE_LONGLONG)
+#if defined(XYSSL_HAVE_LONGLONG)
 
 #define MULADDC_INIT                    \
 {                                       \
@@ -611,4 +605,4 @@
 #endif /* C (generic)  */
 #endif /* C (longlong) */
 
-#endif /* bn_asm.h */
+#endif /* bn_mul.h */

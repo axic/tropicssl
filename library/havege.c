@@ -1,21 +1,32 @@
-/*
- *  HAVEGE: HArdware Volatile Entropy Gathering and Expansion
- *
- *  Copyright (C) 2006-2007  Christophe Devine
- *
- *  This library is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU Lesser General Public
- *  License, version 2.1 as published by the Free Software Foundation.
- *
- *  This library is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  Lesser General Public License for more details.
- *
- *  You should have received a copy of the GNU Lesser General Public
- *  License along with this library; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- *  MA  02110-1301  USA
+/* 
+ * Copyright (c) 2006-2007, Christophe Devine
+ * All rights reserved.
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer
+ *       in the documentation and/or other materials provided with the
+ *       distribution.
+ *     * Neither the name of the XySSL nor the names of its contributors
+ *       may be used to endorse or promote products derived from this
+ *       software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
  *  The HAVEGE RNG was designed by Andre Seznec in 2002.
@@ -25,15 +36,15 @@
  *  Contact: seznec(at)irisa_dot_fr - orocheco(at)irisa_dot_fr
  */
 
-#ifndef _CRT_SECURE_NO_DEPRECATE
-#define _CRT_SECURE_NO_DEPRECATE 1
-#endif
-
 #include <string.h>
 #include <time.h>
 
-#include "xyssl/timing.h"
+#include "xyssl/config.h"
+
+#if defined(XYSSL_HAVEGE_C)
+
 #include "xyssl/havege.h"
+#include "xyssl/timing.h"
 
 /* ------------------------------------------------------------------------
  * On average, one iteration accesses two 8-word blocks in the havege WALK
@@ -195,20 +206,21 @@ void havege_init( havege_state *hs )
 /*
  * HAVEGE rand function
  */
-int havege_rand( void *rng_d )
+int havege_rand( void *p_rng )
 {
-    havege_state *hs = (havege_state *) rng_d;
+    int ret;
+    havege_state *hs = (havege_state *) p_rng;
 
     if( hs->offset[1] >= COLLECT_SIZE )
         havege_fill( hs );
 
-    return( hs->pool[hs->offset[0]++] ^
-            hs->pool[hs->offset[1]++] );
+    ret  = hs->pool[hs->offset[0]++];
+    ret ^= hs->pool[hs->offset[1]++];
+
+    return( ret );
 }
 
-static const char _havege_src[] = "_havege_src";
-
-#if defined(RAND_TEST)
+#if defined(XYSSL_RAND_TEST)
 
 #include <stdio.h>
 
@@ -217,8 +229,8 @@ int main( int argc, char *argv[] )
     FILE *f;
     time_t t;
     int i, j, k;
-    unsigned char buf[1024];
     havege_state hs;
+    unsigned char buf[1024];
 
     if( argc < 2 )
     {
@@ -254,4 +266,7 @@ int main( int argc, char *argv[] )
     fclose( f );
     return( 0 );
 }
+
+#endif
+
 #endif

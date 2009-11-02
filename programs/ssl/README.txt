@@ -5,7 +5,7 @@
 
 
 
-    0. Configure OpenSSL
+    1. Configure OpenSSL
     --------------------
 
 First of all, create sslconf.txt in the current directory
@@ -16,34 +16,34 @@ $ touch index
 $ echo "01" > serial
 
 
-    1. Generate the CA certificate
+    2. Generate the CA certificate
     ------------------------------
 
 $ openssl req -config sslconf.txt -days 3653 -x509 -newkey rsa:2048 \
               -set_serial 0 -text -keyout test-ca.key -out test-ca.crt
 
 
-    2. Generate the private key and certificate request
+    3. Generate the private key and certificate request
     ---------------------------------------------------
 
 $ openssl genrsa -out client.key 2048
 $ openssl req -config sslconf.txt -new -key client.key -out client.req
 
 
-    3. Issue and sign the certificate
+    4. Issue and sign the certificate
     ---------------------------------
 
 $ openssl ca -config sslconf.txt -in client.req -out client.crt
 
 
-    4. To revoke a certificate and update the CRL
+    5. To revoke a certificate and update the CRL
     ---------------------------------------------
 
 $ openssl ca -config sslconf.txt -revoke client.crt
 $ openssl ca -config sslconf.txt -gencrl -out crl.pem
 
 
-    5. To display a certificate and verify its validity
+    6. To display a certificate and verify its validity
     ---------------------------------------------------
 
 $ openssl x509 -in client.crt -text -noout
@@ -51,7 +51,7 @@ $ cat test-ca.crt crl.pem > cacrl-temp.pem
 $ openssl verify -CAfile cacrl-temp.pem -crl_check client.crt
 
 
-    6. To export a certificate into a .pfx file
+    7. To export a certificate into a .pfx file
     -------------------------------------------
 
 $ openssl pkcs12 -export -in client.crt -inkey client.key -out client.pfx

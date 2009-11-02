@@ -1,21 +1,32 @@
-/*
- *  RFC 1186/1320 compliant MD4 implementation
- *
- *  Copyright (C) 2006-2007  Christophe Devine
- *
- *  This library is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU Lesser General Public
- *  License, version 2.1 as published by the Free Software Foundation.
- *
- *  This library is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  Lesser General Public License for more details.
- *
- *  You should have received a copy of the GNU Lesser General Public
- *  License along with this library; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- *  MA  02110-1301  USA
+/* 
+ * Copyright (c) 2006-2007, Christophe Devine
+ * All rights reserved.
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer
+ *       in the documentation and/or other materials provided with the
+ *       distribution.
+ *     * Neither the name of the XySSL nor the names of its contributors
+ *       may be used to endorse or promote products derived from this
+ *       software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
  *  The MD4 algorithm was designed by Ron Rivest in 1990.
@@ -24,20 +35,20 @@
  *  http://www.ietf.org/rfc/rfc1320.txt
  */
 
-#ifndef _CRT_SECURE_NO_DEPRECATE
-#define _CRT_SECURE_NO_DEPRECATE 1
-#endif
+#include "xyssl/config.h"
+
+#if defined(XYSSL_MD4_C)
+
+#include "xyssl/md4.h"
 
 #include <string.h>
 #include <stdio.h>
 
-#include "xyssl/md4.h"
-
 /*
  * 32-bit integer manipulation macros (little endian)
  */
-#ifndef GET_UINT32_LE
-#define GET_UINT32_LE(n,b,i)                            \
+#ifndef GET_ULONG_LE
+#define GET_ULONG_LE(n,b,i)                             \
 {                                                       \
     (n) = ( (unsigned long) (b)[(i)    ]       )        \
         | ( (unsigned long) (b)[(i) + 1] <<  8 )        \
@@ -46,8 +57,8 @@
 }
 #endif
 
-#ifndef PUT_UINT32_LE
-#define PUT_UINT32_LE(n,b,i)                            \
+#ifndef PUT_ULONG_LE
+#define PUT_ULONG_LE(n,b,i)                             \
 {                                                       \
     (b)[(i)    ] = (unsigned char) ( (n)       );       \
     (b)[(i) + 1] = (unsigned char) ( (n) >>  8 );       \
@@ -74,22 +85,22 @@ static void md4_process( md4_context *ctx, unsigned char data[64] )
 {
     unsigned long X[16], A, B, C, D;
 
-    GET_UINT32_LE( X[ 0], data,  0 );
-    GET_UINT32_LE( X[ 1], data,  4 );
-    GET_UINT32_LE( X[ 2], data,  8 );
-    GET_UINT32_LE( X[ 3], data, 12 );
-    GET_UINT32_LE( X[ 4], data, 16 );
-    GET_UINT32_LE( X[ 5], data, 20 );
-    GET_UINT32_LE( X[ 6], data, 24 );
-    GET_UINT32_LE( X[ 7], data, 28 );
-    GET_UINT32_LE( X[ 8], data, 32 );
-    GET_UINT32_LE( X[ 9], data, 36 );
-    GET_UINT32_LE( X[10], data, 40 );
-    GET_UINT32_LE( X[11], data, 44 );
-    GET_UINT32_LE( X[12], data, 48 );
-    GET_UINT32_LE( X[13], data, 52 );
-    GET_UINT32_LE( X[14], data, 56 );
-    GET_UINT32_LE( X[15], data, 60 );
+    GET_ULONG_LE( X[ 0], data,  0 );
+    GET_ULONG_LE( X[ 1], data,  4 );
+    GET_ULONG_LE( X[ 2], data,  8 );
+    GET_ULONG_LE( X[ 3], data, 12 );
+    GET_ULONG_LE( X[ 4], data, 16 );
+    GET_ULONG_LE( X[ 5], data, 20 );
+    GET_ULONG_LE( X[ 6], data, 24 );
+    GET_ULONG_LE( X[ 7], data, 28 );
+    GET_ULONG_LE( X[ 8], data, 32 );
+    GET_ULONG_LE( X[ 9], data, 36 );
+    GET_ULONG_LE( X[10], data, 40 );
+    GET_ULONG_LE( X[11], data, 44 );
+    GET_ULONG_LE( X[12], data, 48 );
+    GET_ULONG_LE( X[13], data, 52 );
+    GET_ULONG_LE( X[14], data, 56 );
+    GET_ULONG_LE( X[15], data, 60 );
 
 #define S(x,n) ((x << n) | ((x & 0xFFFFFFFF) >> (32 - n)))
 
@@ -228,7 +239,7 @@ static const unsigned char md4_padding[64] =
 /*
  * MD4 final digest
  */
-void md4_finish( md4_context *ctx, unsigned char *output )
+void md4_finish( md4_context *ctx, unsigned char output[16] )
 {
     unsigned long last, padn;
     unsigned long high, low;
@@ -238,8 +249,8 @@ void md4_finish( md4_context *ctx, unsigned char *output )
          | ( ctx->total[1] <<  3 );
     low  = ( ctx->total[0] <<  3 );
 
-    PUT_UINT32_LE( low,  msglen, 0 );
-    PUT_UINT32_LE( high, msglen, 4 );
+    PUT_ULONG_LE( low,  msglen, 0 );
+    PUT_ULONG_LE( high, msglen, 4 );
 
     last = ctx->total[0] & 0x3F;
     padn = ( last < 56 ) ? ( 56 - last ) : ( 120 - last );
@@ -247,17 +258,16 @@ void md4_finish( md4_context *ctx, unsigned char *output )
     md4_update( ctx, (unsigned char *) md4_padding, padn );
     md4_update( ctx, msglen, 8 );
 
-    PUT_UINT32_LE( ctx->state[0], output,  0 );
-    PUT_UINT32_LE( ctx->state[1], output,  4 );
-    PUT_UINT32_LE( ctx->state[2], output,  8 );
-    PUT_UINT32_LE( ctx->state[3], output, 12 );
+    PUT_ULONG_LE( ctx->state[0], output,  0 );
+    PUT_ULONG_LE( ctx->state[1], output,  4 );
+    PUT_ULONG_LE( ctx->state[2], output,  8 );
+    PUT_ULONG_LE( ctx->state[3], output, 12 );
 }
 
 /*
- * Output = MD4( input buffer )
+ * output = MD4( input buffer )
  */
-void md4( unsigned char *input, int ilen,
-          unsigned char *output )
+void md4( unsigned char *input, int ilen, unsigned char output[16] )
 {
     md4_context ctx;
 
@@ -269,9 +279,9 @@ void md4( unsigned char *input, int ilen,
 }
 
 /*
- * Output = MD4( file contents )
+ * output = MD4( file contents )
  */
-int md4_file( char *path, unsigned char *output )
+int md4_file( char *path, unsigned char output[16] )
 {
     FILE *f;
     size_t n;
@@ -303,31 +313,37 @@ int md4_file( char *path, unsigned char *output )
 /*
  * MD4 HMAC context setup
  */
-void md4_hmac_starts( md4_context *ctx,
-                      unsigned char *key, int keylen )
+void md4_hmac_starts( md4_context *ctx, unsigned char *key, int keylen )
 {
     int i;
+    unsigned char sum[16];
+
+    if( keylen > 64 )
+    {
+        md4( key, keylen, sum );
+        keylen = 16;
+        key = sum;
+    }
 
     memset( ctx->ipad, 0x36, 64 );
     memset( ctx->opad, 0x5C, 64 );
 
     for( i = 0; i < keylen; i++ )
     {
-        if( i >= 64 ) break;
-
-        ctx->ipad[i] ^= key[i];
-        ctx->opad[i] ^= key[i];
+        ctx->ipad[i] = (unsigned char)( ctx->ipad[i] ^ key[i] );
+        ctx->opad[i] = (unsigned char)( ctx->opad[i] ^ key[i] );
     }
 
     md4_starts( ctx );
     md4_update( ctx, ctx->ipad, 64 );
+
+    memset( sum, 0, sizeof( sum ) );
 }
 
 /*
  * MD4 HMAC process buffer
  */
-void md4_hmac_update( md4_context *ctx,
-                      unsigned char *input, int ilen )
+void md4_hmac_update( md4_context *ctx, unsigned char *input, int ilen )
 {
     md4_update( ctx, input, ilen );
 }
@@ -335,7 +351,7 @@ void md4_hmac_update( md4_context *ctx,
 /*
  * MD4 HMAC final digest
  */
-void md4_hmac_finish( md4_context *ctx, unsigned char *output )
+void md4_hmac_finish( md4_context *ctx, unsigned char output[16] )
 {
     unsigned char tmpbuf[16];
 
@@ -349,11 +365,10 @@ void md4_hmac_finish( md4_context *ctx, unsigned char *output )
 }
 
 /*
- * Output = HMAC-MD4( hmac key, input buffer )
+ * output = HMAC-MD4( hmac key, input buffer )
  */
-void md4_hmac( unsigned char *key, int keylen,
-               unsigned char *input, int ilen,
-               unsigned char *output )
+void md4_hmac( unsigned char *key, int keylen, unsigned char *input, int ilen,
+               unsigned char output[16] )
 {
     md4_context ctx;
 
@@ -364,9 +379,8 @@ void md4_hmac( unsigned char *key, int keylen,
     memset( &ctx, 0, sizeof( md4_context ) );
 }
 
-static const char _md4_src[] = "_md4_src";
+#if defined(XYSSL_SELF_TEST)
 
-#if defined(SELF_TEST)
 /*
  * RFC 1320 test vectors
  */
@@ -433,9 +447,7 @@ int md4_self_test( int verbose )
 
     return( 0 );
 }
-#else
-int md4_self_test( int verbose )
-{
-    return( 0 );
-}
+
+#endif
+
 #endif

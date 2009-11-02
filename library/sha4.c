@@ -1,21 +1,32 @@
-/*
- *  FIPS-180-2 compliant SHA-384/512 implementation
- *
- *  Copyright (C) 2006-2007  Christophe Devine
- *
- *  This library is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU Lesser General Public
- *  License, version 2.1 as published by the Free Software Foundation.
- *
- *  This library is distributed in the hope that it will be usefu),
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  Lesser General Public License for more details.
- *
- *  You should have received a copy of the GNU Lesser General Public
- *  License along with this library; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- *  MA  02110-1301  USA
+/* 
+ * Copyright (c) 2006-2007, Christophe Devine
+ * All rights reserved.
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer
+ *       in the documentation and/or other materials provided with the
+ *       distribution.
+ *     * Neither the name of the XySSL nor the names of its contributors
+ *       may be used to endorse or promote products derived from this
+ *       software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
  *  The SHA-512 Secure Hash Standard was published by NIST in 2002.
@@ -23,14 +34,14 @@
  *  http://csrc.nist.gov/publications/fips/fips180-2/fips180-2.pdf
  */
 
-#ifndef _CRT_SECURE_NO_DEPRECATE
-#define _CRT_SECURE_NO_DEPRECATE 1
-#endif
+#include "xyssl/config.h"
+
+#if defined(XYSSL_SHA4_C)
+
+#include "xyssl/sha4.h"
 
 #include <string.h>
 #include <stdio.h>
-
-#include "xyssl/sha4.h"
 
 /*
  * 64-bit integer manipulation macros (big endian)
@@ -38,14 +49,14 @@
 #ifndef GET_UINT64_BE
 #define GET_UINT64_BE(n,b,i)                            \
 {                                                       \
-    (n) = ( (uint64) (b)[(i)    ] << 56 )               \
-        | ( (uint64) (b)[(i) + 1] << 48 )               \
-        | ( (uint64) (b)[(i) + 2] << 40 )               \
-        | ( (uint64) (b)[(i) + 3] << 32 )               \
-        | ( (uint64) (b)[(i) + 4] << 24 )               \
-        | ( (uint64) (b)[(i) + 5] << 16 )               \
-        | ( (uint64) (b)[(i) + 6] <<  8 )               \
-        | ( (uint64) (b)[(i) + 7]       );              \
+    (n) = ( (unsigned int64) (b)[(i)    ] << 56 )       \
+        | ( (unsigned int64) (b)[(i) + 1] << 48 )       \
+        | ( (unsigned int64) (b)[(i) + 2] << 40 )       \
+        | ( (unsigned int64) (b)[(i) + 3] << 32 )       \
+        | ( (unsigned int64) (b)[(i) + 4] << 24 )       \
+        | ( (unsigned int64) (b)[(i) + 5] << 16 )       \
+        | ( (unsigned int64) (b)[(i) + 6] <<  8 )       \
+        | ( (unsigned int64) (b)[(i) + 7]       );      \
 }
 #endif
 
@@ -66,7 +77,7 @@
 /*
  * Round constants
  */
-static const uint64 K[80] =
+static const unsigned int64 K[80] =
 {
     UL64(0x428A2F98D728AE22),  UL64(0x7137449123EF65CD),
     UL64(0xB5C0FBCFEC4D3B2F),  UL64(0xE9B5DBA58189DBBC),
@@ -149,8 +160,8 @@ void sha4_starts( sha4_context *ctx, int is384 )
 static void sha4_process( sha4_context *ctx, unsigned char data[128] )
 {
     int i;
-    uint64 temp1, temp2, W[80];
-    uint64 A, B, C, D, E, F, G, H;
+    unsigned int64 temp1, temp2, W[80];
+    unsigned int64 A, B, C, D, E, F, G, H;
 
 #define  SHR(x,n) (x >> n)
 #define ROTR(x,n) (SHR(x,n) | (x << (64 - n)))
@@ -221,7 +232,7 @@ static void sha4_process( sha4_context *ctx, unsigned char data[128] )
 void sha4_update( sha4_context *ctx, unsigned char *input, int ilen )
 {
     int fill;
-    uint64 left;
+    unsigned int64 left;
 
     if( ilen <= 0 )
         return;
@@ -231,7 +242,7 @@ void sha4_update( sha4_context *ctx, unsigned char *input, int ilen )
 
     ctx->total[0] += ilen;
 
-    if( ctx->total[0] < (uint64) ilen )
+    if( ctx->total[0] < (unsigned int64) ilen )
         ctx->total[1]++;
 
     if( left && ilen >= fill )
@@ -273,10 +284,10 @@ static const unsigned char sha4_padding[128] =
 /*
  * SHA-512 final digest
  */
-void sha4_finish( sha4_context *ctx, unsigned char *output )
+void sha4_finish( sha4_context *ctx, unsigned char output[64] )
 {
-	int last, padn;
-    uint64 high, low;
+    int last, padn;
+    unsigned int64 high, low;
     unsigned char msglen[16];
 
     high = ( ctx->total[0] >> 61 )
@@ -307,10 +318,10 @@ void sha4_finish( sha4_context *ctx, unsigned char *output )
 }
 
 /*
- * Output = SHA-512( input buffer )
+ * output = SHA-512( input buffer )
  */
-void sha4( unsigned char *input,  int ilen,
-           unsigned char *output, int is384 )
+void sha4( unsigned char *input, int ilen,
+           unsigned char output[64], int is384 )
 {
     sha4_context ctx;
 
@@ -322,9 +333,9 @@ void sha4( unsigned char *input,  int ilen,
 }
 
 /*
- * Output = SHA-512( file contents )
+ * output = SHA-512( file contents )
  */
-int sha4_file( char *path, unsigned char *output, int is384 )
+int sha4_file( char *path, unsigned char output[64], int is384 )
 {
     FILE *f;
     size_t n;
@@ -356,30 +367,38 @@ int sha4_file( char *path, unsigned char *output, int is384 )
 /*
  * SHA-512 HMAC context setup
  */
-void sha4_hmac_starts( sha4_context *ctx,  int is384,
-                       unsigned char *key, int keylen )
+void sha4_hmac_starts( sha4_context *ctx, unsigned char *key, int keylen,
+                       int is384 )
 {
     int i;
+    unsigned char sum[64];
+
+    if( keylen > 64 )
+    {
+        sha4( key, keylen, sum, is384 );
+        keylen = ( is384 ) ? 48 : 64;
+        key = sum;
+    }
 
     memset( ctx->ipad, 0x36, 64 );
     memset( ctx->opad, 0x5C, 64 );
 
     for( i = 0; i < keylen; i++ )
     {
-        if( i >= 64 ) break;
-
-        ctx->ipad[i] ^= key[i];
-        ctx->opad[i] ^= key[i];
+        ctx->ipad[i] = (unsigned char)( ctx->ipad[i] ^ key[i] );
+        ctx->opad[i] = (unsigned char)( ctx->opad[i] ^ key[i] );
     }
 
     sha4_starts( ctx, is384 );
     sha4_update( ctx, ctx->ipad, 64 );
+
+    memset( sum, 0, sizeof( sum ) );
 }
 
 /*
  * SHA-512 HMAC process buffer
  */
-void sha4_hmac_update( sha4_context *ctx,
+void sha4_hmac_update( sha4_context  *ctx,
                        unsigned char *input, int ilen )
 {
     sha4_update( ctx, input, ilen );
@@ -388,7 +407,7 @@ void sha4_hmac_update( sha4_context *ctx,
 /*
  * SHA-512 HMAC final digest
  */
-void sha4_hmac_finish( sha4_context *ctx, unsigned char *output )
+void sha4_hmac_finish( sha4_context *ctx, unsigned char output[64] )
 {
     int is384, hlen;
     unsigned char tmpbuf[64];
@@ -406,28 +425,27 @@ void sha4_hmac_finish( sha4_context *ctx, unsigned char *output )
 }
 
 /*
- * Output = HMAC-SHA-512( hmac key, input buffer )
+ * output = HMAC-SHA-512( hmac key, input buffer )
  */
-void sha4_hmac( unsigned char *key,  int keylen,
-                unsigned char *input,  int ilen,
-                unsigned char *output, int is384 )
+void sha4_hmac( unsigned char *key, int keylen,
+                unsigned char *input, int ilen,
+                unsigned char output[64], int is384 )
 {
     sha4_context ctx;
 
-    sha4_hmac_starts( &ctx, is384, key, keylen );
+    sha4_hmac_starts( &ctx, key, keylen, is384 );
     sha4_hmac_update( &ctx, input, ilen );
     sha4_hmac_finish( &ctx, output );
 
     memset( &ctx, 0, sizeof( sha4_context ) );
 }
 
-static const char _sha4_src[] = "_sha4_src";
+#if defined(XYSSL_SELF_TEST)
 
-#if defined(SELF_TEST)
 /*
  * FIPS-180-2 test vectors
  */
-static const char sha4_test_str[3][112] = 
+static const char sha4_test_str[3][113] = 
 {
     { "abc" },
     { "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmn"
@@ -539,9 +557,7 @@ int sha4_self_test( int verbose )
 
     return( 0 );
 }
-#else
-int sha4_self_test( int verbose )
-{
-    return( 0 );
-}
+
+#endif
+
 #endif

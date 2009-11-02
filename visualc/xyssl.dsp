@@ -41,7 +41,7 @@ RSC=rc.exe
 # PROP Intermediate_Dir "temp"
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_MBCS" /D "_LIB" /YX /FD /c
-# ADD CPP /nologo /W3 /GX /O2 /I "../include" /D "NDEBUG" /D "WIN32" /D "_MBCS" /D "_LIB" /D "SELF_TEST" /YX /FD /c
+# ADD CPP /nologo /W3 /GX /O2 /I "../include" /D "NDEBUG" /D "WIN32" /D "_MBCS" /D "_LIB" /YX /FD /c
 # ADD BASE RSC /l 0x40c /d "NDEBUG"
 # ADD RSC /l 0x40c /d "NDEBUG"
 BSC32=bscmake.exe
@@ -63,8 +63,8 @@ LIB32=link.exe -lib
 # PROP Output_Dir ""
 # PROP Intermediate_Dir "temp"
 # PROP Target_Dir ""
-# ADD BASE CPP /nologo /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_MBCS" /D "_LIB" /YX /FD /GZ /c
-# ADD CPP /nologo /W3 /Gm /GX /ZI /Od /I "../include" /D "_DEBUG" /D "WIN32" /D "_MBCS" /D "_LIB" /D "SELF_TEST" /YX /FD /GZ /c
+# ADD BASE CPP /nologo /W3 /Gm /GX /Z7 /Od /D "WIN32" /D "_DEBUG" /D "_MBCS" /D "_LIB" /YX /FD /GZ /c
+# ADD CPP /nologo /W3 /Gm /GX /Z7 /Od /I "../include" /D "_DEBUG" /D "WIN32" /D "_MBCS" /D "_LIB" /YX /FD /GZ /c
 # ADD BASE RSC /l 0x40c /d "_DEBUG"
 # ADD RSC /l 0x40c /d "_DEBUG"
 BSC32=bscmake.exe
@@ -105,6 +105,10 @@ SOURCE=..\library\certs.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\library\debug.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\library\des.c
 # End Source File
 # Begin Source File
@@ -130,6 +134,10 @@ SOURCE=..\library\md5.c
 # Begin Source File
 
 SOURCE=..\library\net.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\library\padlock.c
 # End Source File
 # Begin Source File
 
@@ -165,7 +173,7 @@ SOURCE=..\library\timing.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\library\x509read.c
+SOURCE=..\library\x509parse.c
 # End Source File
 # End Group
 # Begin Group "Header Files"
@@ -189,11 +197,19 @@ SOURCE=..\include\xyssl\bignum.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\include\xyssl\bn_asm.h
+SOURCE=..\include\xyssl\bn_mul.h
 # End Source File
 # Begin Source File
 
 SOURCE=..\include\xyssl\certs.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\include\xyssl\config.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\include\xyssl\debug.h
 # End Source File
 # Begin Source File
 
@@ -225,6 +241,10 @@ SOURCE=..\include\xyssl\net.h
 # End Source File
 # Begin Source File
 
+SOURCE=..\include\xyssl\padlock.h
+# End Source File
+# Begin Source File
+
 SOURCE=..\include\xyssl\rsa.h
 # End Source File
 # Begin Source File
@@ -242,10 +262,6 @@ SOURCE=..\include\xyssl\sha4.h
 # Begin Source File
 
 SOURCE=..\include\xyssl\ssl.h
-# End Source File
-# Begin Source File
-
-SOURCE=..\include\xyssl\ssl_conf.h
 # End Source File
 # Begin Source File
 

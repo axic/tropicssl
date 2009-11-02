@@ -1,21 +1,32 @@
-/*
- *  Diffie-Hellman-Merkle key exchange (client side)
- *
- *  Copyright (C) 2006-2007  Christophe Devine
- *
- *  This library is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU Lesser General Public
- *  License, version 2.1 as published by the Free Software Foundation.
- *
- *  This library is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  Lesser General Public License for more details.
- *
- *  You should have received a copy of the GNU Lesser General Public
- *  License along with this library; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- *  MA  02110-1301  USA
+/* 
+ * Copyright (c) 2006-2007, Christophe Devine
+ * All rights reserved.
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer
+ *       in the documentation and/or other materials provided with the
+ *       distribution.
+ *     * Neither the name of the XySSL nor the names of its contributors
+ *       may be used to endorse or promote products derived from this
+ *       software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #ifndef _CRT_SECURE_NO_DEPRECATE
@@ -76,11 +87,16 @@ int main( void )
         goto exit;
     }
 
-    if( ( ret = rsa_read_public( &rsa, f ) ) != 0 )
+    rsa_init( &rsa, RSA_PKCS_V15, 0, NULL, NULL );
+
+    if( ( ret = mpi_read_file( &rsa.N, 16, f ) ) != 0 ||
+        ( ret = mpi_read_file( &rsa.E, 16, f ) ) != 0 )
     {
-        printf( " failed\n  ! rsa_read_public returned %08x\n\n", ret );
+        printf( " failed\n  ! mpi_read_file returned %d\n\n", ret );
         goto exit;
     }
+
+    rsa.len = ( mpi_msb( &rsa.N ) + 7 ) >> 3;
 
     fclose( f );
 
@@ -94,7 +110,7 @@ int main( void )
     if( ( ret = net_connect( &server_fd, SERVER_NAME,
                                          SERVER_PORT ) ) != 0 )
     {
-        printf( " failed\n  ! net_connect returned %08x\n\n", ret );
+        printf( " failed\n  ! net_connect returned %d\n\n", ret );
         goto exit;
     }
 
@@ -106,10 +122,9 @@ int main( void )
 
     memset( buf, 0, sizeof( buf ) );
 
-    n = 2;
-    if( ( ret = net_recv( server_fd, buf, &n ) ) != 0 )
+    if( ( ret = net_recv( &server_fd, buf, 2 ) ) != 2 )
     {
-        printf( " failed\n  ! net_recv returned %08x\n\n", ret );
+        printf( " failed\n  ! net_recv returned %d\n\n", ret );
         goto exit;
     }
 
@@ -123,9 +138,11 @@ int main( void )
     /*
      * 4b. Get the DHM parameters: P, G and Ys = G^Xs mod P
      */
-    if( ( ret = net_recv( server_fd, buf, &n ) ) != 0 )
+    memset( buf, 0, sizeof( buf ) );
+
+    if( ( ret = net_recv( &server_fd, buf, n ) ) != n )
     {
-        printf( " failed\n  ! net_recv returned %08x\n\n", ret );
+        printf( " failed\n  ! net_recv returned %d\n\n", ret );
         goto exit;
     }
 
@@ -133,7 +150,7 @@ int main( void )
 
     if( ( ret = dhm_read_params( &dhm, &p, end ) ) != 0 )
     {
-        printf( " failed\n  ! dhm_read_params returned %08x\n\n", ret );
+        printf( " failed\n  ! dhm_read_params returned %d\n\n", ret );
         goto exit;
     }
 
@@ -160,11 +177,10 @@ int main( void )
 
     sha1( buf, (int)( p - 2 - buf ), hash );
 
-    if( ( ret = rsa_pkcs1_verify( &rsa, RSA_SHA1,
-                                  hash, 20, p, n ) ) != 0 )
+    if( ( ret = rsa_pkcs1_verify( &rsa, RSA_PUBLIC, RSA_SHA1,
+                                  0, hash, p ) ) != 0 )
     {
-        printf( " failed\n  ! rsa_pkcs1_verify returned "
-                "%08x\n\n", ret );
+        printf( " failed\n  ! rsa_pkcs1_verify returned %d\n\n", ret );
         goto exit;
     }
 
@@ -175,16 +191,16 @@ int main( void )
     fflush( stdout );
 
     n = dhm.len;
-    if( ( ret = dhm_make_public( &dhm, buf, n,
+    if( ( ret = dhm_make_public( &dhm, 256, buf, n,
                                  havege_rand, &hs ) ) != 0 )
     {
-        printf( " failed\n  ! dhm_make_public returned %08x\n\n", ret );
+        printf( " failed\n  ! dhm_make_public returned %d\n\n", ret );
         goto exit;
     }
 
-    if( ( ret = net_send( server_fd, buf, &n ) ) != 0 )
+    if( ( ret = net_send( &server_fd, buf, n ) ) != n )
     {
-        printf( " failed\n  ! net_recv returned %08x\n\n", ret );
+        printf( " failed\n  ! net_send returned %d\n\n", ret );
         goto exit;
     }
 
@@ -197,7 +213,7 @@ int main( void )
     n = dhm.len;
     if( ( ret = dhm_calc_secret( &dhm, buf, &n ) ) != 0 )
     {
-        printf( " failed\n  ! dhm_calc_secret returned %08x\n\n", ret );
+        printf( " failed\n  ! dhm_calc_secret returned %d\n\n", ret );
         goto exit;
     }
 
@@ -209,23 +225,25 @@ int main( void )
      *
      * This is an overly simplified example; best practice is
      * to hash the shared secret with a random value to derive
-     * the keying material for the encryption/decryption keys
-     * and MACs.
+     * the keying material for the encryption/decryption keys,
+     * IVs and MACs.
      */
     printf( "...\n  . Receiving and decrypting the ciphertext" );
     fflush( stdout );
 
-    aes_set_key( &aes, buf, 256 );
+    aes_setkey_dec( &aes, buf, 256 );
 
-    n = 16;
-    if( ( ret = net_recv( server_fd, buf, &n ) ) != 0 )
+    memset( buf, 0, sizeof( buf ) );
+
+    if( ( ret = net_recv( &server_fd, buf, 16 ) ) != 16 )
     {
-        printf( " failed\n  ! net_recv returned %08x\n\n", ret );
+        printf( " failed\n  ! net_recv returned %d\n\n", ret );
         goto exit;
     }
 
-    aes_decrypt( &aes, buf, buf );  buf[16] = '\0';
-    printf( "\n  . Plaintext is \"%s\"\n\n", buf );
+    aes_crypt_ecb( &aes, AES_DECRYPT, buf, buf );
+    buf[16] = '\0';
+    printf( "\n  . Plaintext is \"%s\"\n\n", (char *) buf );
 
 exit:
 

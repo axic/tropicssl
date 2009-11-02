@@ -1,33 +1,44 @@
-/*
- *  AES-256 file encryption program
- *
- *  Copyright (C) 2006-2007  Christophe Devine
- *
- *  This library is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU Lesser General Public
- *  License, version 2.1 as published by the Free Software Foundation.
- *
- *  This library is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  Lesser General Public License for more details.
- *
- *  You should have received a copy of the GNU Lesser General Public
- *  License along with this library; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- *  MA  02110-1301  USA
+/* 
+ * Copyright (c) 2006-2007, Christophe Devine
+ * All rights reserved.
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer
+ *       in the documentation and/or other materials provided with the
+ *       distribution.
+ *     * Neither the name of the XySSL nor the names of its contributors
+ *       may be used to endorse or promote products derived from this
+ *       software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #ifndef _CRT_SECURE_NO_DEPRECATE
 #define _CRT_SECURE_NO_DEPRECATE 1
 #endif
 
-#ifndef WIN32
-#include <sys/types.h>
-#include <unistd.h>
-#else
+#if defined(WIN32)
 #include <windows.h>
 #include <io.h>
+#else
+#include <sys/types.h>
+#include <unistd.h>
 #endif
 
 #include <string.h>
@@ -47,17 +58,9 @@
     "\n  example: aescrypt2 0 file file.aes hex:E76B2413958B00E193\n" \
     "\n"
 
-void scanf_argv( char *prompt, char **arg )
-{
-    printf( "%s", prompt );
-    fflush( stdout );
-    *arg = (char *) malloc( 1024 );
-    scanf( "%1023s", *arg );
-}
-
 int main( int argc, char *argv[] )
 {
-    int ret, i, n;
+    int ret = 1, i, n;
     int keylen, mode, lastn;
     FILE *fkey, *fin, *fout;
 
@@ -70,32 +73,28 @@ int main( int argc, char *argv[] )
     aes_context aes_ctx;
     sha2_context sha_ctx;
 
-#ifndef WIN32
-      off_t filesize, offset;
-#else
+#if defined(WIN32)
+       LARGE_INTEGER li_size;
     __int64 filesize, offset;
-#endif
-
-    ret = 1;
-
-    if( argc != 5 )
-    {
-        printf( USAGE );
-
-#ifndef WIN32
-        goto exit;
 #else
-        scanf_argv( "  mode    -> ", &argv[1] );
-        scanf_argv( "  infile  -> ", &argv[2] );
-        scanf_argv( "  outfile -> ", &argv[3] );
-        scanf_argv( "  key     -> ", &argv[4] );
-        printf( "\n" );
+      off_t filesize, offset;
 #endif
-    }
 
     /*
      * Parse the command-line arguments.
      */
+    if( argc != 5 )
+    {
+        printf( USAGE );
+
+#if defined(WIN32)
+        printf( "\n  Press Enter to exit this program.\n" );
+        fflush( stdout ); getchar();
+#endif
+
+        goto exit;
+    }
+
     mode = atoi( argv[1] );
 
     if( mode != MODE_ENCRYPT && mode != MODE_DECRYPT )
@@ -140,7 +139,7 @@ int main( int argc, char *argv[] )
             while( sscanf( p, "%02X", &n ) > 0 &&
                    keylen < (int) sizeof( key ) )
             {
-                key[keylen++] = n;
+                key[keylen++] = (unsigned char) n;
                 p += 2;
             }
         }
@@ -157,34 +156,27 @@ int main( int argc, char *argv[] )
 
     memset( argv[4], 0, strlen( argv[4] ) );
 
+#if defined(WIN32)
     /*
-     * Read the input file size.
+     * Support large files (> 2Gb) on Win32
      */
-#ifndef WIN32
+    li_size.QuadPart = 0;
+    li_size.LowPart  =
+        SetFilePointer( (HANDLE) _get_osfhandle( _fileno( fin ) ),
+                        li_size.LowPart, &li_size.HighPart, FILE_END );
+
+    if( li_size.LowPart == 0xFFFFFFFF && GetLastError() != NO_ERROR )
+    {
+        fprintf( stderr, "SetFilePointer(0,FILE_END) failed\n" );
+        goto exit;
+    }
+
+    filesize = li_size.QuadPart;
+#else
     if( ( filesize = lseek( fileno( fin ), 0, SEEK_END ) ) < 0 )
     {
         perror( "lseek" );
         goto exit;
-    }
-#else
-    {
-        /*
-         * Properly handle very large files on Win32.
-         */
-        LARGE_INTEGER li_size;
-
-        li_size.QuadPart = 0;
-        li_size.LowPart  = SetFilePointer(
-            (HANDLE) _get_osfhandle( _fileno( fin ) ),
-            li_size.LowPart, &li_size.HighPart, FILE_END );
-
-        if( li_size.LowPart == 0xFFFFFFFF && GetLastError() != NO_ERROR )
-        {
-            fprintf( stderr, "SetFilePointer(0,FILE_END) failed\n" );
-            goto exit;
-        }
-
-        filesize = li_size.QuadPart;
     }
 #endif
 
@@ -216,10 +208,10 @@ int main( int argc, char *argv[] )
          * The last four bits in the IV are actually used
          * to store the file size modulo the AES block size.
          */
-        lastn = (int) ( filesize & 0x0F );
+        lastn = (int)( filesize & 0x0F );
 
-        IV[15] &= 0xF0;
-        IV[15] |= lastn;
+        IV[15] = (unsigned char)
+            ( ( IV[15] & 0xF0 ) | lastn );
 
         /*
          * Append the IV at the beginning of the output.
@@ -246,8 +238,8 @@ int main( int argc, char *argv[] )
         }
 
         memset( key, 0, sizeof( key ) );
-        aes_set_key( &aes_ctx, digest, 256 );
-        sha2_hmac_starts( &sha_ctx, 0, digest, 32 );
+          aes_setkey_enc( &aes_ctx, digest, 256 );
+        sha2_hmac_starts( &sha_ctx, digest, 32, 0 );
 
         /*
          * Encrypt and write the ciphertext.
@@ -264,9 +256,9 @@ int main( int argc, char *argv[] )
             }
 
             for( i = 0; i < 16; i++ )
-                buffer[i] ^= IV[i];
+                buffer[i] = (unsigned char)( buffer[i] ^ IV[i] );
 
-            aes_encrypt( &aes_ctx, buffer, buffer );
+            aes_crypt_ecb( &aes_ctx, AES_ENCRYPT, buffer, buffer );
             sha2_hmac_update( &sha_ctx, buffer, 16 );
 
             if( fwrite( buffer, 1, 16, fout ) != 16 )
@@ -348,8 +340,8 @@ int main( int argc, char *argv[] )
         }
 
         memset( key, 0, sizeof( key ) );
-        aes_set_key( &aes_ctx, digest, 256 );
-        sha2_hmac_starts( &sha_ctx, 0, digest, 32 );
+          aes_setkey_dec( &aes_ctx, digest, 256 );
+        sha2_hmac_starts( &sha_ctx, digest, 32, 0 );
 
         /*
          * Decrypt and write the plaintext.
@@ -365,10 +357,10 @@ int main( int argc, char *argv[] )
             memcpy( tmp, buffer, 16 );
  
             sha2_hmac_update( &sha_ctx, buffer, 16 );
-            aes_decrypt( &aes_ctx, buffer, buffer );
+            aes_crypt_ecb( &aes_ctx, AES_DECRYPT, buffer, buffer );
    
             for( i = 0; i < 16; i++ )
-                buffer[i] ^= IV[i];
+                buffer[i] = (unsigned char)( buffer[i] ^ IV[i] );
 
             memcpy( IV, tmp, 16 );
 
@@ -410,15 +402,6 @@ exit:
 
     memset( &aes_ctx, 0, sizeof(  aes_context ) );
     memset( &sha_ctx, 0, sizeof( sha2_context ) );
-
-#ifdef WIN32
-    if( ret != 0 )
-    {
-        fflush( stderr );
-        printf( "\nPress Enter to exit this program.\n" );
-        fflush( stdout ); getchar();
-    }
-#endif
 
     return( ret );
 }

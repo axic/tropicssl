@@ -1,21 +1,32 @@
-/*
- *  The RSA Public-Key cryptosystem
- *
- *  Copyright (C) 2006-2007  Christophe Devine
- *
- *  This library is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU Lesser General Public
- *  License, version 2.1 as published by the Free Software Foundation.
- *
- *  This library is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  Lesser General Public License for more details.
- *
- *  You should have received a copy of the GNU Lesser General Public
- *  License along with this library; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- *  MA  02110-1301  USA
+/* 
+ * Copyright (c) 2006-2007, Christophe Devine
+ * All rights reserved.
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer
+ *       in the documentation and/or other materials provided with the
+ *       distribution.
+ *     * Neither the name of the XySSL nor the names of its contributors
+ *       may be used to endorse or promote products derived from this
+ *       software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
  *  RSA was designed by Ron Rivest, Adi Shamir and Len Adleman.
@@ -24,45 +35,64 @@
  *  http://www.cacr.math.uwaterloo.ca/hac/about/chap8.pdf
  */
 
-#ifndef _CRT_SECURE_NO_DEPRECATE
-#define _CRT_SECURE_NO_DEPRECATE 1
-#endif
+#include "xyssl/config.h"
+
+#if defined(XYSSL_RSA_C)
+
+#include "xyssl/rsa.h"
 
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 
-#include "xyssl/rsa.h"
+/*
+ * Initialize an RSA context
+ */
+void rsa_init( rsa_context *ctx,
+               int padding,
+               int hash_id,
+               int (*f_rng)(void *),
+               void *p_rng )
+{
+    memset( ctx, 0, sizeof( rsa_context ) );
 
-#if !defined(NO_GENPRIME)
+    ctx->padding = padding;
+    ctx->hash_id = hash_id;
+
+    ctx->f_rng = f_rng;
+    ctx->p_rng = p_rng;
+}
+
+#if defined(XYSSL_GENPRIME)
+
 /*
  * Generate an RSA keypair
  */
-int rsa_gen_key( rsa_context *ctx, int nbits, int exponent,
-                 int (*rng_f)(void *), void *rng_d )
+int rsa_gen_key( rsa_context *ctx, int nbits, int exponent )
 {
     int ret;
     mpi P1, Q1, H, G;
 
-    if( nbits < 128 || exponent < 3 || rng_f == NULL )
-        return( ERR_RSA_BAD_INPUT_DATA );
+    if( ctx->f_rng == NULL || nbits < 128 || exponent < 3 )
+        return( XYSSL_ERR_RSA_BAD_INPUT_DATA );
 
     mpi_init( &P1, &Q1, &H, &G, NULL );
-
-    memset( ctx, 0, sizeof( rsa_context ) );
 
     /*
      * find primes P and Q with Q < P so that:
      * GCD( E, (P-1)*(Q-1) ) == 1
      */
-    CHK( mpi_lset( &ctx->E, exponent ) );
+    MPI_CHK( mpi_lset( &ctx->E, exponent ) );
 
     nbits >>= 1;
 
     do
     {
-        CHK( mpi_gen_prime( &ctx->P, nbits, 0, rng_f, rng_d ) );
-        CHK( mpi_gen_prime( &ctx->Q, nbits, 0, rng_f, rng_d ) );
+        MPI_CHK( mpi_gen_prime( &ctx->P, nbits, 0, 
+                                ctx->f_rng, ctx->p_rng ) );
+
+        MPI_CHK( mpi_gen_prime( &ctx->Q, nbits, 0,
+                                ctx->f_rng, ctx->p_rng ) );
 
         if( mpi_cmp_mpi( &ctx->P, &ctx->Q ) < 0 )
             mpi_swap( &ctx->P, &ctx->Q );
@@ -70,11 +100,11 @@ int rsa_gen_key( rsa_context *ctx, int nbits, int exponent,
         if( mpi_cmp_mpi( &ctx->P, &ctx->Q ) == 0 )
             continue;
 
-        CHK( mpi_mul_mpi( &ctx->N, &ctx->P, &ctx->Q ) );
-        CHK( mpi_sub_int( &P1, &ctx->P, 1 ) );
-        CHK( mpi_sub_int( &Q1, &ctx->Q, 1 ) );
-        CHK( mpi_mul_mpi( &H, &P1, &Q1 ) );
-        CHK( mpi_gcd( &G, &ctx->E, &H  ) );
+        MPI_CHK( mpi_mul_mpi( &ctx->N, &ctx->P, &ctx->Q ) );
+        MPI_CHK( mpi_sub_int( &P1, &ctx->P, 1 ) );
+        MPI_CHK( mpi_sub_int( &Q1, &ctx->Q, 1 ) );
+        MPI_CHK( mpi_mul_mpi( &H, &P1, &Q1 ) );
+        MPI_CHK( mpi_gcd( &G, &ctx->E, &H  ) );
     }
     while( mpi_cmp_int( &G, 1 ) != 0 );
 
@@ -84,257 +114,66 @@ int rsa_gen_key( rsa_context *ctx, int nbits, int exponent,
      * DQ = D mod (Q - 1)
      * QP = Q^-1 mod P
      */
-    CHK( mpi_inv_mod( &ctx->D , &ctx->E, &H  ) );
-    CHK( mpi_mod_mpi( &ctx->DP, &ctx->D, &P1 ) );
-    CHK( mpi_mod_mpi( &ctx->DQ, &ctx->D, &Q1 ) );
-    CHK( mpi_inv_mod( &ctx->QP, &ctx->Q, &ctx->P ) );
+    MPI_CHK( mpi_inv_mod( &ctx->D , &ctx->E, &H  ) );
+    MPI_CHK( mpi_mod_mpi( &ctx->DP, &ctx->D, &P1 ) );
+    MPI_CHK( mpi_mod_mpi( &ctx->DQ, &ctx->D, &Q1 ) );
+    MPI_CHK( mpi_inv_mod( &ctx->QP, &ctx->Q, &ctx->P ) );
 
     ctx->len = ( mpi_msb( &ctx->N ) + 7 ) >> 3;
 
 cleanup:
 
-    mpi_free( &P1, &Q1, &H, &G, NULL );
+    mpi_free( &G, &H, &Q1, &P1, NULL );
 
     if( ret != 0 )
     {
         rsa_free( ctx );
-        return( ERR_RSA_KEY_GEN_FAILED | ret );
+        return( XYSSL_ERR_RSA_KEY_GEN_FAILED | ret );
     }
 
     return( 0 );   
 }
+
 #endif
 
 /*
- * Read the public key from a file
- */
-int rsa_read_public( rsa_context *ctx, FILE *f )
-{
-    int ret;
-
-    memset( ctx, 0, sizeof( rsa_context ) );
-
-    CHK( mpi_read_file( &ctx->N, 16, f ) );
-    CHK( mpi_read_file( &ctx->E, 16, f ) );
-
-    ctx->len = ( mpi_msb( &ctx->N ) + 7 ) >> 3;
-
-cleanup:
-
-    if( ret != 0 )
-    {
-        rsa_free( ctx );
-        return( ERR_RSA_KEY_RD_FAILED | ret );
-    }
-
-    return( 0 );   
-}
-
-/*
- * Read the private key from a file
- */
-int rsa_read_private( rsa_context *ctx, FILE *f )
-{
-    int ret;
-
-    memset( ctx, 0, sizeof( rsa_context ) );
-
-    CHK( mpi_read_file( &ctx->N , 16, f ) );
-    CHK( mpi_read_file( &ctx->E , 16, f ) );
-    CHK( mpi_read_file( &ctx->D , 16, f ) );
-    CHK( mpi_read_file( &ctx->P , 16, f ) );
-    CHK( mpi_read_file( &ctx->Q , 16, f ) );
-    CHK( mpi_read_file( &ctx->DP, 16, f ) );
-    CHK( mpi_read_file( &ctx->DQ, 16, f ) );
-    CHK( mpi_read_file( &ctx->QP, 16, f ) );
-
-    ctx->len = ( mpi_msb( &ctx->N ) + 7 ) >> 3;
-
-cleanup:
-
-    if( ret != 0 )
-    {
-        rsa_free( ctx );
-        return( ERR_RSA_KEY_RD_FAILED | ret );
-    }
-
-    return( 0 );   
-}
-
-/*
- * Write the public key into a file
- */
-int rsa_write_public( rsa_context *ctx, FILE *f )
-{
-    int ret;
-
-    CHK( mpi_write_file( "N = ", &ctx->N, 16, f ) );
-    CHK( mpi_write_file( "E = ", &ctx->E, 16, f ) );
-
-cleanup:
-
-    if( ret != 0 )
-        return( ERR_RSA_KEY_WR_FAILED | ret );
-
-    return( 0 );   
-}
-
-/*
- * Write the private key into a file
- */
-int rsa_write_private( rsa_context *ctx, FILE *f )
-{
-    int ret;
-
-    CHK( mpi_write_file( "N = " , &ctx->N , 16, f ) );
-    CHK( mpi_write_file( "E = " , &ctx->E , 16, f ) );
-    CHK( mpi_write_file( "D = " , &ctx->D , 16, f ) );
-    CHK( mpi_write_file( "P = " , &ctx->P , 16, f ) );
-    CHK( mpi_write_file( "Q = " , &ctx->Q , 16, f ) );
-    CHK( mpi_write_file( "DP = ", &ctx->DP, 16, f ) );
-    CHK( mpi_write_file( "DQ = ", &ctx->DQ, 16, f ) );
-    CHK( mpi_write_file( "QP = ", &ctx->QP, 16, f ) );
-
-cleanup:
-
-    if( ret != 0 )
-        return( ERR_RSA_KEY_WR_FAILED | ret );
-
-    return( 0 );   
-}
-
-/*
- * Perform an RSA public key operation
- */
-int rsa_public( rsa_context   *ctx,
-                unsigned char *input,  int ilen,
-                unsigned char *output, int olen )
-{
-    int ret;
-    mpi T;
-
-    if( ilen != ctx->len || olen != ctx->len )
-        return( ERR_RSA_BAD_INPUT_DATA );
-
-    mpi_init( &T, NULL );
-
-    CHK( mpi_read_binary( &T, input, ilen ) );
-
-    if( mpi_cmp_mpi( &T, &ctx->N ) >= 0 )
-    {
-        mpi_free( &T, NULL );
-        return( ERR_RSA_BAD_INPUT_DATA );
-    }
-
-    CHK( mpi_exp_mod( &T, &T, &ctx->E, &ctx->N, &ctx->RN ) );
-    CHK( mpi_write_binary( &T, output, &olen ) );
-
-cleanup:
-
-    mpi_free( &T, NULL );
-
-    if( ret != 0 )
-        return( ERR_RSA_PUBLIC_FAILED | ret );
-
-    return( 0 );
-}
-
-/*
- * Perform an RSA private key operation
- */
-int rsa_private( rsa_context   *ctx,
-                 unsigned char *input,  int ilen,
-                 unsigned char *output, int olen )
-{
-    int ret;
-    mpi T, T1, T2;
-
-    if( ilen != ctx->len || olen != ctx->len )
-        return( ERR_RSA_BAD_INPUT_DATA );
-
-    mpi_init( &T, &T1, &T2, NULL );
-
-    CHK( mpi_read_binary( &T, input, ilen ) );
-
-    if( mpi_cmp_mpi( &T, &ctx->N ) >= 0 )
-    {
-        mpi_free( &T, NULL );
-        return( ERR_RSA_BAD_INPUT_DATA );
-    }
-
-#if 0
-    CHK( mpi_exp_mod( &T, &T, &ctx->D, &ctx->N, &ctx->RN ) );
-#else
-    /*
-     * faster decryption using the CRT
-     *
-     * T1 = input ^ dP mod P
-     * T2 = input ^ dQ mod Q
-     */
-    CHK( mpi_exp_mod( &T1, &T, &ctx->DP, &ctx->P, &ctx->RP ) );
-    CHK( mpi_exp_mod( &T2, &T, &ctx->DQ, &ctx->Q, &ctx->RQ ) );
-
-    /*
-     * T = (T1 - T2) * (Q^-1 mod P) mod P
-     */
-    CHK( mpi_sub_mpi( &T, &T1, &T2 ) );
-    CHK( mpi_mul_mpi( &T1, &T, &ctx->QP ) );
-    CHK( mpi_mod_mpi( &T, &T1, &ctx->P ) );
-
-    /*
-     * output = T2 + T * Q
-     */
-    CHK( mpi_mul_mpi( &T1, &T, &ctx->Q ) );
-    CHK( mpi_add_mpi( &T, &T2, &T1 ) );
-#endif
-
-    CHK( mpi_write_binary( &T, output, &olen ) );
-
-cleanup:
-
-    mpi_free( &T, &T1, &T2, NULL );
-
-    if( ret != 0 )
-        return( ERR_RSA_PRIVATE_FAILED | ret );
-
-    return( 0 );
-}
-
-/*
- * Check if the public key is valid
+ * Check a public RSA key
  */
 int rsa_check_pubkey( rsa_context *ctx )
 {
     if( ( ctx->N.p[0] & 1 ) == 0 || 
         ( ctx->E.p[0] & 1 ) == 0 )
-        return( ERR_RSA_KEY_CHK_FAILED );
+        return( XYSSL_ERR_RSA_KEY_CHECK_FAILED );
 
     if( mpi_msb( &ctx->N ) < 128 ||
         mpi_msb( &ctx->N ) > 4096 )
-        return( ERR_RSA_KEY_CHK_FAILED );
+        return( XYSSL_ERR_RSA_KEY_CHECK_FAILED );
 
     if( mpi_msb( &ctx->E ) < 2 ||
         mpi_msb( &ctx->E ) > 64 )
-        return( ERR_RSA_KEY_CHK_FAILED );
+        return( XYSSL_ERR_RSA_KEY_CHECK_FAILED );
 
     return( 0 );
 }
 
 /*
- * Check if the private key is valid
+ * Check a private RSA key
  */
 int rsa_check_privkey( rsa_context *ctx )
 {
-    int ret = 0;
+    int ret;
     mpi TN, P1, Q1, H, G;
+
+    if( ( ret = rsa_check_pubkey( ctx ) ) != 0 )
+        return( ret );
 
     mpi_init( &TN, &P1, &Q1, &H, &G, NULL );
 
-    CHK( mpi_mul_mpi( &TN, &ctx->P, &ctx->Q ) );
-    CHK( mpi_sub_int( &P1, &ctx->P, 1 ) );
-    CHK( mpi_sub_int( &Q1, &ctx->Q, 1 ) );
-    CHK( mpi_mul_mpi( &H, &P1, &Q1 ) );
-    CHK( mpi_gcd( &G, &ctx->E, &H  ) );
+    MPI_CHK( mpi_mul_mpi( &TN, &ctx->P, &ctx->Q ) );
+    MPI_CHK( mpi_sub_int( &P1, &ctx->P, 1 ) );
+    MPI_CHK( mpi_sub_int( &Q1, &ctx->Q, 1 ) );
+    MPI_CHK( mpi_mul_mpi( &H, &P1, &Q1 ) );
+    MPI_CHK( mpi_gcd( &G, &ctx->E, &H  ) );
 
     if( mpi_cmp_mpi( &TN, &ctx->N ) == 0 &&
         mpi_cmp_int( &G, 1 ) == 0 )
@@ -346,70 +185,194 @@ int rsa_check_privkey( rsa_context *ctx )
 cleanup:
 
     mpi_free( &TN, &P1, &Q1, &H, &G, NULL );
-    return( ERR_RSA_KEY_CHK_FAILED | ret );
+    return( XYSSL_ERR_RSA_KEY_CHECK_FAILED | ret );
 }
 
 /*
- * Add the PKCS#1 v1.5 padding and do a public RSA
+ * Do an RSA public key operation
  */
-int rsa_pkcs1_encrypt( rsa_context   *ctx,
-                       unsigned char *input,  int ilen,
-                       unsigned char *output, int olen )
+int rsa_public( rsa_context *ctx,
+                unsigned char *input,
+                unsigned char *output )
 {
-    int nb_pad;
-    unsigned char *p = output;
+    int ret, olen;
+    mpi T;
 
-    if( olen != ctx->len || olen < ilen + 11 )
-        return( ERR_RSA_BAD_INPUT_DATA );
+    mpi_init( &T, NULL );
 
-    nb_pad = olen - 3 - ilen;
+    MPI_CHK( mpi_read_binary( &T, input, ctx->len ) );
 
-    *p++ = 0;
-    *p++ = RSA_CRYPT;
-
-    while( nb_pad-- > 0 )
+    if( mpi_cmp_mpi( &T, &ctx->N ) >= 0 )
     {
-        do { *p = rand(); } while( *p == 0 );
-        p++;
+        mpi_free( &T, NULL );
+        return( XYSSL_ERR_RSA_BAD_INPUT_DATA );
     }
 
-    *p++ = 0;
-    memcpy( p, input, ilen );
+    olen = ctx->len;
+    MPI_CHK( mpi_exp_mod( &T, &T, &ctx->E, &ctx->N, &ctx->RN ) );
+    MPI_CHK( mpi_write_binary( &T, output, olen ) );
 
-    return( rsa_public( ctx, output, olen, output, olen ) );
+cleanup:
+
+    mpi_free( &T, NULL );
+
+    if( ret != 0 )
+        return( XYSSL_ERR_RSA_PUBLIC_FAILED | ret );
+
+    return( 0 );
 }
 
 /*
- * Do a private RSA, removes the PKCS#1 v1.5 padding
+ * Do an RSA private key operation
  */
-int rsa_pkcs1_decrypt( rsa_context   *ctx,
-                       unsigned char *input,  int  ilen,
-                       unsigned char *output, int *olen )
+int rsa_private( rsa_context *ctx,
+                 unsigned char *input,
+                 unsigned char *output )
 {
-    int ret;
-    unsigned char *p, buf[512];
+    int ret, olen;
+    mpi T, T1, T2;
 
-    if( ilen != ctx->len || ilen < 16 || ilen > 512 )
-        return( ERR_RSA_BAD_INPUT_DATA );
+    mpi_init( &T, &T1, &T2, NULL );
 
-    if( ( ret = rsa_private( ctx, input, ilen, buf, ilen ) ) != 0 )
+    MPI_CHK( mpi_read_binary( &T, input, ctx->len ) );
+
+    if( mpi_cmp_mpi( &T, &ctx->N ) >= 0 )
+    {
+        mpi_free( &T, NULL );
+        return( XYSSL_ERR_RSA_BAD_INPUT_DATA );
+    }
+
+#if 0
+    MPI_CHK( mpi_exp_mod( &T, &T, &ctx->D, &ctx->N, &ctx->RN ) );
+#else
+    /*
+     * faster decryption using the CRT
+     *
+     * T1 = input ^ dP mod P
+     * T2 = input ^ dQ mod Q
+     */
+    MPI_CHK( mpi_exp_mod( &T1, &T, &ctx->DP, &ctx->P, &ctx->RP ) );
+    MPI_CHK( mpi_exp_mod( &T2, &T, &ctx->DQ, &ctx->Q, &ctx->RQ ) );
+
+    /*
+     * T = (T1 - T2) * (Q^-1 mod P) mod P
+     */
+    MPI_CHK( mpi_sub_mpi( &T, &T1, &T2 ) );
+    MPI_CHK( mpi_mul_mpi( &T1, &T, &ctx->QP ) );
+    MPI_CHK( mpi_mod_mpi( &T, &T1, &ctx->P ) );
+
+    /*
+     * output = T2 + T * Q
+     */
+    MPI_CHK( mpi_mul_mpi( &T1, &T, &ctx->Q ) );
+    MPI_CHK( mpi_add_mpi( &T, &T2, &T1 ) );
+#endif
+
+    olen = ctx->len;
+    MPI_CHK( mpi_write_binary( &T, output, olen ) );
+
+cleanup:
+
+    mpi_free( &T, &T1, &T2, NULL );
+
+    if( ret != 0 )
+        return( XYSSL_ERR_RSA_PRIVATE_FAILED | ret );
+
+    return( 0 );
+}
+
+/*
+ * Add the message padding, then do an RSA operation
+ */
+int rsa_pkcs1_encrypt( rsa_context *ctx,
+                       int mode, int  ilen,
+                       unsigned char *input,
+                       unsigned char *output )
+{
+    int nb_pad, olen;
+    unsigned char *p = output;
+
+    olen = ctx->len;
+
+    switch( ctx->padding )
+    {
+        case RSA_PKCS_V15:
+
+            if( ilen < 0 || olen < ilen + 11 )
+                return( XYSSL_ERR_RSA_BAD_INPUT_DATA );
+
+            nb_pad = olen - 3 - ilen;
+
+            *p++ = 0;
+            *p++ = RSA_CRYPT;
+
+            while( nb_pad-- > 0 )
+            {
+                do {
+                    *p = (unsigned char) rand();
+                } while( *p == 0 );
+                p++;
+            }
+            *p++ = 0;
+            memcpy( p, input, ilen );
+            break;
+
+        default:
+
+            return( XYSSL_ERR_RSA_INVALID_PADDING );
+    }
+
+    return( ( mode == RSA_PUBLIC )
+            ? rsa_public(  ctx, output, output )
+            : rsa_private( ctx, output, output ) );
+}
+
+/*
+ * Do an RSA operation, then remove the message padding
+ */
+int rsa_pkcs1_decrypt( rsa_context *ctx,
+                       int mode, int *olen,
+                       unsigned char *input,
+                       unsigned char *output )
+{
+    int ret, ilen;
+    unsigned char *p;
+    unsigned char buf[512];
+
+    ilen = ctx->len;
+
+    if( ilen < 16 || ilen > (int) sizeof( buf ) )
+        return( XYSSL_ERR_RSA_BAD_INPUT_DATA );
+
+    ret = ( mode == RSA_PUBLIC )
+          ? rsa_public(  ctx, input, buf )
+          : rsa_private( ctx, input, buf );
+
+    if( ret != 0 )
         return( ret );
 
     p = buf;
 
-    if( *p++ != 0 || *p++ != RSA_CRYPT )
-        return( ERR_RSA_INVALID_PADDING );
-
-    while( *p != 0 )
+    switch( ctx->padding )
     {
-        if( p >= buf + ilen - 1 )
-            return( ERR_RSA_INVALID_PADDING );
-        p++;
-    }
-    p++;
+        case RSA_PKCS_V15:
 
-    if( *olen < ilen - (int)(p - buf) )
-        return( ERR_RSA_INVALID_PADDING );
+            if( *p++ != 0 || *p++ != RSA_CRYPT )
+                return( XYSSL_ERR_RSA_INVALID_PADDING );
+
+            while( *p != 0 )
+            {
+                if( p >= buf + ilen - 1 )
+                    return( XYSSL_ERR_RSA_INVALID_PADDING );
+                p++;
+            }
+            p++;
+            break;
+
+        default:
+
+            return( XYSSL_ERR_RSA_INVALID_PADDING );
+    }
 
     *olen = ilen - (int)(p - buf);
     memcpy( output, p, *olen );
@@ -418,49 +381,60 @@ int rsa_pkcs1_decrypt( rsa_context   *ctx,
 }
 
 /*
- * Perform a private RSA to sign a message digest
+ * Do an RSA operation to sign the message digest
  */
-int rsa_pkcs1_sign( rsa_context   *ctx,  int alg_id,
-                    unsigned char *hash, int hashlen,
-                    unsigned char *sig,  int siglen )
+int rsa_pkcs1_sign( rsa_context *ctx,
+                    int mode,
+                    int hash_id,
+                    int hashlen,
+                    unsigned char *hash,
+                    unsigned char *sig )
 {
-    int nb_pad;
+    int nb_pad, olen;
     unsigned char *p = sig;
 
-    if( siglen != ctx->len || siglen < 16 )
-        return( ERR_RSA_BAD_INPUT_DATA );
+    olen = ctx->len;
 
-    switch( alg_id )
+    switch( ctx->padding )
     {
-        case RSA_RAW:
-            nb_pad = siglen - 3 - hashlen;
-            break;
+        case RSA_PKCS_V15:
 
-        case RSA_MD2:
-        case RSA_MD4:
-        case RSA_MD5:
-            nb_pad = siglen - 3 - 34;
-            break;
+            switch( hash_id )
+            {
+                case RSA_RAW:
+                    nb_pad = olen - 3 - hashlen;
+                    break;
 
-        case RSA_SHA1:
-            nb_pad = siglen - 3 - 35;
+                case RSA_MD2:
+                case RSA_MD4:
+                case RSA_MD5:
+                    nb_pad = olen - 3 - 34;
+                    break;
+
+                case RSA_SHA1:
+                    nb_pad = olen - 3 - 35;
+                    break;
+
+                default:
+                    return( XYSSL_ERR_RSA_BAD_INPUT_DATA );
+            }
+
+            if( nb_pad < 8 )
+                return( XYSSL_ERR_RSA_BAD_INPUT_DATA );
+
+            *p++ = 0;
+            *p++ = RSA_SIGN;
+            memset( p, 0xFF, nb_pad );
+            p += nb_pad;
+            *p++ = 0;
             break;
 
         default:
-            return( ERR_RSA_BAD_INPUT_DATA );
+
+            return( XYSSL_ERR_RSA_INVALID_PADDING );
     }
 
-    if( nb_pad < 8 )
-        return( ERR_RSA_BAD_INPUT_DATA );
-
-    *p++ = 0;
-    *p++ = RSA_SIGN;
-
-    memset( p, 0xFF, nb_pad );
-    p += nb_pad;
-    *p++ = 0;
-
-    switch( alg_id )
+    switch( hash_id )
     {
         case RSA_RAW:
             memcpy( p, hash, hashlen );
@@ -487,40 +461,62 @@ int rsa_pkcs1_sign( rsa_context   *ctx,  int alg_id,
             break;
 
         default:
-            return( ERR_RSA_BAD_INPUT_DATA );
+            return( XYSSL_ERR_RSA_BAD_INPUT_DATA );
     }
 
-    return( rsa_private( ctx, sig, siglen, sig, siglen ) );
+    return( ( mode == RSA_PUBLIC )
+            ? rsa_public(  ctx, sig, sig )
+            : rsa_private( ctx, sig, sig ) );
 }
 
 /*
- * Perform a public RSA and check the message digest
+ * Do an RSA operation and check the message digest
  */
-int rsa_pkcs1_verify( rsa_context   *ctx,  int alg_id,
-                      unsigned char *hash, int hashlen,
-                      unsigned char *sig,  int siglen )
+int rsa_pkcs1_verify( rsa_context *ctx,
+                      int mode,
+                      int hash_id,
+                      int hashlen,
+                      unsigned char *hash,
+                      unsigned char *sig )
 {
-    int ret, len;
-    unsigned char *p, c, buf[512];
+    int ret, len, siglen;
+    unsigned char *p, c;
+    unsigned char buf[512];
 
-    if( siglen != ctx->len || siglen < 16 || siglen > 512 )
-        return( ERR_RSA_BAD_INPUT_DATA );
+    siglen = ctx->len;
 
-    if( ( ret = rsa_public( ctx, sig, siglen, buf, siglen ) ) != 0 )
+    if( siglen < 16 || siglen > (int) sizeof( buf ) )
+        return( XYSSL_ERR_RSA_BAD_INPUT_DATA );
+
+    ret = ( mode == RSA_PUBLIC )
+          ? rsa_public(  ctx, sig, buf )
+          : rsa_private( ctx, sig, buf );
+
+    if( ret != 0 )
         return( ret );
 
     p = buf;
 
-    if( *p++ != 0 || *p++ != RSA_SIGN )
-        return( ERR_RSA_INVALID_PADDING );
-
-    while( *p != 0 )
+    switch( ctx->padding )
     {
-        if( p >= buf + siglen - 1 || *p != 0xFF )
-            return( ERR_RSA_INVALID_PADDING );
-        p++;
+        case RSA_PKCS_V15:
+
+            if( *p++ != 0 || *p++ != RSA_SIGN )
+                return( XYSSL_ERR_RSA_INVALID_PADDING );
+
+            while( *p != 0 )
+            {
+                if( p >= buf + siglen - 1 || *p != 0xFF )
+                    return( XYSSL_ERR_RSA_INVALID_PADDING );
+                p++;
+            }
+            p++;
+            break;
+
+        default:
+
+            return( XYSSL_ERR_RSA_INVALID_PADDING );
     }
-    p++;
 
     len = siglen - (int)( p - buf );
 
@@ -530,37 +526,37 @@ int rsa_pkcs1_verify( rsa_context   *ctx,  int alg_id,
         p[13] = 0;
 
         if( memcmp( p, ASN1_HASH_MDX, 18 ) != 0 )
-            return( ERR_RSA_VERIFY_FAILED );
+            return( XYSSL_ERR_RSA_VERIFY_FAILED );
 
-        if( ( c == 2 && alg_id == RSA_MD2 ) ||
-            ( c == 4 && alg_id == RSA_MD4 ) ||
-            ( c == 5 && alg_id == RSA_MD5 ) )
+        if( ( c == 2 && hash_id == RSA_MD2 ) ||
+            ( c == 4 && hash_id == RSA_MD4 ) ||
+            ( c == 5 && hash_id == RSA_MD5 ) )
         {
             if( memcmp( p + 18, hash, 16 ) == 0 ) 
                 return( 0 );
             else
-                return( ERR_RSA_VERIFY_FAILED );
+                return( XYSSL_ERR_RSA_VERIFY_FAILED );
         }
     }
 
-    if( len == 35 && alg_id == RSA_SHA1 )
+    if( len == 35 && hash_id == RSA_SHA1 )
     {
         if( memcmp( p, ASN1_HASH_SHA1, 15 ) == 0 &&
             memcmp( p + 15, hash, 20 ) == 0 )
             return( 0 );
         else
-            return( ERR_RSA_VERIFY_FAILED );
+            return( XYSSL_ERR_RSA_VERIFY_FAILED );
     }
 
-    if( len == hashlen && alg_id == RSA_RAW )
+    if( len == hashlen && hash_id == RSA_RAW )
     {
         if( memcmp( p, hash, hashlen ) == 0 )
             return( 0 );
         else
-            return( ERR_RSA_VERIFY_FAILED );
+            return( XYSSL_ERR_RSA_VERIFY_FAILED );
     }
 
-    return( ERR_RSA_INVALID_PADDING );
+    return( XYSSL_ERR_RSA_INVALID_PADDING );
 }
 
 /*
@@ -568,15 +564,65 @@ int rsa_pkcs1_verify( rsa_context   *ctx,  int alg_id,
  */
 void rsa_free( rsa_context *ctx )
 {
-    mpi_free( &ctx->N,  &ctx->E,  &ctx->D,
-              &ctx->P,  &ctx->Q,  &ctx->DP,
-              &ctx->DQ, &ctx->QP, &ctx->RN,
-              &ctx->RP, &ctx->RQ, NULL );
+    mpi_free( &ctx->RQ, &ctx->RP, &ctx->RN,
+              &ctx->QP, &ctx->DQ, &ctx->DP,
+              &ctx->Q,  &ctx->P,  &ctx->D,
+              &ctx->E,  &ctx->N,  NULL );
 }
 
-#if defined(SELF_TEST)
+#if defined(XYSSL_SELF_TEST)
 
 #include "xyssl/sha1.h"
+
+/*
+ * Example RSA-1024 keypair, for test purposes
+ */
+#define KEY_LEN 128
+
+#define RSA_N   "9292758453063D803DD603D5E777D788" \
+                "8ED1D5BF35786190FA2F23EBC0848AEA" \
+                "DDA92CA6C3D80B32C4D109BE0F36D6AE" \
+                "7130B9CED7ACDF54CFC7555AC14EEBAB" \
+                "93A89813FBF3C4F8066D2D800F7C38A8" \
+                "1AE31942917403FF4946B0A83D3D3E05" \
+                "EE57C6F5F5606FB5D4BC6CD34EE0801A" \
+                "5E94BB77B07507233A0BC7BAC8F90F79"
+
+#define RSA_E   "10001"
+
+#define RSA_D   "24BF6185468786FDD303083D25E64EFC" \
+                "66CA472BC44D253102F8B4A9D3BFA750" \
+                "91386C0077937FE33FA3252D28855837" \
+                "AE1B484A8A9A45F7EE8C0C634F99E8CD" \
+                "DF79C5CE07EE72C7F123142198164234" \
+                "CABB724CF78B8173B9F880FC86322407" \
+                "AF1FEDFDDE2BEB674CA15F3E81A1521E" \
+                "071513A1E85B5DFA031F21ECAE91A34D"
+
+#define RSA_P   "C36D0EB7FCD285223CFB5AABA5BDA3D8" \
+                "2C01CAD19EA484A87EA4377637E75500" \
+                "FCB2005C5C7DD6EC4AC023CDA285D796" \
+                "C3D9E75E1EFC42488BB4F1D13AC30A57"
+
+#define RSA_Q   "C000DF51A7C77AE8D7C7370C1FF55B69" \
+                "E211C2B9E5DB1ED0BF61D0D9899620F4" \
+                "910E4168387E3C30AA1E00C339A79508" \
+                "8452DD96A9A5EA5D9DCA68DA636032AF"
+
+#define RSA_DP  "C1ACF567564274FB07A0BBAD5D26E298" \
+                "3C94D22288ACD763FD8E5600ED4A702D" \
+                "F84198A5F06C2E72236AE490C93F07F8" \
+                "3CC559CD27BC2D1CA488811730BB5725"
+
+#define RSA_DQ  "4959CBF6F8FEF750AEE6977C155579C7" \
+                "D8AAEA56749EA28623272E4F7D0592AF" \
+                "7C1F1313CAC9471B5C523BFE592F517B" \
+                "407A1BD76C164B93DA2D32A383E58357"
+
+#define RSA_QP  "9AE7FBC99546432DF71896FC239EADAE" \
+                "F38D18D2B2F0E2DD275AA977E2BF4411" \
+                "F5A3B2A5D33605AEBBCCBA7FEB9F2D2F" \
+                "A74206CEC169D74BF5A8C50D6F48EA08"
 
 #define PT_LEN  24
 #define RSA_PT  "\xAA\xBB\xCC\x03\x02\x01\x00\xFF\xFF\xFF\xFF\xFF" \
@@ -623,8 +669,8 @@ int rsa_self_test( int verbose )
 
     memcpy( rsa_plaintext, RSA_PT, PT_LEN );
 
-    if( rsa_pkcs1_encrypt( &rsa, rsa_plaintext,  PT_LEN,
-                                 rsa_ciphertext, KEY_LEN ) != 0 )
+    if( rsa_pkcs1_encrypt( &rsa, RSA_PUBLIC, PT_LEN,
+                           rsa_plaintext, rsa_ciphertext ) != 0 )
     {
         if( verbose != 0 )
             printf( "failed\n" );
@@ -635,11 +681,16 @@ int rsa_self_test( int verbose )
     if( verbose != 0 )
         printf( "passed\n  PKCS#1 decryption : " );
 
-    len = sizeof( rsa_decrypted );
+    if( rsa_pkcs1_decrypt( &rsa, RSA_PRIVATE, &len,
+                           rsa_ciphertext, rsa_decrypted ) != 0 )
+    {
+        if( verbose != 0 )
+            printf( "failed\n" );
 
-    if( rsa_pkcs1_decrypt( &rsa, rsa_ciphertext, KEY_LEN,
-                                 rsa_decrypted,  &len ) != 0 ||
-        memcmp( rsa_decrypted, rsa_plaintext, len ) != 0 )
+        return( 1 );
+    }
+
+    if( memcmp( rsa_decrypted, rsa_plaintext, len ) != 0 )
     {
         if( verbose != 0 )
             printf( "failed\n" );
@@ -652,8 +703,8 @@ int rsa_self_test( int verbose )
 
     sha1( rsa_plaintext, PT_LEN, sha1sum );
 
-    if( rsa_pkcs1_sign( &rsa, RSA_SHA1, sha1sum, 20,
-                        rsa_ciphertext, KEY_LEN ) != 0 )
+    if( rsa_pkcs1_sign( &rsa, RSA_PRIVATE, RSA_SHA1, 20,
+                        sha1sum, rsa_ciphertext ) != 0 )
     {
         if( verbose != 0 )
             printf( "failed\n" );
@@ -664,8 +715,8 @@ int rsa_self_test( int verbose )
     if( verbose != 0 )
         printf( "passed\n  PKCS#1 sig. verify: " );
 
-    if( rsa_pkcs1_verify( &rsa, RSA_SHA1, sha1sum, 20,
-                          rsa_ciphertext, KEY_LEN ) != 0 )
+    if( rsa_pkcs1_verify( &rsa, RSA_PUBLIC, RSA_SHA1, 20,
+                          sha1sum, rsa_ciphertext ) != 0 )
     {
         if( verbose != 0 )
             printf( "failed\n" );
@@ -680,9 +731,7 @@ int rsa_self_test( int verbose )
 
     return( 0 );
 }
-#else
-int rsa_self_test( int verbose )
-{
-    return( 0 );
-}
+
+#endif
+
 #endif

@@ -1,21 +1,32 @@
-/*
- *  RFC 1115/1319 compliant MD2 implementation
- *
- *  Copyright (C) 2006-2007  Christophe Devine
- *
- *  This library is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU Lesser General Public
- *  License, version 2.1 as published by the Free Software Foundation.
- *
- *  This library is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  Lesser General Public License for more details.
- *
- *  You should have received a copy of the GNU Lesser General Public
- *  License along with this library; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
- *  MA  02110-1301  USA
+/* 
+ * Copyright (c) 2006-2007, Christophe Devine
+ * All rights reserved.
+ * 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer
+ *       in the documentation and/or other materials provided with the
+ *       distribution.
+ *     * Neither the name of the XySSL nor the names of its contributors
+ *       may be used to endorse or promote products derived from this
+ *       software without specific prior written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ * FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ * TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
  *  The MD2 algorithm was designed by Ron Rivest in 1989.
@@ -24,14 +35,14 @@
  *  http://www.ietf.org/rfc/rfc1319.txt
  */
 
-#ifndef _CRT_SECURE_NO_DEPRECATE
-#define _CRT_SECURE_NO_DEPRECATE 1
-#endif
+#include "xyssl/config.h"
+
+#if defined(XYSSL_MD2_C)
+
+#include "xyssl/md2.h"
 
 #include <string.h>
 #include <stdio.h>
-
-#include "xyssl/md2.h"
 
 static const unsigned char PI_SUBST[256] =
 {
@@ -79,21 +90,30 @@ static void md2_process( md2_context *ctx )
     for( i = 0; i < 16; i++ )
     {
         ctx->state[i + 16] = ctx->buffer[i];
-        ctx->state[i + 32] = ctx->buffer[i] ^ ctx->state[i];
+        ctx->state[i + 32] =
+            (unsigned char)( ctx->buffer[i] ^ ctx->state[i]);
     }
 
     for( i = 0; i < 18; i++ )
     {
         for( j = 0; j < 48; j++ )
-            t = (ctx->state[j] ^= PI_SUBST[t]);
+        {
+            ctx->state[j] = (unsigned char)
+               ( ctx->state[j] ^ PI_SUBST[t] );
+            t  = ctx->state[j];
+        }
 
-        t = (t + i) & 0xFF;
+        t = (unsigned char)( t + i );
     }
 
     t = ctx->cksum[15];
 
     for( i = 0; i < 16; i++ )
-        t = (ctx->cksum[i] ^= PI_SUBST[ctx->buffer[i] ^ t]);
+    {
+        ctx->cksum[i] = (unsigned char)
+           ( ctx->cksum[i] ^ PI_SUBST[ctx->buffer[i] ^ t] );
+        t  = ctx->cksum[i];
+    }
 }
 
 /*
@@ -127,7 +147,7 @@ void md2_update( md2_context *ctx, unsigned char *input, int ilen )
 /*
  * MD2 final digest
  */
-void md2_finish( md2_context *ctx, unsigned char *output )
+void md2_finish( md2_context *ctx, unsigned char output[16] )
 {
     int i;
     unsigned char x;
@@ -146,10 +166,9 @@ void md2_finish( md2_context *ctx, unsigned char *output )
 }
 
 /*
- * Output = MD2( input buffer )
+ * output = MD2( input buffer )
  */
-void md2( unsigned char *input, int ilen,
-          unsigned char *output )
+void md2( unsigned char *input, int ilen, unsigned char output[16] )
 {
     md2_context ctx;
 
@@ -161,9 +180,9 @@ void md2( unsigned char *input, int ilen,
 }
 
 /*
- * Output = MD2( file contents )
+ * output = MD2( file contents )
  */
-int md2_file( char *path, unsigned char *output )
+int md2_file( char *path, unsigned char output[16] )
 {
     FILE *f;
     size_t n;
@@ -195,31 +214,37 @@ int md2_file( char *path, unsigned char *output )
 /*
  * MD2 HMAC context setup
  */
-void md2_hmac_starts( md2_context *ctx,
-                      unsigned char *key, int keylen )
+void md2_hmac_starts( md2_context *ctx, unsigned char *key, int keylen )
 {
     int i;
+    unsigned char sum[16];
+
+    if( keylen > 64 )
+    {
+        md2( key, keylen, sum );
+        keylen = 16;
+        key = sum;
+    }
 
     memset( ctx->ipad, 0x36, 64 );
     memset( ctx->opad, 0x5C, 64 );
 
     for( i = 0; i < keylen; i++ )
     {
-        if( i >= 64 ) break;
-
-        ctx->ipad[i] ^= key[i];
-        ctx->opad[i] ^= key[i];
+        ctx->ipad[i] = (unsigned char)( ctx->ipad[i] ^ key[i] );
+        ctx->opad[i] = (unsigned char)( ctx->opad[i] ^ key[i] );
     }
 
     md2_starts( ctx );
     md2_update( ctx, ctx->ipad, 64 );
+
+    memset( sum, 0, sizeof( sum ) );
 }
 
 /*
  * MD2 HMAC process buffer
  */
-void md2_hmac_update( md2_context *ctx,
-                      unsigned char *input, int ilen )
+void md2_hmac_update( md2_context *ctx, unsigned char *input, int ilen )
 {
     md2_update( ctx, input, ilen );
 }
@@ -227,7 +252,7 @@ void md2_hmac_update( md2_context *ctx,
 /*
  * MD2 HMAC final digest
  */
-void md2_hmac_finish( md2_context *ctx, unsigned char *output )
+void md2_hmac_finish( md2_context *ctx, unsigned char output[16] )
 {
     unsigned char tmpbuf[16];
 
@@ -241,11 +266,10 @@ void md2_hmac_finish( md2_context *ctx, unsigned char *output )
 }
 
 /*
- * Output = HMAC-MD2( hmac key, input buffer )
+ * output = HMAC-MD2( hmac key, input buffer )
  */
-void md2_hmac( unsigned char *key, int keylen,
-               unsigned char *input, int ilen,
-               unsigned char *output )
+void md2_hmac( unsigned char *key, int keylen, unsigned char *input, int ilen,
+               unsigned char output[16] )
 {
     md2_context ctx;
 
@@ -256,9 +280,8 @@ void md2_hmac( unsigned char *key, int keylen,
     memset( &ctx, 0, sizeof( md2_context ) );
 }
 
-static const char _md2_src[] = "_md2_src";
+#if defined(XYSSL_SELF_TEST)
 
-#if defined(SELF_TEST)
 /*
  * RFC 1319 test vectors
  */
@@ -325,9 +348,7 @@ int md2_self_test( int verbose )
 
     return( 0 );
 }
-#else
-int md2_self_test( int verbose )
-{
-    return( 0 );
-}
+
+#endif
+
 #endif
