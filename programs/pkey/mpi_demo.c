@@ -39,7 +39,7 @@
 
 #include <stdio.h>
 
-#include "polarssl/bignum.h"
+#include "tropicssl/bignum.h"
 
 int main( void )
 {

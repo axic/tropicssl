@@ -49,7 +49,7 @@
 #ifndef POLARSSL_BN_MUL_H
 #define POLARSSL_BN_MUL_H
 
-#include "polarssl/config.h"
+#include "tropicssl/config.h"
 
 #if defined(POLARSSL_HAVE_ASM)
 

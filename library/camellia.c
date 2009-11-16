@@ -37,11 +37,11 @@
  *  http://info.isl.ntt.co.jp/crypt/eng/camellia/dl/01espec.pdf
  */
 
-#include "polarssl/config.h"
+#include "tropicssl/config.h"
 
 #if defined(POLARSSL_CAMELLIA_C)
 
-#include "polarssl/camellia.h"
+#include "tropicssl/camellia.h"
 
 #include <string.h>
 

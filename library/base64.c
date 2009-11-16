@@ -33,11 +33,11 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "polarssl/config.h"
+#include "tropicssl/config.h"
 
 #if defined(POLARSSL_BASE64_C)
 
-#include "polarssl/base64.h"
+#include "tropicssl/base64.h"
 
 static const unsigned char base64_enc_map[64] =
 {

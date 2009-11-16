@@ -39,12 +39,12 @@
  *  programming_guide.pdf
  */
 
-#include "polarssl/config.h"
+#include "tropicssl/config.h"
 
 #if defined(POLARSSL_PADLOCK_C)
 
-#include "polarssl/aes.h"
-#include "polarssl/padlock.h"
+#include "tropicssl/aes.h"
+#include "tropicssl/padlock.h"
 
 #if defined(POLARSSL_HAVE_X86)
 

@@ -35,7 +35,7 @@
 #ifndef POLARSSL_DHM_H
 #define POLARSSL_DHM_H
 
-#include "polarssl/bignum.h"
+#include "tropicssl/bignum.h"
 
 #define POLARSSL_ERR_DHM_BAD_INPUT_DATA                    -0x0480
 #define POLARSSL_ERR_DHM_READ_PARAMS_FAILED                -0x0490

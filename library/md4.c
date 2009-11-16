@@ -39,11 +39,11 @@
  *  http://www.ietf.org/rfc/rfc1320.txt
  */
 
-#include "polarssl/config.h"
+#include "tropicssl/config.h"
 
 #if defined(POLARSSL_MD4_C)
 
-#include "polarssl/md4.h"
+#include "tropicssl/md4.h"
 
 #include <string.h>
 #include <stdio.h>

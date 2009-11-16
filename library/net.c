@@ -33,11 +33,11 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "polarssl/config.h"
+#include "tropicssl/config.h"
 
 #if defined(POLARSSL_NET_C)
 
-#include "polarssl/net.h"
+#include "tropicssl/net.h"
 
 #if defined(WIN32) || defined(_WIN32_WCE)
 

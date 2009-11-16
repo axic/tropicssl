@@ -38,11 +38,11 @@
  *  http://www.itl.nist.gov/fipspubs/fip180-1.htm
  */
 
-#include "polarssl/config.h"
+#include "tropicssl/config.h"
 
 #if defined(POLARSSL_SHA1_C)
 
-#include "polarssl/sha1.h"
+#include "tropicssl/sha1.h"
 
 #include <string.h>
 #include <stdio.h>

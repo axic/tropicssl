@@ -1,24 +1,24 @@
-# Microsoft Developer Studio Project File - Name="polarssl" - Package Owner=<4>
+# Microsoft Developer Studio Project File - Name="tropicssl" - Package Owner=<4>
 # Microsoft Developer Studio Generated Build File, Format Version 6.00
 # ** DO NOT EDIT **
 
 # TARGTYPE "Win32 (x86) Static Library" 0x0104
 
-CFG=polarssl - Win32 Debug
+CFG=tropicssl - Win32 Debug
 !MESSAGE This is not a valid makefile. To build this project using NMAKE,
 !MESSAGE use the Export Makefile command and run
 !MESSAGE 
-!MESSAGE NMAKE /f "polarssl.mak".
+!MESSAGE NMAKE /f "tropicssl.mak".
 !MESSAGE 
 !MESSAGE You can specify a configuration when running NMAKE
 !MESSAGE by defining the macro CFG on the command line. For example:
 !MESSAGE 
-!MESSAGE NMAKE /f "polarssl.mak" CFG="polarssl - Win32 Debug"
+!MESSAGE NMAKE /f "tropicssl.mak" CFG="tropicssl - Win32 Debug"
 !MESSAGE 
 !MESSAGE Possible choices for configuration are:
 !MESSAGE 
-!MESSAGE "polarssl - Win32 Release" (based on "Win32 (x86) Static Library")
-!MESSAGE "polarssl - Win32 Debug" (based on "Win32 (x86) Static Library")
+!MESSAGE "tropicssl - Win32 Release" (based on "Win32 (x86) Static Library")
+!MESSAGE "tropicssl - Win32 Debug" (based on "Win32 (x86) Static Library")
 !MESSAGE 
 
 # Begin Project
@@ -28,7 +28,7 @@ CFG=polarssl - Win32 Debug
 CPP=cl.exe
 RSC=rc.exe
 
-!IF  "$(CFG)" == "polarssl - Win32 Release"
+!IF  "$(CFG)" == "tropicssl - Win32 Release"
 
 # PROP BASE Use_MFC 0
 # PROP BASE Use_Debug_Libraries 0
@@ -51,7 +51,7 @@ LIB32=link.exe -lib
 # ADD BASE LIB32 /nologo
 # ADD LIB32 /nologo
 
-!ELSEIF  "$(CFG)" == "polarssl - Win32 Debug"
+!ELSEIF  "$(CFG)" == "tropicssl - Win32 Debug"
 
 # PROP BASE Use_MFC 0
 # PROP BASE Use_Debug_Libraries 1
@@ -78,8 +78,8 @@ LIB32=link.exe -lib
 
 # Begin Target
 
-# Name "polarssl - Win32 Release"
-# Name "polarssl - Win32 Debug"
+# Name "tropicssl - Win32 Release"
+# Name "tropicssl - Win32 Debug"
 # Begin Group "Source Files"
 
 # PROP Default_Filter "cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
@@ -181,95 +181,95 @@ SOURCE=..\library\x509parse.c
 # PROP Default_Filter "h;hpp;hxx;hm;inl"
 # Begin Source File
 
-SOURCE=..\include\polarssl\aes.h
+SOURCE=..\include\tropicssl\aes.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\include\polarssl\arc4.h
+SOURCE=..\include\tropicssl\arc4.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\include\polarssl\base64.h
+SOURCE=..\include\tropicssl\base64.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\include\polarssl\bignum.h
+SOURCE=..\include\tropicssl\bignum.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\include\polarssl\bn_mul.h
+SOURCE=..\include\tropicssl\bn_mul.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\include\polarssl\certs.h
+SOURCE=..\include\tropicssl\certs.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\include\polarssl\config.h
+SOURCE=..\include\tropicssl\config.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\include\polarssl\debug.h
+SOURCE=..\include\tropicssl\debug.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\include\polarssl\des.h
+SOURCE=..\include\tropicssl\des.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\include\polarssl\dhm.h
+SOURCE=..\include\tropicssl\dhm.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\include\polarssl\havege.h
+SOURCE=..\include\tropicssl\havege.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\include\polarssl\md2.h
+SOURCE=..\include\tropicssl\md2.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\include\polarssl\md4.h
+SOURCE=..\include\tropicssl\md4.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\include\polarssl\md5.h
+SOURCE=..\include\tropicssl\md5.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\include\polarssl\net.h
+SOURCE=..\include\tropicssl\net.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\include\polarssl\padlock.h
+SOURCE=..\include\tropicssl\padlock.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\include\polarssl\rsa.h
+SOURCE=..\include\tropicssl\rsa.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\include\polarssl\sha1.h
+SOURCE=..\include\tropicssl\sha1.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\include\polarssl\sha2.h
+SOURCE=..\include\tropicssl\sha2.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\include\polarssl\sha4.h
+SOURCE=..\include\tropicssl\sha4.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\include\polarssl\ssl.h
+SOURCE=..\include\tropicssl\ssl.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\include\polarssl\timing.h
+SOURCE=..\include\tropicssl\timing.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\include\polarssl\x509.h
+SOURCE=..\include\tropicssl\x509.h
 # End Source File
 # End Group
 # End Target

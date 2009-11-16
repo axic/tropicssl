@@ -40,19 +40,19 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "polarssl/net.h"
-#include "polarssl/ssl.h"
-#include "polarssl/havege.h"
+#include "tropicssl/net.h"
+#include "tropicssl/ssl.h"
+#include "tropicssl/havege.h"
 
 #define SERVER_PORT 443
 /*
 #define SERVER_NAME "localhost"
 #define GET_REQUEST "GET / HTTP/1.0\r\n\r\n"
 */
-#define SERVER_NAME "polarssl.org"
+#define SERVER_NAME "tropicssl.org"
 #define GET_REQUEST \
     "GET /hello/ HTTP/1.1\r\n" \
-    "Host: polarssl.org\r\n\r\n"
+    "Host: tropicssl.org\r\n\r\n"
 
 #define DEBUG_LEVEL 0
 

@@ -39,7 +39,7 @@
 
 #include <stdio.h>
 
-#include "polarssl/md5.h"
+#include "tropicssl/md5.h"
 
 int main( void )
 {

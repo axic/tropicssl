@@ -44,17 +44,17 @@
  *  http://www.itu.int/ITU-T/studygroups/com17/languages/X.690-0207.pdf
  */
 
-#include "polarssl/config.h"
+#include "tropicssl/config.h"
 
 #if defined(POLARSSL_X509_PARSE_C)
 
-#include "polarssl/x509.h"
-#include "polarssl/base64.h"
-#include "polarssl/des.h"
-#include "polarssl/md2.h"
-#include "polarssl/md4.h"
-#include "polarssl/md5.h"
-#include "polarssl/sha1.h"
+#include "tropicssl/x509.h"
+#include "tropicssl/base64.h"
+#include "tropicssl/des.h"
+#include "tropicssl/md2.h"
+#include "tropicssl/md4.h"
+#include "tropicssl/md5.h"
+#include "tropicssl/sha1.h"
 
 #include <string.h>
 #include <stdlib.h>

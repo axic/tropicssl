@@ -1,5 +1,5 @@
 
-# Also see "include/polarssl/config.h"
+# Also see "include/tropicssl/config.h"
 
 CFLAGS	= -I../include -D_FILE_OFFSET_BITS=64
 OFLAGS	= -O
@@ -31,21 +31,21 @@ OBJS=	aes.o		arc4.o		base64.o	\
 
 all: static
 
-static: libpolarssl.a
+static: libtropicssl.a
 
-shared: libpolarssl.$(DLEXT)
+shared: libtropicssl.$(DLEXT)
 
-libpolarssl.a: $(OBJS)
+libtropicssl.a: $(OBJS)
 	echo "  AR    $@"
 	ar r $@ $(OBJS)
 	echo "  RL    $@"
 	ranlib $@
 
-libpolarssl.so: libpolarssl.a
+libtropicssl.so: libtropicssl.a
 	echo "  LD    $@"
 	$(CC) -shared -Wl,-soname,$@ -o $@ $(OBJS)
 
-libpolarssl.dylib: libpolarssl.a
+libtropicssl.dylib: libtropicssl.a
 	echo "  LD    $@"
 	$(CC) -dynamiclib -o $@ $(OBJS)
 
@@ -54,5 +54,5 @@ libpolarssl.dylib: libpolarssl.a
 	$(CC) $(CFLAGS) $(OFLAGS) -c $<
 
 clean:
-	rm -f *.o libpolarssl.*
+	rm -f *.o libtropicssl.*
 

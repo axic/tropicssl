@@ -33,11 +33,11 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "polarssl/config.h"
+#include "tropicssl/config.h"
 
 #if defined(POLARSSL_DEBUG_C)
 
-#include "polarssl/debug.h"
+#include "tropicssl/debug.h"
 
 #include <stdarg.h>
 #include <stdlib.h>

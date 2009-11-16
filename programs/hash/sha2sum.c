@@ -40,7 +40,7 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "polarssl/sha2.h"
+#include "tropicssl/sha2.h"
 
 static int sha2_wrapper( char *filename, unsigned char *sum )
 {

@@ -39,11 +39,11 @@
  *  http://csrc.nist.gov/publications/fips/fips46-3/fips46-3.pdf
  */
 
-#include "polarssl/config.h"
+#include "tropicssl/config.h"
 
 #if defined(POLARSSL_DES_C)
 
-#include "polarssl/des.h"
+#include "tropicssl/des.h"
 
 #include <string.h>
 

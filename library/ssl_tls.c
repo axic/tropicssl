@@ -41,16 +41,16 @@
  *  http://www.ietf.org/rfc/rfc4346.txt
  */
 
-#include "polarssl/config.h"
+#include "tropicssl/config.h"
 
 #if defined(POLARSSL_SSL_TLS_C)
 
-#include "polarssl/aes.h"
-#include "polarssl/arc4.h"
-#include "polarssl/camellia.h"
-#include "polarssl/des.h"
-#include "polarssl/debug.h"
-#include "polarssl/ssl.h"
+#include "tropicssl/aes.h"
+#include "tropicssl/arc4.h"
+#include "tropicssl/camellia.h"
+#include "tropicssl/des.h"
+#include "tropicssl/debug.h"
+#include "tropicssl/ssl.h"
 
 #include <string.h>
 #include <stdlib.h>

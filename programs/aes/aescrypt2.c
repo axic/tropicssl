@@ -50,8 +50,8 @@
 #include <stdio.h>
 #include <time.h>
 
-#include "polarssl/aes.h"
-#include "polarssl/sha2.h"
+#include "tropicssl/aes.h"
+#include "tropicssl/sha2.h"
 
 #define MODE_ENCRYPT    0
 #define MODE_DECRYPT    1

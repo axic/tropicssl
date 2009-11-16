@@ -39,9 +39,9 @@
 
 #include <stdio.h>
 
-#include "polarssl/bignum.h"
-#include "polarssl/config.h"
-#include "polarssl/havege.h"
+#include "tropicssl/bignum.h"
+#include "tropicssl/config.h"
+#include "tropicssl/havege.h"
 
 /*
  * Note: G = 4 is always a quadratic residue mod P,

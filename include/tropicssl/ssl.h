@@ -37,12 +37,12 @@
 
 #include <time.h>
 
-#include "polarssl/net.h"
-#include "polarssl/dhm.h"
-#include "polarssl/rsa.h"
-#include "polarssl/md5.h"
-#include "polarssl/sha1.h"
-#include "polarssl/x509.h"
+#include "tropicssl/net.h"
+#include "tropicssl/dhm.h"
+#include "tropicssl/rsa.h"
+#include "tropicssl/md5.h"
+#include "tropicssl/sha1.h"
+#include "tropicssl/x509.h"
 
 #define POLARSSL_ERR_SSL_FEATURE_UNAVAILABLE               -0x1000
 #define POLARSSL_ERR_SSL_BAD_INPUT_DATA                    -0x1800

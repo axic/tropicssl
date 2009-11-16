@@ -41,18 +41,18 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "polarssl/config.h"
+#include "tropicssl/config.h"
 
-#include "polarssl/md4.h"
-#include "polarssl/md5.h"
-#include "polarssl/sha1.h"
-#include "polarssl/sha2.h"
-#include "polarssl/arc4.h"
-#include "polarssl/des.h"
-#include "polarssl/aes.h"
-#include "polarssl/camellia.h"
-#include "polarssl/rsa.h"
-#include "polarssl/timing.h"
+#include "tropicssl/md4.h"
+#include "tropicssl/md5.h"
+#include "tropicssl/sha1.h"
+#include "tropicssl/sha2.h"
+#include "tropicssl/arc4.h"
+#include "tropicssl/des.h"
+#include "tropicssl/aes.h"
+#include "tropicssl/camellia.h"
+#include "tropicssl/rsa.h"
+#include "tropicssl/timing.h"
 
 #define BUFSIZE 1024
 

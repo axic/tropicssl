@@ -38,11 +38,11 @@
  *  http://csrc.nist.gov/publications/fips/fips180-2/fips180-2.pdf
  */
 
-#include "polarssl/config.h"
+#include "tropicssl/config.h"
 
 #if defined(POLARSSL_SHA2_C)
 
-#include "polarssl/sha2.h"
+#include "tropicssl/sha2.h"
 
 #include <string.h>
 #include <stdio.h>

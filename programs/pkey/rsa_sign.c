@@ -40,8 +40,8 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "polarssl/rsa.h"
-#include "polarssl/sha1.h"
+#include "tropicssl/rsa.h"
+#include "tropicssl/sha1.h"
 
 int main( int argc, char *argv[] )
 {

@@ -35,7 +35,7 @@
 #ifndef POLARSSL_RSA_H
 #define POLARSSL_RSA_H
 
-#include "polarssl/bignum.h"
+#include "tropicssl/bignum.h"
 
 #define POLARSSL_ERR_RSA_BAD_INPUT_DATA                    -0x0400
 #define POLARSSL_ERR_RSA_INVALID_PADDING                   -0x0410

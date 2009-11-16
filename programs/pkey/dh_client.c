@@ -40,12 +40,12 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "polarssl/net.h"
-#include "polarssl/aes.h"
-#include "polarssl/dhm.h"
-#include "polarssl/rsa.h"
-#include "polarssl/sha1.h"
-#include "polarssl/havege.h"
+#include "tropicssl/net.h"
+#include "tropicssl/aes.h"
+#include "tropicssl/dhm.h"
+#include "tropicssl/rsa.h"
+#include "tropicssl/sha1.h"
+#include "tropicssl/havege.h"
 
 #define SERVER_NAME "localhost"
 #define SERVER_PORT 11999

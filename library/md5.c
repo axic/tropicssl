@@ -38,11 +38,11 @@
  *  http://www.ietf.org/rfc/rfc1321.txt
  */
 
-#include "polarssl/config.h"
+#include "tropicssl/config.h"
 
 #if defined(POLARSSL_MD5_C)
 
-#include "polarssl/md5.h"
+#include "tropicssl/md5.h"
 
 #include <string.h>
 #include <stdio.h>

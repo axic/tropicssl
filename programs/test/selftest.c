@@ -40,22 +40,22 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "polarssl/config.h"
+#include "tropicssl/config.h"
 
-#include "polarssl/md2.h"
-#include "polarssl/md4.h"
-#include "polarssl/md5.h"
-#include "polarssl/sha1.h"
-#include "polarssl/sha2.h"
-#include "polarssl/sha4.h"
-#include "polarssl/arc4.h"
-#include "polarssl/des.h"
-#include "polarssl/aes.h"
-#include "polarssl/base64.h"
-#include "polarssl/bignum.h"
-#include "polarssl/rsa.h"
-#include "polarssl/x509.h"
-#include "polarssl/xtea.h"
+#include "tropicssl/md2.h"
+#include "tropicssl/md4.h"
+#include "tropicssl/md5.h"
+#include "tropicssl/sha1.h"
+#include "tropicssl/sha2.h"
+#include "tropicssl/sha4.h"
+#include "tropicssl/arc4.h"
+#include "tropicssl/des.h"
+#include "tropicssl/aes.h"
+#include "tropicssl/base64.h"
+#include "tropicssl/bignum.h"
+#include "tropicssl/rsa.h"
+#include "tropicssl/x509.h"
+#include "tropicssl/xtea.h"
 
 int main( int argc, char *argv[] )
 {

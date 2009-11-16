@@ -39,10 +39,10 @@
 
 #include <stdio.h>
 
-#include "polarssl/havege.h"
-#include "polarssl/bignum.h"
-#include "polarssl/x509.h"
-#include "polarssl/rsa.h"
+#include "tropicssl/havege.h"
+#include "tropicssl/bignum.h"
+#include "tropicssl/x509.h"
+#include "tropicssl/rsa.h"
 
 #define KEY_SIZE 1024
 #define EXPONENT 65537

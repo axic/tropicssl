@@ -39,12 +39,12 @@
  *  http://csrc.nist.gov/publications/fips/fips197/fips-197.pdf
  */
 
-#include "polarssl/config.h"
+#include "tropicssl/config.h"
 
 #if defined(POLARSSL_AES_C)
 
-#include "polarssl/aes.h"
-#include "polarssl/padlock.h"
+#include "tropicssl/aes.h"
+#include "tropicssl/padlock.h"
 
 #include <string.h>
 

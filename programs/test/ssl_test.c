@@ -41,11 +41,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "polarssl/net.h"
-#include "polarssl/ssl.h"
-#include "polarssl/havege.h"
-#include "polarssl/timing.h"
-#include "polarssl/certs.h"
+#include "tropicssl/net.h"
+#include "tropicssl/ssl.h"
+#include "tropicssl/havege.h"
+#include "tropicssl/timing.h"
+#include "tropicssl/certs.h"
 
 #define OPMODE_NONE             0
 #define OPMODE_CLIENT           1

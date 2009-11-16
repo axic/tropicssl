@@ -39,11 +39,11 @@
  *  http://www.cacr.math.uwaterloo.ca/hac/about/chap8.pdf
  */
 
-#include "polarssl/config.h"
+#include "tropicssl/config.h"
 
 #if defined(POLARSSL_RSA_C)
 
-#include "polarssl/rsa.h"
+#include "tropicssl/rsa.h"
 
 #include <stdlib.h>
 #include <string.h>

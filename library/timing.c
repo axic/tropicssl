@@ -33,11 +33,11 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "polarssl/config.h"
+#include "tropicssl/config.h"
 
 #if defined(POLARSSL_TIMING_C)
 
-#include "polarssl/timing.h"
+#include "tropicssl/timing.h"
 
 #if defined(WIN32)
 

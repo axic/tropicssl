@@ -38,11 +38,11 @@
  *  http://www.cacr.math.uwaterloo.ca/hac/ (chapter 12)
  */
 
-#include "polarssl/config.h"
+#include "tropicssl/config.h"
 
 #if defined(POLARSSL_DHM_C)
 
-#include "polarssl/dhm.h"
+#include "tropicssl/dhm.h"
 
 #include <string.h>
 

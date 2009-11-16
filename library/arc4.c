@@ -38,11 +38,11 @@
  *  http://groups.google.com/group/sci.crypt/msg/10a300c9d21afca0
  */
 
-#include "polarssl/config.h"
+#include "tropicssl/config.h"
 
 #if defined(POLARSSL_ARC4_C)
 
-#include "polarssl/arc4.h"
+#include "tropicssl/arc4.h"
 
 /*
  * ARC4 key schedule

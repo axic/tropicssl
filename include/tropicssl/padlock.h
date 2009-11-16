@@ -35,7 +35,7 @@
 #ifndef POLARSSL_PADLOCK_H
 #define POLARSSL_PADLOCK_H
 
-#include "polarssl/aes.h"
+#include "tropicssl/aes.h"
 
 #if (defined(__GNUC__) && defined(__i386__))
 

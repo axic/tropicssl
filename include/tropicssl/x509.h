@@ -35,7 +35,7 @@
 #ifndef POLARSSL_X509_H
 #define POLARSSL_X509_H
 
-#include "polarssl/rsa.h"
+#include "tropicssl/rsa.h"
 
 #define POLARSSL_ERR_ASN1_OUT_OF_DATA                      -0x0014
 #define POLARSSL_ERR_ASN1_UNEXPECTED_TAG                   -0x0016

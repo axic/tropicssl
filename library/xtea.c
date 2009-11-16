@@ -31,11 +31,11 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "polarssl/config.h"
+#include "tropicssl/config.h"
 
 #if defined(POLARSSL_XTEA_C)
 
-#include "polarssl/xtea.h"
+#include "tropicssl/xtea.h"
 
 #include <string.h>
 

@@ -45,11 +45,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "polarssl/havege.h"
-#include "polarssl/certs.h"
-#include "polarssl/x509.h"
-#include "polarssl/ssl.h"
-#include "polarssl/net.h"
+#include "tropicssl/havege.h"
+#include "tropicssl/certs.h"
+#include "tropicssl/x509.h"
+#include "tropicssl/ssl.h"
+#include "tropicssl/net.h"
 
 #define HTTP_RESPONSE \
     "HTTP/1.0 200 OK\r\nContent-Type: text/html\r\n\r\n" \

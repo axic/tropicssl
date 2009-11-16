@@ -1,6 +1,6 @@
 
 DESTDIR=/usr/local
-PREFIX=polarssl_
+PREFIX=tropicssl_
 
 .SILENT:
 
@@ -9,11 +9,11 @@ all:
 	cd programs && make all && cd ..
 
 install:
-	mkdir -p $(DESTDIR)/include/polarssl
-	cp -r include/polarssl $(DESTDIR)/include
+	mkdir -p $(DESTDIR)/include/tropicssl
+	cp -r include/tropicssl $(DESTDIR)/include
 	
 	mkdir -p $(DESTDIR)/lib
-	cp library/libpolarssl.* $(DESTDIR)/lib
+	cp library/libtropicssl.* $(DESTDIR)/lib
 	
 	mkdir -p $(DESTDIR)/bin
 	for p in programs/*/* ; do              \
