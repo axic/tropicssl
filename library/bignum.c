@@ -42,7 +42,7 @@
 
 #include "tropicssl/config.h"
 
-#if defined(POLARSSL_BIGNUM_C)
+#if defined(TROPICSSL_BIGNUM_C)
 
 #include "tropicssl/bignum.h"
 #include "tropicssl/bn_mul.h"
@@ -247,7 +247,7 @@ static int mpi_get_digit( t_int *d, int radix, char c )
     if( c >= 0x61 && c <= 0x66 ) *d = c - 0x57;
 
     if( *d >= (t_int) radix )
-        return( POLARSSL_ERR_MPI_INVALID_CHARACTER );
+        return( TROPICSSL_ERR_MPI_INVALID_CHARACTER );
 
     return( 0 );
 }
@@ -262,7 +262,7 @@ int mpi_read_string( mpi *X, int radix, char *s )
     mpi T;
 
     if( radix < 2 || radix > 16 )
-        return( POLARSSL_ERR_MPI_BAD_INPUT_DATA );
+        return( TROPICSSL_ERR_MPI_BAD_INPUT_DATA );
 
     mpi_init( &T, NULL );
 
@@ -319,7 +319,7 @@ static int mpi_write_hlp( mpi *X, int radix, char **p )
     t_int r;
 
     if( radix < 2 || radix > 16 )
-        return( POLARSSL_ERR_MPI_BAD_INPUT_DATA );
+        return( TROPICSSL_ERR_MPI_BAD_INPUT_DATA );
 
     MPI_CHK( mpi_mod_int( &r, X, radix ) );
     MPI_CHK( mpi_div_int( X, NULL, X, radix ) );
@@ -347,7 +347,7 @@ int mpi_write_string( mpi *X, int radix, char *s, int *slen )
     mpi T;
 
     if( radix < 2 || radix > 16 )
-        return( POLARSSL_ERR_MPI_BAD_INPUT_DATA );
+        return( TROPICSSL_ERR_MPI_BAD_INPUT_DATA );
 
     n = mpi_msb( X );
     if( radix >=  4 ) n >>= 1;
@@ -357,7 +357,7 @@ int mpi_write_string( mpi *X, int radix, char *s, int *slen )
     if( *slen < n )
     {
         *slen = n;
-        return( POLARSSL_ERR_MPI_BUFFER_TOO_SMALL );
+        return( TROPICSSL_ERR_MPI_BUFFER_TOO_SMALL );
     }
 
     p = s;
@@ -412,7 +412,7 @@ int mpi_read_file( mpi *X, int radix, FILE *fin )
 
     memset( s, 0, sizeof( s ) );
     if( fgets( s, sizeof( s ) - 1, fin ) == NULL )
-        return( POLARSSL_ERR_MPI_FILE_IO_ERROR );
+        return( TROPICSSL_ERR_MPI_FILE_IO_ERROR );
 
     slen = strlen( s );
     if( s[slen - 1] == '\n' ) { slen--; s[slen] = '\0'; }
@@ -453,7 +453,7 @@ int mpi_write_file( char *p, mpi *X, int radix, FILE *fout )
     {
         if( fwrite( p, 1, plen, fout ) != plen ||
             fwrite( s, 1, slen, fout ) != slen )
-            return( POLARSSL_ERR_MPI_FILE_IO_ERROR );
+            return( TROPICSSL_ERR_MPI_FILE_IO_ERROR );
     }
     else
         printf( "%s%s", p, s );
@@ -495,7 +495,7 @@ int mpi_write_binary( mpi *X, unsigned char *buf, int buflen )
     n = mpi_size( X );
 
     if( buflen < n )
-        return( POLARSSL_ERR_MPI_BUFFER_TOO_SMALL );
+        return( TROPICSSL_ERR_MPI_BUFFER_TOO_SMALL );
 
     memset( buf, 0, buflen );
 
@@ -749,7 +749,7 @@ int mpi_sub_abs( mpi *X, mpi *A, mpi *B )
     int ret, n;
 
     if( mpi_cmp_abs( A, B ) < 0 )
-        return( POLARSSL_ERR_MPI_NEGATIVE_VALUE );
+        return( TROPICSSL_ERR_MPI_NEGATIVE_VALUE );
 
     mpi_init( &TB, NULL );
 
@@ -996,7 +996,7 @@ int mpi_div_mpi( mpi *Q, mpi *R, mpi *A, mpi *B )
     mpi X, Y, Z, T1, T2;
 
     if( mpi_cmp_int( B, 0 ) == 0 )
-        return( POLARSSL_ERR_MPI_DIVISION_BY_ZERO );
+        return( TROPICSSL_ERR_MPI_DIVISION_BY_ZERO );
 
     mpi_init( &X, &Y, &Z, &T1, &T2, NULL );
 
@@ -1042,7 +1042,7 @@ int mpi_div_mpi( mpi *Q, mpi *R, mpi *A, mpi *B )
             Z.p[i - t - 1] = ~0;
         else
         {
-#if defined(POLARSSL_HAVE_LONGLONG)
+#if defined(TROPICSSL_HAVE_LONGLONG)
             t_dbl r;
 
             r  = (t_dbl) X.p[i] << biL;
@@ -1153,7 +1153,7 @@ cleanup:
  *
  * Returns 0 if successful
  *         1 if memory allocation failed
- *         POLARSSL_ERR_MPI_DIVISION_BY_ZERO if b == 0
+ *         TROPICSSL_ERR_MPI_DIVISION_BY_ZERO if b == 0
  */
 int mpi_div_int( mpi *Q, mpi *R, mpi *A, int b )
 {
@@ -1197,7 +1197,7 @@ int mpi_mod_int( t_int *r, mpi *A, int b )
     t_int x, y, z;
 
     if( b == 0 )
-        return( POLARSSL_ERR_MPI_DIVISION_BY_ZERO );
+        return( TROPICSSL_ERR_MPI_DIVISION_BY_ZERO );
 
     if( b < 0 )
         b = -b;
@@ -1318,7 +1318,7 @@ int mpi_exp_mod( mpi *X, mpi *A, mpi *E, mpi *N, mpi *_RR )
     mpi RR, T, W[64];
 
     if( mpi_cmp_int( N, 0 ) < 0 || ( N->p[0] & 1 ) == 0 )
-        return( POLARSSL_ERR_MPI_BAD_INPUT_DATA );
+        return( TROPICSSL_ERR_MPI_BAD_INPUT_DATA );
 
     /*
      * Init temps and window size
@@ -1484,7 +1484,7 @@ cleanup:
     return( ret );
 }
 
-#if defined(POLARSSL_GENPRIME)
+#if defined(TROPICSSL_GENPRIME)
 
 /*
  * Greatest common divisor: G = gcd(A, B)  (HAC 14.54)
@@ -1537,7 +1537,7 @@ int mpi_inv_mod( mpi *X, mpi *A, mpi *N )
     mpi G, TA, TU, U1, U2, TB, TV, V1, V2;
 
     if( mpi_cmp_int( N, 0 ) <= 0 )
-        return( POLARSSL_ERR_MPI_BAD_INPUT_DATA );
+        return( TROPICSSL_ERR_MPI_BAD_INPUT_DATA );
 
     mpi_init( &TA, &TU, &U1, &U2, &G,
               &TB, &TV, &V1, &V2, NULL );
@@ -1546,7 +1546,7 @@ int mpi_inv_mod( mpi *X, mpi *A, mpi *N )
 
     if( mpi_cmp_int( &G, 1 ) != 0 )
     {
-        ret = POLARSSL_ERR_MPI_NOT_ACCEPTABLE;
+        ret = TROPICSSL_ERR_MPI_NOT_ACCEPTABLE;
         goto cleanup;
     }
 
@@ -1666,7 +1666,7 @@ int mpi_is_prime( mpi *X, int (*f_rng)(void *), void *p_rng )
      * test trivial factors first
      */
     if( ( X->p[0] & 1 ) == 0 )
-        return( POLARSSL_ERR_MPI_NOT_ACCEPTABLE );
+        return( TROPICSSL_ERR_MPI_NOT_ACCEPTABLE );
 
     for( i = 0; small_prime[i] > 0; i++ )
     {
@@ -1678,7 +1678,7 @@ int mpi_is_prime( mpi *X, int (*f_rng)(void *), void *p_rng )
         MPI_CHK( mpi_mod_int( &r, X, small_prime[i] ) );
 
         if( r == 0 )
-            return( POLARSSL_ERR_MPI_NOT_ACCEPTABLE );
+            return( TROPICSSL_ERR_MPI_NOT_ACCEPTABLE );
     }
 
     /*
@@ -1743,7 +1743,7 @@ int mpi_is_prime( mpi *X, int (*f_rng)(void *), void *p_rng )
         if( mpi_cmp_mpi( &A, &W ) != 0 ||
             mpi_cmp_int( &A,  1 ) == 0 )
         {
-            ret = POLARSSL_ERR_MPI_NOT_ACCEPTABLE;
+            ret = TROPICSSL_ERR_MPI_NOT_ACCEPTABLE;
             break;
         }
     }
@@ -1768,7 +1768,7 @@ int mpi_gen_prime( mpi *X, int nbits, int dh_flag,
     mpi Y;
 
     if( nbits < 3 )
-        return( POLARSSL_ERR_MPI_BAD_INPUT_DATA );
+        return( TROPICSSL_ERR_MPI_BAD_INPUT_DATA );
 
     mpi_init( &Y, NULL );
 
@@ -1791,7 +1791,7 @@ int mpi_gen_prime( mpi *X, int nbits, int dh_flag,
     {
         while( ( ret = mpi_is_prime( X, f_rng, p_rng ) ) != 0 )
         {
-            if( ret != POLARSSL_ERR_MPI_NOT_ACCEPTABLE )
+            if( ret != TROPICSSL_ERR_MPI_NOT_ACCEPTABLE )
                 goto cleanup;
 
             MPI_CHK( mpi_add_int( X, X, 2 ) );
@@ -1809,11 +1809,11 @@ int mpi_gen_prime( mpi *X, int nbits, int dh_flag,
                 if( ( ret = mpi_is_prime( &Y, f_rng, p_rng ) ) == 0 )
                     break;
 
-                if( ret != POLARSSL_ERR_MPI_NOT_ACCEPTABLE )
+                if( ret != TROPICSSL_ERR_MPI_NOT_ACCEPTABLE )
                     goto cleanup;
             }
 
-            if( ret != POLARSSL_ERR_MPI_NOT_ACCEPTABLE )
+            if( ret != TROPICSSL_ERR_MPI_NOT_ACCEPTABLE )
                 goto cleanup;
 
             MPI_CHK( mpi_add_int( &Y, X, 1 ) );
@@ -1831,7 +1831,7 @@ cleanup:
 
 #endif
 
-#if defined(POLARSSL_SELF_TEST)
+#if defined(TROPICSSL_SELF_TEST)
 
 /*
  * Checkup routine

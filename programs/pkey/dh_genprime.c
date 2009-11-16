@@ -54,7 +54,7 @@ int main( void )
 {
     int ret = 1;
 
-#if defined(POLARSSL_GENPRIME)
+#if defined(TROPICSSL_GENPRIME)
     mpi G, P, Q;
     havege_state hs;
     FILE *fout;

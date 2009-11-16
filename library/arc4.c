@@ -40,7 +40,7 @@
 
 #include "tropicssl/config.h"
 
-#if defined(POLARSSL_ARC4_C)
+#if defined(TROPICSSL_ARC4_C)
 
 #include "tropicssl/arc4.h"
 
@@ -100,7 +100,7 @@ void arc4_crypt( arc4_context *ctx, unsigned char *buf, int buflen )
     ctx->y = y;
 }
 
-#if defined(POLARSSL_SELF_TEST)
+#if defined(TROPICSSL_SELF_TEST)
 
 #include <string.h>
 #include <stdio.h>

@@ -45,7 +45,7 @@
 
 #include "tropicssl/config.h"
 
-#if defined(POLARSSL_HAVEGE_C)
+#if defined(TROPICSSL_HAVEGE_C)
 
 #include "tropicssl/havege.h"
 #include "tropicssl/timing.h"
@@ -224,7 +224,7 @@ int havege_rand( void *p_rng )
     return( ret );
 }
 
-#if defined(POLARSSL_RAND_TEST)
+#if defined(TROPICSSL_RAND_TEST)
 
 #include <stdio.h>
 

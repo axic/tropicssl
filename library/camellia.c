@@ -39,7 +39,7 @@
 
 #include "tropicssl/config.h"
 
-#if defined(POLARSSL_CAMELLIA_C)
+#if defined(TROPICSSL_CAMELLIA_C)
 
 #include "tropicssl/camellia.h"
 
@@ -78,7 +78,7 @@ static const unsigned char SIGMA_CHARS[6][8] =
 	{ 0xb0, 0x56, 0x88, 0xc2, 0xb3, 0xe6, 0xc1, 0xfd }
 };
 
-#ifdef POLARSSL_CAMELLIA_SMALL_MEMORY
+#ifdef TROPICSSL_CAMELLIA_SMALL_MEMORY
 
 static const unsigned char FSb[256] =
 {
@@ -609,7 +609,7 @@ void camellia_crypt_cfb128( camellia_context *ctx,
     *iv_off = n;
 }
 
-#if defined(POLARSSL_SELF_TEST)
+#if defined(TROPICSSL_SELF_TEST)
 
 #include <stdio.h>
 

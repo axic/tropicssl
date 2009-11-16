@@ -35,7 +35,7 @@
 
 #include "tropicssl/config.h"
 
-#if defined(POLARSSL_NET_C)
+#if defined(TROPICSSL_NET_C)
 
 #include "tropicssl/net.h"
 
@@ -104,7 +104,7 @@ int net_connect( int *fd, char *host, int port )
     if( wsa_init_done == 0 )
     {
         if( WSAStartup( MAKEWORD(2,0), &wsaData ) == SOCKET_ERROR )
-            return( POLARSSL_ERR_NET_SOCKET_FAILED );
+            return( TROPICSSL_ERR_NET_SOCKET_FAILED );
 
         wsa_init_done = 1;
     }
@@ -113,10 +113,10 @@ int net_connect( int *fd, char *host, int port )
 #endif
 
     if( ( server_host = gethostbyname( host ) ) == NULL )
-        return( POLARSSL_ERR_NET_UNKNOWN_HOST );
+        return( TROPICSSL_ERR_NET_UNKNOWN_HOST );
 
     if( ( *fd = socket( AF_INET, SOCK_STREAM, IPPROTO_IP ) ) < 0 )
-        return( POLARSSL_ERR_NET_SOCKET_FAILED );
+        return( TROPICSSL_ERR_NET_SOCKET_FAILED );
 
     memcpy( (void *) &server_addr.sin_addr,
             (void *) server_host->h_addr,
@@ -129,7 +129,7 @@ int net_connect( int *fd, char *host, int port )
                  sizeof( server_addr ) ) < 0 )
     {
         close( *fd );
-        return( POLARSSL_ERR_NET_CONNECT_FAILED );
+        return( TROPICSSL_ERR_NET_CONNECT_FAILED );
     }
 
     return( 0 );
@@ -149,7 +149,7 @@ int net_bind( int *fd, char *bind_ip, int port )
     if( wsa_init_done == 0 )
     {
         if( WSAStartup( MAKEWORD(2,0), &wsaData ) == SOCKET_ERROR )
-            return( POLARSSL_ERR_NET_SOCKET_FAILED );
+            return( TROPICSSL_ERR_NET_SOCKET_FAILED );
 
         wsa_init_done = 1;
     }
@@ -158,7 +158,7 @@ int net_bind( int *fd, char *bind_ip, int port )
 #endif
 
     if( ( *fd = socket( AF_INET, SOCK_STREAM, IPPROTO_IP ) ) < 0 )
-        return( POLARSSL_ERR_NET_SOCKET_FAILED );
+        return( TROPICSSL_ERR_NET_SOCKET_FAILED );
 
     n = 1;
     setsockopt( *fd, SOL_SOCKET, SO_REUSEADDR,
@@ -189,13 +189,13 @@ int net_bind( int *fd, char *bind_ip, int port )
               sizeof( server_addr ) ) < 0 )
     {
         close( *fd );
-        return( POLARSSL_ERR_NET_BIND_FAILED );
+        return( TROPICSSL_ERR_NET_BIND_FAILED );
     }
 
     if( listen( *fd, 10 ) != 0 )
     {
         close( *fd );
-        return( POLARSSL_ERR_NET_LISTEN_FAILED );
+        return( TROPICSSL_ERR_NET_LISTEN_FAILED );
     }
 
     return( 0 );
@@ -242,9 +242,9 @@ int net_accept( int bind_fd, int *client_fd, void *client_ip )
     if( *client_fd < 0 )
     {
         if( net_is_blocking() != 0 )
-            return( POLARSSL_ERR_NET_TRY_AGAIN );
+            return( TROPICSSL_ERR_NET_TRY_AGAIN );
 
-        return( POLARSSL_ERR_NET_ACCEPT_FAILED );
+        return( TROPICSSL_ERR_NET_ACCEPT_FAILED );
     }
 
     if( client_ip != NULL )
@@ -296,25 +296,25 @@ int net_recv( void *ctx, unsigned char *buf, int len )
     int ret = read( *((int *) ctx), buf, len );
 
     if( len > 0 && ret == 0 )
-        return( POLARSSL_ERR_NET_CONN_RESET );
+        return( TROPICSSL_ERR_NET_CONN_RESET );
 
     if( ret < 0 )
     {
         if( net_is_blocking() != 0 )
-            return( POLARSSL_ERR_NET_TRY_AGAIN );
+            return( TROPICSSL_ERR_NET_TRY_AGAIN );
 
 #if defined(WIN32) || defined(_WIN32_WCE)
         if( WSAGetLastError() == WSAECONNRESET )
-            return( POLARSSL_ERR_NET_CONN_RESET );
+            return( TROPICSSL_ERR_NET_CONN_RESET );
 #else
         if( errno == EPIPE || errno == ECONNRESET )
-            return( POLARSSL_ERR_NET_CONN_RESET );
+            return( TROPICSSL_ERR_NET_CONN_RESET );
 
         if( errno == EINTR )
-            return( POLARSSL_ERR_NET_TRY_AGAIN );
+            return( TROPICSSL_ERR_NET_TRY_AGAIN );
 #endif
 
-        return( POLARSSL_ERR_NET_RECV_FAILED );
+        return( TROPICSSL_ERR_NET_RECV_FAILED );
     }
 
     return( ret );
@@ -330,20 +330,20 @@ int net_send( void *ctx, unsigned char *buf, int len )
     if( ret < 0 )
     {
         if( net_is_blocking() != 0 )
-            return( POLARSSL_ERR_NET_TRY_AGAIN );
+            return( TROPICSSL_ERR_NET_TRY_AGAIN );
 
 #if defined(WIN32) || defined(_WIN32_WCE)
         if( WSAGetLastError() == WSAECONNRESET )
-            return( POLARSSL_ERR_NET_CONN_RESET );
+            return( TROPICSSL_ERR_NET_CONN_RESET );
 #else
         if( errno == EPIPE || errno == ECONNRESET )
-            return( POLARSSL_ERR_NET_CONN_RESET );
+            return( TROPICSSL_ERR_NET_CONN_RESET );
 
         if( errno == EINTR )
-            return( POLARSSL_ERR_NET_TRY_AGAIN );
+            return( TROPICSSL_ERR_NET_TRY_AGAIN );
 #endif
 
-        return( POLARSSL_ERR_NET_SEND_FAILED );
+        return( TROPICSSL_ERR_NET_SEND_FAILED );
     }
 
     return( ret );

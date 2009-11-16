@@ -311,7 +311,7 @@ accept:
 
     while( ( ret = ssl_handshake( &ssl ) ) != 0 )
     {
-        if( ret != POLARSSL_ERR_NET_TRY_AGAIN )
+        if( ret != TROPICSSL_ERR_NET_TRY_AGAIN )
         {
             printf( " failed\n  ! ssl_handshake returned %d\n\n", ret );
             goto accept;
@@ -332,18 +332,18 @@ accept:
         memset( buf, 0, sizeof( buf ) );
         ret = ssl_read( &ssl, buf, len );
 
-        if( ret == POLARSSL_ERR_NET_TRY_AGAIN )
+        if( ret == TROPICSSL_ERR_NET_TRY_AGAIN )
             continue;
 
         if( ret <= 0 )
         {
             switch( ret )
             {
-                case POLARSSL_ERR_SSL_PEER_CLOSE_NOTIFY:
+                case TROPICSSL_ERR_SSL_PEER_CLOSE_NOTIFY:
                     printf( " connection was closed gracefully\n" );
                     break;
 
-                case POLARSSL_ERR_NET_CONN_RESET:
+                case TROPICSSL_ERR_NET_CONN_RESET:
                     printf( " connection was reset by peer\n" );
                     break;
 
@@ -371,13 +371,13 @@ accept:
 
     while( ( ret = ssl_write( &ssl, buf, len ) ) <= 0 )
     {
-        if( ret == POLARSSL_ERR_NET_CONN_RESET )
+        if( ret == TROPICSSL_ERR_NET_CONN_RESET )
         {
             printf( " failed\n  ! peer closed the connection\n\n" );
             goto accept;
         }
 
-        if( ret != POLARSSL_ERR_NET_TRY_AGAIN )
+        if( ret != TROPICSSL_ERR_NET_TRY_AGAIN )
         {
             printf( " failed\n  ! ssl_write returned %d\n\n", ret );
             goto exit;

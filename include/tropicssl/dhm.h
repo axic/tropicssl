@@ -32,17 +32,17 @@
  *  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef POLARSSL_DHM_H
-#define POLARSSL_DHM_H
+#ifndef TROPICSSL_DHM_H
+#define TROPICSSL_DHM_H
 
 #include "tropicssl/bignum.h"
 
-#define POLARSSL_ERR_DHM_BAD_INPUT_DATA                    -0x0480
-#define POLARSSL_ERR_DHM_READ_PARAMS_FAILED                -0x0490
-#define POLARSSL_ERR_DHM_MAKE_PARAMS_FAILED                -0x04A0
-#define POLARSSL_ERR_DHM_READ_PUBLIC_FAILED                -0x04B0
-#define POLARSSL_ERR_DHM_MAKE_PUBLIC_FAILED                -0x04C0
-#define POLARSSL_ERR_DHM_CALC_SECRET_FAILED                -0x04D0
+#define TROPICSSL_ERR_DHM_BAD_INPUT_DATA                    -0x0480
+#define TROPICSSL_ERR_DHM_READ_PARAMS_FAILED                -0x0490
+#define TROPICSSL_ERR_DHM_MAKE_PARAMS_FAILED                -0x04A0
+#define TROPICSSL_ERR_DHM_READ_PUBLIC_FAILED                -0x04B0
+#define TROPICSSL_ERR_DHM_MAKE_PUBLIC_FAILED                -0x04C0
+#define TROPICSSL_ERR_DHM_CALC_SECRET_FAILED                -0x04D0
 
 typedef struct
 {
@@ -68,7 +68,7 @@ extern "C" {
  * \param p        &(start of input buffer)
  * \param end      end of buffer
  *
- * \return         0 if successful, or an POLARSSL_ERR_DHM_XXX error code
+ * \return         0 if successful, or an TROPICSSL_ERR_DHM_XXX error code
  */
 int dhm_read_params( dhm_context *ctx,
                      unsigned char **p,
@@ -88,7 +88,7 @@ int dhm_read_params( dhm_context *ctx,
  *                 have already been properly set (for example
  *                 using mpi_read_string or mpi_read_binary).
  *
- * \return         0 if successful, or an POLARSSL_ERR_DHM_XXX error code
+ * \return         0 if successful, or an TROPICSSL_ERR_DHM_XXX error code
  */
 int dhm_make_params( dhm_context *ctx, int s_size,
                      unsigned char *output, int *olen,
@@ -101,7 +101,7 @@ int dhm_make_params( dhm_context *ctx, int s_size,
  * \param input    input buffer
  * \param ilen     size of buffer
  *
- * \return         0 if successful, or an POLARSSL_ERR_DHM_XXX error code
+ * \return         0 if successful, or an TROPICSSL_ERR_DHM_XXX error code
  */
 int dhm_read_public( dhm_context *ctx,
                      unsigned char *input, int ilen );
@@ -116,7 +116,7 @@ int dhm_read_public( dhm_context *ctx,
  * \param f_rng    RNG function
  * \param p_rng    RNG parameter
  *
- * \return         0 if successful, or an POLARSSL_ERR_DHM_XXX error code
+ * \return         0 if successful, or an TROPICSSL_ERR_DHM_XXX error code
  */
 int dhm_make_public( dhm_context *ctx, int s_size,
                      unsigned char *output, int olen,
@@ -129,7 +129,7 @@ int dhm_make_public( dhm_context *ctx, int s_size,
  * \param output   destination buffer
  * \param olen     number of chars written
  *
- * \return         0 if successful, or an POLARSSL_ERR_DHM_XXX error code
+ * \return         0 if successful, or an TROPICSSL_ERR_DHM_XXX error code
  */
 int dhm_calc_secret( dhm_context *ctx,
                      unsigned char *output, int *olen );

@@ -40,7 +40,7 @@
 
 #include "tropicssl/config.h"
 
-#if defined(POLARSSL_SHA4_C)
+#if defined(TROPICSSL_SHA4_C)
 
 #include "tropicssl/sha4.h"
 
@@ -444,7 +444,7 @@ void sha4_hmac( unsigned char *key, int keylen,
     memset( &ctx, 0, sizeof( sha4_context ) );
 }
 
-#if defined(POLARSSL_SELF_TEST)
+#if defined(TROPICSSL_SELF_TEST)
 
 /*
  * FIPS-180-2 test vectors

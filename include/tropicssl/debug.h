@@ -38,7 +38,7 @@
 #include "tropicssl/config.h"
 #include "tropicssl/ssl.h"
 
-#if defined(POLARSSL_DEBUG_MSG)
+#if defined(TROPICSSL_DEBUG_MSG)
 
 #define SSL_DEBUG_MSG( level, args )                    \
     debug_print_msg( ssl, level, __FILE__, __LINE__, debug_fmt args );

@@ -35,7 +35,7 @@
 
 #include "tropicssl/config.h"
 
-#if defined(POLARSSL_BASE64_C)
+#if defined(TROPICSSL_BASE64_C)
 
 #include "tropicssl/base64.h"
 
@@ -92,7 +92,7 @@ int base64_encode( unsigned char *dst, int *dlen,
     if( *dlen < n + 1 )
     {
         *dlen = n + 1;
-        return( POLARSSL_ERR_BASE64_BUFFER_TOO_SMALL );
+        return( TROPICSSL_ERR_BASE64_BUFFER_TOO_SMALL );
     }
 
     n = (slen / 3) * 3;
@@ -150,13 +150,13 @@ int base64_decode( unsigned char *dst, int *dlen,
             continue;
 
         if( src[i] == '=' && ++j > 2 )
-            return( POLARSSL_ERR_BASE64_INVALID_CHARACTER );
+            return( TROPICSSL_ERR_BASE64_INVALID_CHARACTER );
 
         if( src[i] > 127 || base64_dec_map[src[i]] == 127 )
-            return( POLARSSL_ERR_BASE64_INVALID_CHARACTER );
+            return( TROPICSSL_ERR_BASE64_INVALID_CHARACTER );
 
         if( base64_dec_map[src[i]] < 64 && j != 0 )
-            return( POLARSSL_ERR_BASE64_INVALID_CHARACTER );
+            return( TROPICSSL_ERR_BASE64_INVALID_CHARACTER );
 
         n++;
     }
@@ -169,7 +169,7 @@ int base64_decode( unsigned char *dst, int *dlen,
     if( *dlen < n )
     {
         *dlen = n;
-        return( POLARSSL_ERR_BASE64_BUFFER_TOO_SMALL );
+        return( TROPICSSL_ERR_BASE64_BUFFER_TOO_SMALL );
     }
 
    for( j = 3, n = x = 0, p = dst; i > 0; i--, src++ )
@@ -194,7 +194,7 @@ int base64_decode( unsigned char *dst, int *dlen,
     return( 0 );
 }
 
-#if defined(POLARSSL_SELF_TEST)
+#if defined(TROPICSSL_SELF_TEST)
 
 #include <string.h>
 #include <stdio.h>

@@ -41,7 +41,7 @@
 
 #include "tropicssl/config.h"
 
-#if defined(POLARSSL_MD2_C)
+#if defined(TROPICSSL_MD2_C)
 
 #include "tropicssl/md2.h"
 
@@ -284,7 +284,7 @@ void md2_hmac( unsigned char *key, int keylen, unsigned char *input, int ilen,
     memset( &ctx, 0, sizeof( md2_context ) );
 }
 
-#if defined(POLARSSL_SELF_TEST)
+#if defined(TROPICSSL_SELF_TEST)
 
 /*
  * RFC 1319 test vectors

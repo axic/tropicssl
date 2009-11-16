@@ -35,7 +35,7 @@
 
 #include "tropicssl/config.h"
 
-#if defined(POLARSSL_DEBUG_C)
+#if defined(TROPICSSL_DEBUG_C)
 
 #include "tropicssl/debug.h"
 

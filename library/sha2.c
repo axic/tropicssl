@@ -40,7 +40,7 @@
 
 #include "tropicssl/config.h"
 
-#if defined(POLARSSL_SHA2_C)
+#if defined(TROPICSSL_SHA2_C)
 
 #include "tropicssl/sha2.h"
 
@@ -445,7 +445,7 @@ void sha2_hmac( unsigned char *key, int keylen,
     memset( &ctx, 0, sizeof( sha2_context ) );
 }
 
-#if defined(POLARSSL_SELF_TEST)
+#if defined(TROPICSSL_SELF_TEST)
 /*
  * FIPS-180-2 test vectors
  */

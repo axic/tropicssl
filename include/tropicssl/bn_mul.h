@@ -46,12 +46,12 @@
  *         . Alpha                . MIPS32
  *         . C, longlong          . C, generic
  */
-#ifndef POLARSSL_BN_MUL_H
-#define POLARSSL_BN_MUL_H
+#ifndef TROPICSSL_BN_MUL_H
+#define TROPICSSL_BN_MUL_H
 
 #include "tropicssl/config.h"
 
-#if defined(POLARSSL_HAVE_ASM)
+#if defined(TROPICSSL_HAVE_ASM)
 
 #if defined(__GNUC__)
 #if defined(__i386__)
@@ -73,7 +73,7 @@
     asm( "movl   %edx,   %ecx   " );            \
     asm( "stosl                 " );
 
-#if defined(POLARSSL_HAVE_SSE2)
+#if defined(TROPICSSL_HAVE_SSE2)
 
 #define MULADDC_HUIT                            \
     asm( "movd     %ecx,     %mm1     " );      \
@@ -596,7 +596,7 @@
     __asm   mov     ecx, edx                    \
     __asm   stosd
 
-#if defined(POLARSSL_HAVE_SSE2)
+#if defined(TROPICSSL_HAVE_SSE2)
 
 #define EMIT __asm _emit
 
@@ -679,10 +679,10 @@
 #endif /* SSE2 */
 #endif /* MSVC */
 
-#endif /* POLARSSL_HAVE_ASM */
+#endif /* TROPICSSL_HAVE_ASM */
 
 #if !defined(MULADDC_CORE)
-#if defined(POLARSSL_HAVE_LONGLONG)
+#if defined(TROPICSSL_HAVE_LONGLONG)
 
 #define MULADDC_INIT                    \
 {                                       \

@@ -296,14 +296,14 @@ static int ssl_test( struct options *opt )
                 offset_to_write += ret;
             }
 
-            if( ret == POLARSSL_ERR_SSL_PEER_CLOSE_NOTIFY ||
-                ret == POLARSSL_ERR_NET_CONN_RESET )
+            if( ret == TROPICSSL_ERR_SSL_PEER_CLOSE_NOTIFY ||
+                ret == TROPICSSL_ERR_NET_CONN_RESET )
             {
                 ret = 0;
                 goto exit;
             }
 
-            if( ret < 0 && ret != POLARSSL_ERR_NET_TRY_AGAIN )
+            if( ret < 0 && ret != TROPICSSL_ERR_NET_TRY_AGAIN )
             {
                 printf( "  ! ssl_write returned %d\n\n", ret );
                 break;
@@ -339,14 +339,14 @@ static int ssl_test( struct options *opt )
                 offset_to_read += ret;
             }
 
-            if( ret == POLARSSL_ERR_SSL_PEER_CLOSE_NOTIFY ||
-                ret == POLARSSL_ERR_NET_CONN_RESET )
+            if( ret == TROPICSSL_ERR_SSL_PEER_CLOSE_NOTIFY ||
+                ret == TROPICSSL_ERR_NET_CONN_RESET )
             {
                 ret = 0;
                 goto exit;
             }
 
-            if( ret < 0 && ret != POLARSSL_ERR_NET_TRY_AGAIN )
+            if( ret < 0 && ret != TROPICSSL_ERR_NET_TRY_AGAIN )
             {
                 printf( "  ! ssl_read returned %d\n\n", ret );
                 break;

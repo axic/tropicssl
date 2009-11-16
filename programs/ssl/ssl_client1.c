@@ -130,7 +130,7 @@ int main( void )
 
     while( ( ret = ssl_write( &ssl, buf, len ) ) <= 0 )
     {
-        if( ret != POLARSSL_ERR_NET_TRY_AGAIN )
+        if( ret != TROPICSSL_ERR_NET_TRY_AGAIN )
         {
             printf( " failed\n  ! ssl_write returned %d\n\n", ret );
             goto exit;
@@ -152,10 +152,10 @@ int main( void )
         memset( buf, 0, sizeof( buf ) );
         ret = ssl_read( &ssl, buf, len );
 
-        if( ret == POLARSSL_ERR_NET_TRY_AGAIN )
+        if( ret == TROPICSSL_ERR_NET_TRY_AGAIN )
             continue;
 
-        if( ret == POLARSSL_ERR_SSL_PEER_CLOSE_NOTIFY )
+        if( ret == TROPICSSL_ERR_SSL_PEER_CLOSE_NOTIFY )
             break;
 
         if( ret <= 0 )

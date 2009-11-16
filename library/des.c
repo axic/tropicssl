@@ -41,7 +41,7 @@
 
 #include "tropicssl/config.h"
 
-#if defined(POLARSSL_DES_C)
+#if defined(TROPICSSL_DES_C)
 
 #include "tropicssl/des.h"
 
@@ -649,7 +649,7 @@ void des3_crypt_cbc( des3_context *ctx,
     }
 }
 
-#if defined(POLARSSL_SELF_TEST)
+#if defined(TROPICSSL_SELF_TEST)
 
 #include <stdio.h>
 

@@ -35,8 +35,8 @@
 /*
  * OpenSSL wrapper contributed by David Barett
  */
-#ifndef POLARSSL_OPENSSL_H
-#define POLARSSL_OPENSSL_H
+#ifndef TROPICSSL_OPENSSL_H
+#define TROPICSSL_OPENSSL_H
 
 #include "tropicssl/aes.h"
 #include "tropicssl/md5.h"

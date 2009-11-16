@@ -35,7 +35,7 @@
 
 #include "tropicssl/config.h"
 
-#if defined(POLARSSL_CERTS_C)
+#if defined(TROPICSSL_CERTS_C)
 
 char test_ca_crt[] =
 "-----BEGIN CERTIFICATE-----\r\n"

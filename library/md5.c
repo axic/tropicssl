@@ -40,7 +40,7 @@
 
 #include "tropicssl/config.h"
 
-#if defined(POLARSSL_MD5_C)
+#if defined(TROPICSSL_MD5_C)
 
 #include "tropicssl/md5.h"
 
@@ -402,7 +402,7 @@ void md5_hmac( unsigned char *key, int keylen, unsigned char *input, int ilen,
     memset( &ctx, 0, sizeof( md5_context ) );
 }
 
-#if defined(POLARSSL_SELF_TEST)
+#if defined(TROPICSSL_SELF_TEST)
 /*
  * RFC 1321 test vectors
  */

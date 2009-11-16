@@ -41,7 +41,7 @@
 
 #include "tropicssl/config.h"
 
-#if defined(POLARSSL_AES_C)
+#if defined(TROPICSSL_AES_C)
 
 #include "tropicssl/aes.h"
 #include "tropicssl/padlock.h"
@@ -71,7 +71,7 @@
 }
 #endif
 
-#if defined(POLARSSL_AES_ROM_TABLES)
+#if defined(TROPICSSL_AES_ROM_TABLES)
 /*
  * Forward S-box
  */
@@ -456,7 +456,7 @@ void aes_setkey_enc( aes_context *ctx, unsigned char *key, int keysize )
     int i;
     unsigned long *RK;
 
-#if !defined(POLARSSL_AES_ROM_TABLES)
+#if !defined(TROPICSSL_AES_ROM_TABLES)
     if( aes_init_done == 0 )
     {
         aes_gen_tables();
@@ -659,7 +659,7 @@ void aes_crypt_ecb( aes_context *ctx,
     int i;
     unsigned long *RK, X0, X1, X2, X3, Y0, Y1, Y2, Y3;
 
-#if defined(POLARSSL_PADLOCK_C) && defined(POLARSSL_HAVE_X86)
+#if defined(TROPICSSL_PADLOCK_C) && defined(TROPICSSL_HAVE_X86)
     if( padlock_supports( PADLOCK_ACE ) )
     {
         if( padlock_xcryptecb( ctx, mode, input, output ) == 0 )
@@ -762,7 +762,7 @@ void aes_crypt_cbc( aes_context *ctx,
     int i;
     unsigned char temp[16];
 
-#if defined(POLARSSL_PADLOCK_C) && defined(POLARSSL_HAVE_X86)
+#if defined(TROPICSSL_PADLOCK_C) && defined(TROPICSSL_HAVE_X86)
     if( padlock_supports( PADLOCK_ACE ) )
     {
         if( padlock_xcryptcbc( ctx, mode, length, iv, input, output ) == 0 )
@@ -847,7 +847,7 @@ void aes_crypt_cfb128( aes_context *ctx,
     *iv_off = n;
 }
 
-#if defined(POLARSSL_SELF_TEST)
+#if defined(TROPICSSL_SELF_TEST)
 
 #include <stdio.h>
 

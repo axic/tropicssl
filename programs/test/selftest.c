@@ -69,77 +69,77 @@ int main( int argc, char *argv[] )
         printf( "\n" );
     }
 
-#if defined(POLARSSL_MD2_C)
+#if defined(TROPICSSL_MD2_C)
     if( ( ret = md2_self_test( v ) ) != 0 )
         return( ret );
 #endif
 
-#if defined(POLARSSL_MD4_C)
+#if defined(TROPICSSL_MD4_C)
     if( ( ret = md4_self_test( v ) ) != 0 )
         return( ret );
 #endif
 
-#if defined(POLARSSL_MD5_C)
+#if defined(TROPICSSL_MD5_C)
     if( ( ret = md5_self_test( v ) ) != 0 )
         return( ret );
 #endif
 
-#if defined(POLARSSL_SHA1_C)
+#if defined(TROPICSSL_SHA1_C)
     if( ( ret = sha1_self_test( v ) ) != 0 )
         return( ret );
 #endif
 
-#if defined(POLARSSL_SHA2_C)
+#if defined(TROPICSSL_SHA2_C)
     if( ( ret = sha2_self_test( v ) ) != 0 )
         return( ret );
 #endif
 
-#if defined(POLARSSL_SHA4_C)
+#if defined(TROPICSSL_SHA4_C)
     if( ( ret = sha4_self_test( v ) ) != 0 )
         return( ret );
 #endif
 
-#if defined(POLARSSL_ARC4_C)
+#if defined(TROPICSSL_ARC4_C)
     if( ( ret = arc4_self_test( v ) ) != 0 )
         return( ret );
 #endif
 
-#if defined(POLARSSL_DES_C)
+#if defined(TROPICSSL_DES_C)
     if( ( ret = des_self_test( v ) ) != 0 )
         return( ret );
 #endif
 
-#if defined(POLARSSL_AES_C)
+#if defined(TROPICSSL_AES_C)
     if( ( ret = aes_self_test( v ) ) != 0 )
         return( ret );
 #endif
 
-#if defined(POLARSSL_BASE64_C)
+#if defined(TROPICSSL_BASE64_C)
     if( ( ret = base64_self_test( v ) ) != 0 )
         return( ret );
 #endif
 
-#if defined(POLARSSL_BIGNUM_C)
+#if defined(TROPICSSL_BIGNUM_C)
     if( ( ret = mpi_self_test( v ) ) != 0 )
         return( ret );
 #endif
 
-#if defined(POLARSSL_RSA_C)
+#if defined(TROPICSSL_RSA_C)
     if( ( ret = rsa_self_test( v ) ) != 0 )
         return( ret );
 #endif
 
-#if defined(POLARSSL_X509_C)
+#if defined(TROPICSSL_X509_C)
     if( ( ret = x509_self_test( v ) ) != 0 )
         return( ret );
 #endif
 
-#if defined(POLARSSL_XTEA_C)
+#if defined(TROPICSSL_XTEA_C)
     if( ( ret = xtea_self_test( v ) ) != 0 )
         return( ret );
 #endif
 
-#if defined(POLARSSL_CAMELLIA_C)
+#if defined(TROPICSSL_CAMELLIA_C)
     if( ( ret = camellia_self_test( v ) ) != 0 )
         return( ret );
 #endif

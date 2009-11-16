@@ -33,7 +33,7 @@
 
 #include "tropicssl/config.h"
 
-#if defined(POLARSSL_XTEA_C)
+#if defined(TROPICSSL_XTEA_C)
 
 #include "tropicssl/xtea.h"
 
@@ -116,7 +116,7 @@ void xtea_crypt_ecb( xtea_context *ctx, int mode, unsigned char input[8], unsign
     PUT_ULONG_BE( v1, output, 4 );
 }
 
-#if defined(POLARSSL_SELF_TEST)
+#if defined(TROPICSSL_SELF_TEST)
 
 #include <string.h>
 #include <stdio.h>

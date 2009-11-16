@@ -35,7 +35,7 @@
 
 #include "tropicssl/config.h"
 
-#if defined(POLARSSL_TIMING_C)
+#if defined(TROPICSSL_TIMING_C)
 
 #include "tropicssl/timing.h"
 

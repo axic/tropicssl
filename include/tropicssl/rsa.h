@@ -32,19 +32,19 @@
  *  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef POLARSSL_RSA_H
-#define POLARSSL_RSA_H
+#ifndef TROPICSSL_RSA_H
+#define TROPICSSL_RSA_H
 
 #include "tropicssl/bignum.h"
 
-#define POLARSSL_ERR_RSA_BAD_INPUT_DATA                    -0x0400
-#define POLARSSL_ERR_RSA_INVALID_PADDING                   -0x0410
-#define POLARSSL_ERR_RSA_KEY_GEN_FAILED                    -0x0420
-#define POLARSSL_ERR_RSA_KEY_CHECK_FAILED                  -0x0430
-#define POLARSSL_ERR_RSA_PUBLIC_FAILED                     -0x0440
-#define POLARSSL_ERR_RSA_PRIVATE_FAILED                    -0x0450
-#define POLARSSL_ERR_RSA_VERIFY_FAILED                     -0x0460
-#define POLARSSL_ERR_RSA_OUTPUT_TO_LARGE                   -0x0470
+#define TROPICSSL_ERR_RSA_BAD_INPUT_DATA                    -0x0400
+#define TROPICSSL_ERR_RSA_INVALID_PADDING                   -0x0410
+#define TROPICSSL_ERR_RSA_KEY_GEN_FAILED                    -0x0420
+#define TROPICSSL_ERR_RSA_KEY_CHECK_FAILED                  -0x0430
+#define TROPICSSL_ERR_RSA_PUBLIC_FAILED                     -0x0440
+#define TROPICSSL_ERR_RSA_PRIVATE_FAILED                    -0x0450
+#define TROPICSSL_ERR_RSA_VERIFY_FAILED                     -0x0460
+#define TROPICSSL_ERR_RSA_OUTPUT_TO_LARGE                   -0x0470
 
 /*
  * PKCS#1 constants
@@ -146,7 +146,7 @@ void rsa_init( rsa_context *ctx,
  * \note           rsa_init() must be called beforehand to setup
  *                 the RSA context (especially f_rng and p_rng).
  *
- * \return         0 if successful, or an POLARSSL_ERR_RSA_XXX error code
+ * \return         0 if successful, or an TROPICSSL_ERR_RSA_XXX error code
  */
 int rsa_gen_key( rsa_context *ctx, int nbits, int exponent );
 
@@ -155,7 +155,7 @@ int rsa_gen_key( rsa_context *ctx, int nbits, int exponent );
  *
  * \param ctx      RSA context to be checked
  *
- * \return         0 if successful, or an POLARSSL_ERR_RSA_XXX error code
+ * \return         0 if successful, or an TROPICSSL_ERR_RSA_XXX error code
  */
 int rsa_check_pubkey( rsa_context *ctx );
 
@@ -164,7 +164,7 @@ int rsa_check_pubkey( rsa_context *ctx );
  *
  * \param ctx      RSA context to be checked
  *
- * \return         0 if successful, or an POLARSSL_ERR_RSA_XXX error code
+ * \return         0 if successful, or an TROPICSSL_ERR_RSA_XXX error code
  */
 int rsa_check_privkey( rsa_context *ctx );
 
@@ -175,7 +175,7 @@ int rsa_check_privkey( rsa_context *ctx );
  * \param input    input buffer
  * \param output   output buffer
  *
- * \return         0 if successful, or an POLARSSL_ERR_RSA_XXX error code
+ * \return         0 if successful, or an TROPICSSL_ERR_RSA_XXX error code
  *
  * \note           This function does NOT take care of message
  *                 padding. Also, be sure to set input[0] = 0.
@@ -194,7 +194,7 @@ int rsa_public( rsa_context *ctx,
  * \param input    input buffer
  * \param output   output buffer
  *
- * \return         0 if successful, or an POLARSSL_ERR_RSA_XXX error code
+ * \return         0 if successful, or an TROPICSSL_ERR_RSA_XXX error code
  *
  * \note           The input and output buffers must be large
  *                 enough (eg. 128 bytes if RSA-1024 is used).
@@ -212,7 +212,7 @@ int rsa_private( rsa_context *ctx,
  * \param input    buffer holding the data to be encrypted
  * \param output   buffer that will hold the ciphertext
  *
- * \return         0 if successful, or an POLARSSL_ERR_RSA_XXX error code
+ * \return         0 if successful, or an TROPICSSL_ERR_RSA_XXX error code
  *
  * \note           The output buffer must be as large as the size
  *                 of ctx->N (eg. 128 bytes if RSA-1024 is used).
@@ -232,7 +232,7 @@ int rsa_pkcs1_encrypt( rsa_context *ctx,
  * \param olen     will contain the plaintext length
  * \param output_max_len	maximum length of the output buffer
  *
- * \return         0 if successful, or an POLARSSL_ERR_RSA_XXX error code
+ * \return         0 if successful, or an TROPICSSL_ERR_RSA_XXX error code
  *
  * \note           The output buffer must be as large as the size
  *                 of ctx->N (eg. 128 bytes if RSA-1024 is used) otherwise
@@ -255,7 +255,7 @@ int rsa_pkcs1_decrypt( rsa_context *ctx,
  * \param sig      buffer that will hold the ciphertext
  *
  * \return         0 if the signing operation was successful,
- *                 or an POLARSSL_ERR_RSA_XXX error code
+ *                 or an TROPICSSL_ERR_RSA_XXX error code
  *
  * \note           The "sig" buffer must be as large as the size
  *                 of ctx->N (eg. 128 bytes if RSA-1024 is used).
@@ -278,7 +278,7 @@ int rsa_pkcs1_sign( rsa_context *ctx,
  * \param sig      buffer holding the ciphertext
  *
  * \return         0 if the verify operation was successful,
- *                 or an POLARSSL_ERR_RSA_XXX error code
+ *                 or an TROPICSSL_ERR_RSA_XXX error code
  *
  * \note           The "sig" buffer must be as large as the size
  *                 of ctx->N (eg. 128 bytes if RSA-1024 is used).

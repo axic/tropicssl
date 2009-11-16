@@ -41,12 +41,12 @@
 
 #include "tropicssl/config.h"
 
-#if defined(POLARSSL_PADLOCK_C)
+#if defined(TROPICSSL_PADLOCK_C)
 
 #include "tropicssl/aes.h"
 #include "tropicssl/padlock.h"
 
-#if defined(POLARSSL_HAVE_X86)
+#if defined(TROPICSSL_HAVE_X86)
 
 #include <string.h>
 
