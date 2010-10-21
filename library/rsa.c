@@ -584,7 +584,7 @@ void rsa_free( rsa_context *ctx )
 
 #if defined(TROPICSSL_SELF_TEST)
 
-#include "polarssl/sha1.h"
+#include "tropicssl/sha1.h"
 
 /*
  * Example RSA-1024 keypair, for test purposes

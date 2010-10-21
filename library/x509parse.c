@@ -1682,7 +1682,7 @@ void x509_free( x509_cert *crt )
 
 #if defined(TROPICSSL_SELF_TEST)
 
-#include "polarssl/certs.h"
+#include "tropicssl/certs.h"
 
 /*
  * Checkup routine
