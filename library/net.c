@@ -79,17 +79,12 @@ static int wsa_init_done = 0;
 /*
  * htons() is not always available
  */
-static unsigned short net_htons( int port )
-{
-    unsigned char buf[4];
-
-    buf[0] = (unsigned char)( port >> 8 );
-    buf[1] = (unsigned char)( port      );
-    buf[2] = buf[3] = 0;
-
-    return( *(unsigned short *) buf );
-}
-
+#if defined(__BYTE_ORDER) && defined(__BIG_ENDIAN) && __BYTE_ORDER == __BIG_ENDIAN
+#define HTONS(n) (n)
+#else
+#define HTONS(n) (((((unsigned short)(n) & 0xFF)) << 8) | (((unsigned short)(n) & 0xFF00) >> 8))
+#endif
+#define net_htons(n) HTONS(n)
 /*
  * Initiate a TCP connection with host:port
  */
