@@ -5,16 +5,16 @@ PREFIX=tropicssl_
 .SILENT:
 
 all:
-	cd library  && make all && cd ..
-	cd programs && make all && cd ..
+	make -C library all
+	make -C programs all
 
 install:
 	mkdir -p $(DESTDIR)/include/tropicssl
 	cp -r include/tropicssl $(DESTDIR)/include
-	
+
 	mkdir -p $(DESTDIR)/lib
 	cp library/libtropicssl.* $(DESTDIR)/lib
-	
+
 	mkdir -p $(DESTDIR)/bin
 	for p in programs/*/* ; do              \
 	    if [ -x $$p ] && [ ! -d $$p ] ;     \
@@ -25,6 +25,6 @@ install:
 	done
 
 clean:
-	cd library  && make clean && cd ..
-	cd programs && make clean && cd ..
+	make -C library clean
+	make -C programs clean
 
