@@ -10,7 +10,7 @@
  *  Redistribution and use in source and binary forms, with or without
  *  modification, are permitted provided that the following conditions
  *  are met:
- *  
+ *
  *    * Redistributions of source code must retain the above copyright
  *      notice, this list of conditions and the following disclaimer.
  *    * Redistributions in binary form must reproduce the above copyright
@@ -19,7 +19,7 @@
  *    * Neither the names of PolarSSL or XySSL nor the names of its contributors
  *      may be used to endorse or promote products derived from this software
  *      without specific prior written permission.
- *  
+ *
  *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
@@ -38,11 +38,10 @@
 /**
  * \brief          ARC4 context structure
  */
-typedef struct
-{
-    int x;                      /*!< permutation index */
-    int y;                      /*!< permutation index */
-    unsigned char m[256];       /*!< permutation table */
+typedef struct {
+	int x;                      /*!< permutation index */
+	int y;                      /*!< permutation index */
+	unsigned char m[256];       /*!< permutation table */
 }
 arc4_context;
 
@@ -50,30 +49,30 @@ arc4_context;
 extern "C" {
 #endif
 
-/**
- * \brief          ARC4 key schedule
- *
- * \param ctx      ARC4 context to be initialized
- * \param key      the secret key
- * \param keylen   length of the key
- */
-void arc4_setup( arc4_context *ctx, unsigned char *key, int keylen );
+	/**
+	 * \brief          ARC4 key schedule
+	 *
+	 * \param ctx      ARC4 context to be initialized
+	 * \param key      the secret key
+	 * \param keylen   length of the key
+	 */
+	void arc4_setup( arc4_context *ctx, unsigned char *key, int keylen );
 
-/**
- * \brief          ARC4 cipher function
- *
- * \param ctx      ARC4 context
- * \param buf      buffer to be processed
- * \param buflen   amount of data in buf
- */
-void arc4_crypt( arc4_context *ctx, unsigned char *buf, int buflen );
+	/**
+	 * \brief          ARC4 cipher function
+	 *
+	 * \param ctx      ARC4 context
+	 * \param buf      buffer to be processed
+	 * \param buflen   amount of data in buf
+	 */
+	void arc4_crypt( arc4_context *ctx, unsigned char *buf, int buflen );
 
-/*
- * \brief          Checkup routine
- *
- * \return         0 if successful, or 1 if the test failed
- */
-int arc4_self_test( int verbose );
+	/*
+	 * \brief          Checkup routine
+	 *
+	 * \return         0 if successful, or 1 if the test failed
+	 */
+	int arc4_self_test( int verbose );
 
 #ifdef __cplusplus
 }

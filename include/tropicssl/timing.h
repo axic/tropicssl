@@ -10,7 +10,7 @@
  *  Redistribution and use in source and binary forms, with or without
  *  modification, are permitted provided that the following conditions
  *  are met:
- *  
+ *
  *    * Redistributions of source code must retain the above copyright
  *      notice, this list of conditions and the following disclaimer.
  *    * Redistributions in binary form must reproduce the above copyright
@@ -19,7 +19,7 @@
  *    * Neither the names of PolarSSL or XySSL nor the names of its contributors
  *      may be used to endorse or promote products derived from this software
  *      without specific prior written permission.
- *  
+ *
  *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
@@ -38,41 +38,40 @@
 /**
  * \brief          timer structure
  */
-struct hr_time
-{
-    unsigned char opaque[32];
+struct hr_time {
+	unsigned char opaque[32];
 };
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-extern int alarmed;
+	extern int alarmed;
 
-/**
- * \brief          Return the CPU cycle counter value
- */
-unsigned long hardclock( void );
+	/**
+	 * \brief          Return the CPU cycle counter value
+	 */
+	unsigned long hardclock( void );
 
-/**
- * \brief          Return the elapsed time in milliseconds
- *
- * \param val      points to a timer structure
- * \param reset    if set to 1, the timer is restarted
- */
-unsigned long get_timer( struct hr_time *val, int reset );
+	/**
+	 * \brief          Return the elapsed time in milliseconds
+	 *
+	 * \param val      points to a timer structure
+	 * \param reset    if set to 1, the timer is restarted
+	 */
+	unsigned long get_timer( struct hr_time *val, int reset );
 
-/**
- * \brief          Setup an alarm clock
- *
- * \param seconds  delay before the "alarmed" flag is set
- */
-void set_alarm( int seconds );
+	/**
+	 * \brief          Setup an alarm clock
+	 *
+	 * \param seconds  delay before the "alarmed" flag is set
+	 */
+	void set_alarm( int seconds );
 
-/**
- * \brief          Sleep for a certain amount of time
- */
-void m_sleep( int milliseconds );
+	/**
+	 * \brief          Sleep for a certain amount of time
+	 */
+	void m_sleep( int milliseconds );
 
 #ifdef __cplusplus
 }

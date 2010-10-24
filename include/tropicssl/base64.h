@@ -10,7 +10,7 @@
  *  Redistribution and use in source and binary forms, with or without
  *  modification, are permitted provided that the following conditions
  *  are met:
- *  
+ *
  *    * Redistributions of source code must retain the above copyright
  *      notice, this list of conditions and the following disclaimer.
  *    * Redistributions in binary form must reproduce the above copyright
@@ -19,7 +19,7 @@
  *    * Neither the names of PolarSSL or XySSL nor the names of its contributors
  *      may be used to endorse or promote products derived from this software
  *      without specific prior written permission.
- *  
+ *
  *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
@@ -42,49 +42,49 @@
 extern "C" {
 #endif
 
-/**
- * \brief          Encode a buffer into base64 format
- *
- * \param dst      destination buffer
- * \param dlen     size of the buffer
- * \param src      source buffer
- * \param slen     amount of data to be encoded
- *
- * \return         0 if successful, or TROPICSSL_ERR_BASE64_BUFFER_TOO_SMALL.
- *                 *dlen is always updated to reflect the amount
- *                 of data that has (or would have) been written.
- *
- * \note           Call this function with *dlen = 0 to obtain the
- *                 required buffer size in *dlen
- */
-int base64_encode( unsigned char *dst, int *dlen,
-                   unsigned char *src, int  slen );
+	/**
+	 * \brief          Encode a buffer into base64 format
+	 *
+	 * \param dst      destination buffer
+	 * \param dlen     size of the buffer
+	 * \param src      source buffer
+	 * \param slen     amount of data to be encoded
+	 *
+	 * \return         0 if successful, or TROPICSSL_ERR_BASE64_BUFFER_TOO_SMALL.
+	 *                 *dlen is always updated to reflect the amount
+	 *                 of data that has (or would have) been written.
+	 *
+	 * \note           Call this function with *dlen = 0 to obtain the
+	 *                 required buffer size in *dlen
+	 */
+	int base64_encode( unsigned char *dst, int *dlen,
+	                   unsigned char *src, int  slen );
 
-/**
- * \brief          Decode a base64-formatted buffer
- *
- * \param dst      destination buffer
- * \param dlen     size of the buffer
- * \param src      source buffer
- * \param slen     amount of data to be decoded
- *
- * \return         0 if successful, TROPICSSL_ERR_BASE64_BUFFER_TOO_SMALL, or
- *                 TROPICSSL_ERR_BASE64_INVALID_DATA if the input data is not
- *                 correct. *dlen is always updated to reflect the amount
- *                 of data that has (or would have) been written.
- *
- * \note           Call this function with *dlen = 0 to obtain the
- *                 required buffer size in *dlen
- */
-int base64_decode( unsigned char *dst, int *dlen,
-                   unsigned char *src, int  slen );
+	/**
+	 * \brief          Decode a base64-formatted buffer
+	 *
+	 * \param dst      destination buffer
+	 * \param dlen     size of the buffer
+	 * \param src      source buffer
+	 * \param slen     amount of data to be decoded
+	 *
+	 * \return         0 if successful, TROPICSSL_ERR_BASE64_BUFFER_TOO_SMALL, or
+	 *                 TROPICSSL_ERR_BASE64_INVALID_DATA if the input data is not
+	 *                 correct. *dlen is always updated to reflect the amount
+	 *                 of data that has (or would have) been written.
+	 *
+	 * \note           Call this function with *dlen = 0 to obtain the
+	 *                 required buffer size in *dlen
+	 */
+	int base64_decode( unsigned char *dst, int *dlen,
+	                   unsigned char *src, int  slen );
 
-/**
- * \brief          Checkup routine
- *
- * \return         0 if successful, or 1 if the test failed
- */
-int base64_self_test( int verbose );
+	/**
+	 * \brief          Checkup routine
+	 *
+	 * \return         0 if successful, or 1 if the test failed
+	 */
+	int base64_self_test( int verbose );
 
 #ifdef __cplusplus
 }

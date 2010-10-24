@@ -10,7 +10,7 @@
  *  Redistribution and use in source and binary forms, with or without
  *  modification, are permitted provided that the following conditions
  *  are met:
- *  
+ *
  *    * Redistributions of source code must retain the above copyright
  *      notice, this list of conditions and the following disclaimer.
  *    * Redistributions in binary form must reproduce the above copyright
@@ -19,7 +19,7 @@
  *    * Neither the names of PolarSSL or XySSL nor the names of its contributors
  *      may be used to endorse or promote products derived from this software
  *      without specific prior written permission.
- *  
+ *
  *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
@@ -39,14 +39,14 @@
 extern "C" {
 #endif
 
-extern char test_ca_crt[];
-extern char test_ca_key[];
-extern char test_ca_pwd[];
-extern char test_srv_crt[];
-extern char test_srv_key[];
-extern char test_cli_crt[];
-extern char test_cli_key[];
-extern char xyssl_ca_crt[];
+	extern char test_ca_crt[];
+	extern char test_ca_key[];
+	extern char test_ca_pwd[];
+	extern char test_srv_crt[];
+	extern char test_srv_key[];
+	extern char test_cli_crt[];
+	extern char test_cli_key[];
+	extern char xyssl_ca_crt[];
 
 #ifdef __cplusplus
 }

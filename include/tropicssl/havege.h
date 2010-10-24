@@ -10,7 +10,7 @@
  *  Redistribution and use in source and binary forms, with or without
  *  modification, are permitted provided that the following conditions
  *  are met:
- *  
+ *
  *    * Redistributions of source code must retain the above copyright
  *      notice, this list of conditions and the following disclaimer.
  *    * Redistributions in binary form must reproduce the above copyright
@@ -19,7 +19,7 @@
  *    * Neither the names of PolarSSL or XySSL nor the names of its contributors
  *      may be used to endorse or promote products derived from this software
  *      without specific prior written permission.
- *  
+ *
  *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
@@ -40,11 +40,10 @@
 /**
  * \brief          HAVEGE state structure
  */
-typedef struct
-{
-    int PT1, PT2, offset[2];
-    int pool[COLLECT_SIZE];
-    int WALK[8192];
+typedef struct {
+	int PT1, PT2, offset[2];
+	int pool[COLLECT_SIZE];
+	int WALK[8192];
 }
 havege_state;
 
@@ -52,21 +51,21 @@ havege_state;
 extern "C" {
 #endif
 
-/**
- * \brief          HAVEGE initialization
- *
- * \param hs       HAVEGE state to be initialized
- */
-void havege_init( havege_state *hs );
+	/**
+	 * \brief          HAVEGE initialization
+	 *
+	 * \param hs       HAVEGE state to be initialized
+	 */
+	void havege_init( havege_state *hs );
 
-/**
- * \brief          HAVEGE rand function
- *
- * \param rng_st   points to an HAVEGE state
- *
- * \return         A random int
- */
-int havege_rand( void *p_rng );
+	/**
+	 * \brief          HAVEGE rand function
+	 *
+	 * \param rng_st   points to an HAVEGE state
+	 *
+	 * \return         A random int
+	 */
+	int havege_rand( void *p_rng );
 
 #ifdef __cplusplus
 }

@@ -10,7 +10,7 @@
  *  Redistribution and use in source and binary forms, with or without
  *  modification, are permitted provided that the following conditions
  *  are met:
- *  
+ *
  *    * Redistributions of source code must retain the above copyright
  *      notice, this list of conditions and the following disclaimer.
  *    * Redistributions in binary form must reproduce the above copyright
@@ -19,7 +19,7 @@
  *    * Neither the names of PolarSSL or XySSL nor the names of its contributors
  *      may be used to endorse or promote products derived from this software
  *      without specific prior written permission.
- *  
+ *
  *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
@@ -75,52 +75,49 @@
  */
 inline int __RSA_Passthrough( void *output, void *input, int size )
 {
-    memcpy( output, input, size );
-    return size;
+	memcpy( output, input, size );
+	return size;
 }
 
 inline rsa_context* d2i_RSA_PUBKEY( void *ignore, unsigned char **bufptr,
                                     int len )
 {
-    unsigned char *buffer = *(unsigned char **) bufptr;
-    rsa_context *rsa;
-    
-    /*
-     * Not a general-purpose parser: only parses public key from *exactly*
-     *   openssl genrsa -out privkey.pem 512 (or 1024)
-     *   openssl rsa -in privkey.pem -out privatekey.der -outform der
-     *   openssl rsa -in privkey.pem -out pubkey.der -outform der -pubout
-     *
-     * TODO: make a general-purpose parse
-     */
-    if( ignore != 0 || ( len != 94 && len != 162 ) )
-        return( 0 );
+	unsigned char *buffer = *(unsigned char **) bufptr;
+	rsa_context *rsa;
 
-    rsa = (rsa_context *) malloc( sizeof( rsa_rsa ) );
-    if( rsa == NULL )
-        return( 0 );
+	/*
+	 * Not a general-purpose parser: only parses public key from *exactly*
+	 *   openssl genrsa -out privkey.pem 512 (or 1024)
+	 *   openssl rsa -in privkey.pem -out privatekey.der -outform der
+	 *   openssl rsa -in privkey.pem -out pubkey.der -outform der -pubout
+	 *
+	 * TODO: make a general-purpose parse
+	 */
+	if( ignore != 0 || ( len != 94 && len != 162 ) )
+		return( 0 );
 
-    memset( rsa, 0, sizeof( rsa_context ) );
+	rsa = (rsa_context *) malloc( sizeof( rsa_rsa ) );
+	if( rsa == NULL )
+		return( 0 );
 
-    if( ( len ==  94 && 
-          mpi_read_binary( &rsa->N, &buffer[ 25],  64 ) == 0 &&
-          mpi_read_binary( &rsa->E, &buffer[ 91],   3 ) == 0 ) ||
-        ( len == 162 &&
-          mpi_read_binary( &rsa->N, &buffer[ 29], 128 ) == 0 ) &&
-          mpi_read_binary( &rsa->E, &buffer[159],   3 ) == 0 )
-    {
-        /*
-         * key read successfully
-         */
-        rsa->len = ( mpi_msb( &rsa->N ) + 7 ) >> 3;
-        return( rsa );
-    }
-    else
-    {
-        memset( rsa, 0, sizeof( rsa_context ) );
-        free( rsa );
-        return( 0 );
-    }
+	memset( rsa, 0, sizeof( rsa_context ) );
+
+	if( ( len ==  94 &&
+	                mpi_read_binary( &rsa->N, &buffer[ 25],  64 ) == 0 &&
+	                mpi_read_binary( &rsa->E, &buffer[ 91],   3 ) == 0 ) ||
+	                ( len == 162 &&
+	                  mpi_read_binary( &rsa->N, &buffer[ 29], 128 ) == 0 ) &&
+	                mpi_read_binary( &rsa->E, &buffer[159],   3 ) == 0 ) {
+		/*
+		 * key read successfully
+		 */
+		rsa->len = ( mpi_msb( &rsa->N ) + 7 ) >> 3;
+		return( rsa );
+	} else {
+		memset( rsa, 0, sizeof( rsa_context ) );
+		free( rsa );
+		return( 0 );
+	}
 }
 
 #define RSA                     rsa_context
@@ -132,10 +129,28 @@ inline rsa_context* d2i_RSA_PUBKEY( void *ignore, unsigned char **bufptr,
 
 #define d2i_RSAPrivateKey( a, b, c ) new rsa_context /* TODO: C++ bleh */
 
-inline int RSA_public_decrypt ( int size, unsigned char* input, unsigned char* output, RSA* key, int ignore ) { int outsize=size; if( !rsa_pkcs1_decrypt( key, RSA_PUBLIC,  &outsize, input, output ) ) return outsize; else return -1; }
-inline int RSA_private_decrypt( int size, unsigned char* input, unsigned char* output, RSA* key, int ignore ) { int outsize=size; if( !rsa_pkcs1_decrypt( key, RSA_PRIVATE, &outsize, input, output ) ) return outsize; else return -1; }
-inline int RSA_public_encrypt ( int size, unsigned char* input, unsigned char* output, RSA* key, int ignore ) { if( !rsa_pkcs1_encrypt( key, RSA_PUBLIC,  size, input, output ) ) return RSA_size(key); else return -1; }
-inline int RSA_private_encrypt( int size, unsigned char* input, unsigned char* output, RSA* key, int ignore ) { if( !rsa_pkcs1_encrypt( key, RSA_PRIVATE, size, input, output ) ) return RSA_size(key); else return -1; }
+inline int RSA_public_decrypt ( int size, unsigned char* input, unsigned char* output, RSA* key, int ignore )
+{
+	int outsize = size;
+	if( !rsa_pkcs1_decrypt( key, RSA_PUBLIC,  &outsize, input, output ) ) return outsize;
+	else return -1;
+}
+inline int RSA_private_decrypt( int size, unsigned char* input, unsigned char* output, RSA* key, int ignore )
+{
+	int outsize = size;
+	if( !rsa_pkcs1_decrypt( key, RSA_PRIVATE, &outsize, input, output ) ) return outsize;
+	else return -1;
+}
+inline int RSA_public_encrypt ( int size, unsigned char* input, unsigned char* output, RSA* key, int ignore )
+{
+	if( !rsa_pkcs1_encrypt( key, RSA_PUBLIC,  size, input, output ) ) return RSA_size(key);
+	else return -1;
+}
+inline int RSA_private_encrypt( int size, unsigned char* input, unsigned char* output, RSA* key, int ignore )
+{
+	if( !rsa_pkcs1_encrypt( key, RSA_PRIVATE, size, input, output ) ) return RSA_size(key);
+	else return -1;
+}
 
 #ifdef __cplusplus
 }
