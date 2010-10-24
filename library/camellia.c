@@ -286,13 +286,12 @@ static const char transposes[2][20] =
     									\
     for ( i = 0; i < 20; i++ )						\
     	if (indexes[(INDEX)][(OFFSET)][i] != -1) {			\
-		RK[indexes[(INDEX)][(OFFSET)][i]] = TK[ i ];		\
+			RK[(int)indexes[(INDEX)][(OFFSET)][i]] = TK[ i ];	\
 	}								\
 }
 
 void camellia_feistel(unsigned long x[2], unsigned long k[2], unsigned long z[2])
 {
-	unsigned char t[8];
 	unsigned long I0, I1;
 	I0 = x[0] ^ k[0];
 	I1 = x[1] ^ k[1];
@@ -411,7 +410,7 @@ void camellia_setkey_enc( camellia_context *ctx, unsigned char *key, int keysize
     /* Do transpositions */
     for ( i = 0; i < 20; i++ ) {
 	    if (transposes[idx][i] != -1) {
-		    RK[32 + 12 * idx + i] = RK[transposes[idx][i]];
+		    RK[32 + 12 * idx + i] = RK[(int)transposes[idx][i]];
 	    }
     }
 }
@@ -469,8 +468,8 @@ void camellia_crypt_ecb( camellia_context *ctx,
                     unsigned char input[16],
                     unsigned char output[16] )
 {
-    int i, NR;
-    unsigned long *RK, X[4], Y[4], T;
+    int NR;
+    unsigned long *RK, X[4];
 
     NR = ctx->nr;
     RK = ctx->rk;
@@ -749,10 +748,9 @@ static const unsigned char camellia_test_cbc_cipher[3][CAMELLIA_TESTS_CBC][16] =
  */
 int camellia_self_test( int verbose )
 {
-    int i, j, u, v, offset;
+    int i, j, u, v;
     unsigned char key[32];
     unsigned char buf[64];
-    unsigned char prv[16];
     unsigned char src[16];
     unsigned char dst[16];
     unsigned char iv[16];
