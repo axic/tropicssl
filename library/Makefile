@@ -1,8 +1,8 @@
 
 # Also see "include/tropicssl/config.h"
 
-CFLAGS	= -I../include -D_FILE_OFFSET_BITS=64
-OFLAGS	= -O
+CFLAGS	= -I../include -D_FILE_OFFSET_BITS=64 -Wall -Werror
+OFLAGS	= -O2
 
 # MicroBlaze specific options:
 # CFLAGS += -mno-xl-soft-mul -mxl-barrel-shift
