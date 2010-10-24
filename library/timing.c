@@ -10,7 +10,7 @@
  *	Redistribution and use in source and binary forms, with or without
  *	modification, are permitted provided that the following conditions
  *	are met:
- *	
+ *
  *	  * Redistributions of source code must retain the above copyright
  *		notice, this list of conditions and the following disclaimer.
  *	  * Redistributions in binary form must reproduce the above copyright
@@ -19,7 +19,7 @@
  *	  * Neither the names of PolarSSL or XySSL nor the names of its contributors
  *		may be used to endorse or promote products derived from this software
  *		without specific prior written permission.
- *	
+ *
  *	THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  *	"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  *	LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
@@ -44,8 +44,7 @@
 #include <windows.h>
 #include <winbase.h>
 
-struct _hr_time
-{
+struct _hr_time {
 	LARGE_INTEGER start;
 };
 
@@ -57,8 +56,7 @@ struct _hr_time
 #include <signal.h>
 #include <time.h>
 
-struct _hr_time
-{
+struct _hr_time {
 	struct timeval start;
 };
 
@@ -70,8 +68,8 @@ unsigned long hardclock( void )
 {
 	unsigned long tsc;
 	__asm	rdtsc
-		__asm	mov	 [tsc], eax
-		return( tsc );
+	__asm	mov	 [tsc], eax
+	return( tsc );
 }
 
 #else
@@ -90,7 +88,7 @@ unsigned long hardclock( void )
 unsigned long hardclock( void )
 {
 	unsigned long lo, hi;
-	asm( "rdtsc" : "=a" (lo), "=d" (hi) ); 
+	asm( "rdtsc" : "=a" (lo), "=d" (hi) );
 	return( lo | (hi << 32) );
 }
 
@@ -101,13 +99,11 @@ unsigned long hardclock( void )
 {
 	unsigned long tbl, tbu0, tbu1;
 
-	do
-	{
+	do {
 		asm( "mftbu %0" : "=r" (tbu0) );
 		asm( "mftb	%0" : "=r" (tbl ) );
 		asm( "mftbu %0" : "=r" (tbu1) );
-	}
-	while( tbu0 != tbu1 );
+	} while( tbu0 != tbu1 );
 
 	return( tbl );
 }
@@ -152,15 +148,14 @@ unsigned long hardclock( void )
 {
 	struct timeval tv_cur;
 
-	if( hardclock_init == 0 )
-	{
+	if( hardclock_init == 0 ) {
 		gettimeofday( &tv_init, NULL );
 		hardclock_init = 1;
 	}
 
 	gettimeofday( &tv_cur, NULL );
 	return( ( tv_cur.tv_sec	 - tv_init.tv_sec  ) * 1000000
-			+ ( tv_cur.tv_usec - tv_init.tv_usec ) );
+	        + ( tv_cur.tv_usec - tv_init.tv_usec ) );
 }
 
 #endif /* generic */
@@ -185,8 +180,8 @@ unsigned long get_timer( struct hr_time *val, int reset )
 	QueryPerformanceFrequency( &hfreq );
 
 	delta = (unsigned long)( ( 1000 *
-							   ( offset.QuadPart - t->start.QuadPart ) ) /
-							 hfreq.QuadPart );
+	                           ( offset.QuadPart - t->start.QuadPart ) ) /
+	                         hfreq.QuadPart );
 
 	if( reset )
 		QueryPerformanceCounter( &t->start );
@@ -195,19 +190,19 @@ unsigned long get_timer( struct hr_time *val, int reset )
 }
 
 DWORD WINAPI TimerProc( LPVOID uElapse )
-{	
+{
 	Sleep( (DWORD) uElapse );
-	alarmed = 1; 
+	alarmed = 1;
 	return( TRUE );
 }
 
 void set_alarm( int seconds )
-{	
+{
 	DWORD ThreadId;
 
-	alarmed = 0; 
+	alarmed = 0;
 	CloseHandle( CreateThread( NULL, 0, TimerProc,
-							   (LPVOID) ( seconds * 1000 ), 0, &ThreadId ) );
+	                           (LPVOID) ( seconds * 1000 ), 0, &ThreadId ) );
 }
 
 void m_sleep( int milliseconds )
@@ -226,10 +221,9 @@ unsigned long get_timer( struct hr_time *val, int reset )
 	gettimeofday( &offset, NULL );
 
 	delta = ( offset.tv_sec	 - t->start.tv_sec	) * 1000
-		+ ( offset.tv_usec - t->start.tv_usec ) / 1000;
+	        + ( offset.tv_usec - t->start.tv_usec ) / 1000;
 
-	if( reset )
-	{
+	if( reset ) {
 		t->start.tv_sec	 = offset.tv_sec;
 		t->start.tv_usec = offset.tv_usec;
 	}
@@ -238,7 +232,7 @@ unsigned long get_timer( struct hr_time *val, int reset )
 }
 
 static void sighandler( int signum )
-{	
+{
 	alarmed = 1;
 	signal( signum, sighandler );
 }

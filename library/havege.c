@@ -10,7 +10,7 @@
  *	Redistribution and use in source and binary forms, with or without
  *	modification, are permitted provided that the following conditions
  *	are met:
- *	
+ *
  *	  * Redistributions of source code must retain the above copyright
  *		notice, this list of conditions and the following disclaimer.
  *	  * Redistributions in binary form must reproduce the above copyright
@@ -19,7 +19,7 @@
  *	  * Neither the names of PolarSSL or XySSL nor the names of its contributors
  *		may be used to endorse or promote products derived from this software
  *		without specific prior written permission.
- *	
+ *
  *	THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  *	"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  *	LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
@@ -182,13 +182,12 @@ static void havege_fill( havege_state *hs )
 
 	memset( RES, 0, sizeof( RES ) );
 
-	while( n < COLLECT_SIZE * 4 )
-	{
+	while( n < COLLECT_SIZE * 4 ) {
 		ONE_ITERATION
-			ONE_ITERATION
-			ONE_ITERATION
-			ONE_ITERATION
-			}
+		ONE_ITERATION
+		ONE_ITERATION
+		ONE_ITERATION
+	}
 
 	hs->PT1 = PT1;
 	hs->PT2 = PT2;
@@ -236,14 +235,12 @@ int main( int argc, char *argv[] )
 	havege_state hs;
 	unsigned char buf[1024];
 
-	if( argc < 2 )
-	{
+	if( argc < 2 ) {
 		fprintf( stderr, "usage: %s <output filename>\n", argv[0] );
 		return( 1 );
 	}
 
-	if( ( f = fopen( argv[1], "wb+" ) ) == NULL )
-	{
+	if( ( f = fopen( argv[1], "wb+" ) ) == NULL ) {
 		printf( "failed to open '%s' for writing.\n", argv[0] );
 		return( 1 );
 	}
@@ -252,15 +249,14 @@ int main( int argc, char *argv[] )
 
 	t = time( NULL );
 
-	for( i = 0, k = 32768; i < k; i++ )
-	{
+	for( i = 0, k = 32768; i < k; i++ ) {
 		for( j = 0; j < sizeof( buf ); j++ )
 			buf[j] = havege_rand( &hs );
 
 		fwrite( buf, sizeof( buf ), 1, f );
 
 		printf( "Generating 32Mb of data in file '%s'... %04.1f" \
-				"%% done\r", argv[1], (100 * (float) (i + 1)) / k );
+		        "%% done\r", argv[1], (100 * (float) (i + 1)) / k );
 		fflush( stdout );
 	}
 

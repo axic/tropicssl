@@ -10,7 +10,7 @@
  *	Redistribution and use in source and binary forms, with or without
  *	modification, are permitted provided that the following conditions
  *	are met:
- *	
+ *
  *	  * Redistributions of source code must retain the above copyright
  *		notice, this list of conditions and the following disclaimer.
  *	  * Redistributions in binary form must reproduce the above copyright
@@ -19,7 +19,7 @@
  *	  * Neither the names of PolarSSL or XySSL nor the names of its contributors
  *		may be used to endorse or promote products derived from this software
  *		without specific prior written permission.
- *	
+ *
  *	THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  *	"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  *	LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
@@ -96,9 +96,8 @@ int net_connect( int *fd, char *host, int port )
 #if defined(WIN32) || defined(_WIN32_WCE)
 	WSADATA wsaData;
 
-	if( wsa_init_done == 0 )
-	{
-		if( WSAStartup( MAKEWORD(2,0), &wsaData ) == SOCKET_ERROR )
+	if( wsa_init_done == 0 ) {
+		if( WSAStartup( MAKEWORD(2, 0), &wsaData ) == SOCKET_ERROR )
 			return( TROPICSSL_ERR_NET_SOCKET_FAILED );
 
 		wsa_init_done = 1;
@@ -114,15 +113,14 @@ int net_connect( int *fd, char *host, int port )
 		return( TROPICSSL_ERR_NET_SOCKET_FAILED );
 
 	memcpy( (void *) &server_addr.sin_addr,
-			(void *) server_host->h_addr,
-			server_host->h_length );
+	        (void *) server_host->h_addr,
+	        server_host->h_length );
 
 	server_addr.sin_family = AF_INET;
 	server_addr.sin_port   = net_htons( port );
 
 	if( connect( *fd, (struct sockaddr *) &server_addr,
-				 sizeof( server_addr ) ) < 0 )
-	{
+	                sizeof( server_addr ) ) < 0 ) {
 		close( *fd );
 		return( TROPICSSL_ERR_NET_CONNECT_FAILED );
 	}
@@ -141,9 +139,8 @@ int net_bind( int *fd, char *bind_ip, int port )
 #if defined(WIN32) || defined(_WIN32_WCE)
 	WSADATA wsaData;
 
-	if( wsa_init_done == 0 )
-	{
-		if( WSAStartup( MAKEWORD(2,0), &wsaData ) == SOCKET_ERROR )
+	if( wsa_init_done == 0 ) {
+		if( WSAStartup( MAKEWORD(2, 0), &wsaData ) == SOCKET_ERROR )
 			return( TROPICSSL_ERR_NET_SOCKET_FAILED );
 
 		wsa_init_done = 1;
@@ -157,14 +154,13 @@ int net_bind( int *fd, char *bind_ip, int port )
 
 	n = 1;
 	setsockopt( *fd, SOL_SOCKET, SO_REUSEADDR,
-				(const char *) &n, sizeof( n ) );
+	            (const char *) &n, sizeof( n ) );
 
 	server_addr.sin_addr.s_addr = INADDR_ANY;
 	server_addr.sin_family		= AF_INET;
 	server_addr.sin_port		= net_htons( port );
 
-	if( bind_ip != NULL )
-	{
+	if( bind_ip != NULL ) {
 		memset( c, 0, sizeof( c ) );
 		sscanf( bind_ip, "%d.%d.%d.%d", &c[0], &c[1], &c[2], &c[3] );
 
@@ -174,21 +170,19 @@ int net_bind( int *fd, char *bind_ip, int port )
 
 		if( n == 4 )
 			server_addr.sin_addr.s_addr =
-				( (unsigned long) c[0] << 24 ) |
-				( (unsigned long) c[1] << 16 ) |
-				( (unsigned long) c[2] <<  8 ) |
-				( (unsigned long) c[3]		 );
+			        ( (unsigned long) c[0] << 24 ) |
+			        ( (unsigned long) c[1] << 16 ) |
+			        ( (unsigned long) c[2] <<  8 ) |
+			        ( (unsigned long) c[3]		 );
 	}
 
 	if( bind( *fd, (struct sockaddr *) &server_addr,
-			  sizeof( server_addr ) ) < 0 )
-	{
+	                sizeof( server_addr ) ) < 0 ) {
 		close( *fd );
 		return( TROPICSSL_ERR_NET_BIND_FAILED );
 	}
 
-	if( listen( *fd, 10 ) != 0 )
-	{
+	if( listen( *fd, 10 ) != 0 ) {
 		close( *fd );
 		return( TROPICSSL_ERR_NET_LISTEN_FAILED );
 	}
@@ -204,8 +198,7 @@ static int net_is_blocking( void )
 #if defined(WIN32) || defined(_WIN32_WCE)
 	return( WSAGetLastError() == WSAEWOULDBLOCK );
 #else
-	switch( errno )
-	{
+	switch( errno ) {
 #if defined EAGAIN
 	case EAGAIN:
 #endif
@@ -232,10 +225,9 @@ int net_accept( int bind_fd, int *client_fd, void *client_ip )
 #endif
 
 	*client_fd = accept( bind_fd, (struct sockaddr *)
-						 &client_addr, &n );
+	                     &client_addr, &n );
 
-	if( *client_fd < 0 )
-	{
+	if( *client_fd < 0 ) {
 		if( net_is_blocking() != 0 )
 			return( TROPICSSL_ERR_NET_TRY_AGAIN );
 
@@ -244,7 +236,7 @@ int net_accept( int bind_fd, int *client_fd, void *client_ip )
 
 	if( client_ip != NULL )
 		memcpy( client_ip, &client_addr.sin_addr.s_addr,
-				sizeof( client_addr.sin_addr.s_addr ) );
+		        sizeof( client_addr.sin_addr.s_addr ) );
 
 	return( 0 );
 }
@@ -287,14 +279,13 @@ void net_usleep( unsigned long usec )
  * Read at most 'len' characters
  */
 int net_recv( void *ctx, unsigned char *buf, int len )
-{ 
+{
 	int ret = read( *((int *) ctx), buf, len );
 
 	if( len > 0 && ret == 0 )
 		return( TROPICSSL_ERR_NET_CONN_RESET );
 
-	if( ret < 0 )
-	{
+	if( ret < 0 ) {
 		if( net_is_blocking() != 0 )
 			return( TROPICSSL_ERR_NET_TRY_AGAIN );
 
@@ -322,8 +313,7 @@ int net_send( void *ctx, unsigned char *buf, int len )
 {
 	int ret = write( *((int *) ctx), buf, len );
 
-	if( ret < 0 )
-	{
+	if( ret < 0 ) {
 		if( net_is_blocking() != 0 )
 			return( TROPICSSL_ERR_NET_TRY_AGAIN );
 

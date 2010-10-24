@@ -10,7 +10,7 @@
  *	Redistribution and use in source and binary forms, with or without
  *	modification, are permitted provided that the following conditions
  *	are met:
- *	
+ *
  *	  * Redistributions of source code must retain the above copyright
  *		notice, this list of conditions and the following disclaimer.
  *	  * Redistributions in binary form must reproduce the above copyright
@@ -19,7 +19,7 @@
  *	  * Neither the names of PolarSSL or XySSL nor the names of its contributors
  *		may be used to endorse or promote products derived from this software
  *		without specific prior written permission.
- *	
+ *
  *	THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  *	"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  *	LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
@@ -39,8 +39,7 @@
 
 #include "tropicssl/base64.h"
 
-static const unsigned char base64_enc_map[64] =
-{
+static const unsigned char base64_enc_map[64] = {
 	'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
 	'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T',
 	'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd',
@@ -50,8 +49,7 @@ static const unsigned char base64_enc_map[64] =
 	'8', '9', '+', '/'
 };
 
-static const unsigned char base64_dec_map[128] =
-{
+static const unsigned char base64_dec_map[128] = {
 	127, 127, 127, 127, 127, 127, 127, 127, 127, 127,
 	127, 127, 127, 127, 127, 127, 127, 127, 127, 127,
 	127, 127, 127, 127, 127, 127, 127, 127, 127, 127,
@@ -71,7 +69,7 @@ static const unsigned char base64_dec_map[128] =
  * Encode a buffer into base64 format
  */
 int base64_encode( unsigned char *dst, int *dlen,
-				   unsigned char *src, int	slen )
+                   unsigned char *src, int	slen )
 {
 	int i, n;
 	int C1, C2, C3;
@@ -82,23 +80,25 @@ int base64_encode( unsigned char *dst, int *dlen,
 
 	n = (slen << 3) / 6;
 
-	switch( (slen << 3) - (n * 6) )
-	{
-	case  2: n += 3; break;
-	case  4: n += 2; break;
-	default: break;
+	switch( (slen << 3) - (n * 6) ) {
+	case  2:
+		n += 3;
+		break;
+	case  4:
+		n += 2;
+		break;
+	default:
+		break;
 	}
 
-	if( *dlen < n + 1 )
-	{
+	if( *dlen < n + 1 ) {
 		*dlen = n + 1;
 		return( TROPICSSL_ERR_BASE64_BUFFER_TOO_SMALL );
 	}
 
 	n = (slen / 3) * 3;
 
-	for( i = 0, p = dst; i < n; i += 3 )
-	{
+	for( i = 0, p = dst; i < n; i += 3 ) {
 		C1 = *src++;
 		C2 = *src++;
 		C3 = *src++;
@@ -109,8 +109,7 @@ int base64_encode( unsigned char *dst, int *dlen,
 		*p++ = base64_enc_map[C3 & 0x3F];
 	}
 
-	if( i < slen )
-	{
+	if( i < slen ) {
 		C1 = *src++;
 		C2 = ((i + 1) < slen) ? *src++ : 0;
 
@@ -134,16 +133,15 @@ int base64_encode( unsigned char *dst, int *dlen,
  * Decode a base64-formatted buffer
  */
 int base64_decode( unsigned char *dst, int *dlen,
-				   unsigned char *src, int	slen )
+                   unsigned char *src, int	slen )
 {
 	int i, j, n;
 	unsigned long x;
 	unsigned char *p;
 
-	for( i = j = n = 0; i < slen; i++ )
-	{
+	for( i = j = n = 0; i < slen; i++ ) {
 		if( ( slen - i ) >= 2 &&
-			src[i] == '\r' && src[i + 1] == '\n' )
+		                src[i] == '\r' && src[i + 1] == '\n' )
 			continue;
 
 		if( src[i] == '\n' )
@@ -166,22 +164,19 @@ int base64_decode( unsigned char *dst, int *dlen,
 
 	n = ((n * 6) + 7) >> 3;
 
-	if( *dlen < n )
-	{
+	if( *dlen < n ) {
 		*dlen = n;
 		return( TROPICSSL_ERR_BASE64_BUFFER_TOO_SMALL );
 	}
 
-	for( j = 3, n = x = 0, p = dst; i > 0; i--, src++ )
-	{
+	for( j = 3, n = x = 0, p = dst; i > 0; i--, src++ ) {
 		if( *src == '\r' || *src == '\n' )
 			continue;
 
 		j -= ( base64_dec_map[*src] == 64 );
 		x  = (x << 6) | ( base64_dec_map[*src] & 0x3F );
 
-		if( ++n == 4 )
-		{
+		if( ++n == 4 ) {
 			n = 0;
 			if( j > 0 ) *p++ = (unsigned char)( x >> 16 );
 			if( j > 1 ) *p++ = (unsigned char)( x >>  8 );
@@ -199,8 +194,7 @@ int base64_decode( unsigned char *dst, int *dlen,
 #include <string.h>
 #include <stdio.h>
 
-static const unsigned char base64_test_dec[64] =
-{
+static const unsigned char base64_test_dec[64] = {
 	0x24, 0x48, 0x6E, 0x56, 0x87, 0x62, 0x5A, 0xBD,
 	0xBF, 0x17, 0xD9, 0xA2, 0xC4, 0x17, 0x1A, 0x01,
 	0x94, 0xED, 0x8F, 0x1E, 0x11, 0xB3, 0xD7, 0x09,
@@ -212,8 +206,8 @@ static const unsigned char base64_test_dec[64] =
 };
 
 static const unsigned char base64_test_enc[] =
-	"JEhuVodiWr2/F9mixBcaAZTtjx4Rs9cJDLbpEG8i7hPK"
-	"swcFdsn6MWwINP+Nwmw4AEPpVJevUEvRQbqVMVoLlw==";
+        "JEhuVodiWr2/F9mixBcaAZTtjx4Rs9cJDLbpEG8i7hPK"
+        "swcFdsn6MWwINP+Nwmw4AEPpVJevUEvRQbqVMVoLlw==";
 
 /*
  * Checkup routine
@@ -230,8 +224,7 @@ int base64_self_test( int verbose )
 	src = (unsigned char *) base64_test_dec;
 
 	if( base64_encode( buffer, &len, src, 64 ) != 0 ||
-		memcmp( base64_test_enc, buffer, 88 ) != 0 ) 
-	{
+	                memcmp( base64_test_enc, buffer, 88 ) != 0 ) {
 		if( verbose != 0 )
 			printf( "failed\n" );
 
@@ -245,8 +238,7 @@ int base64_self_test( int verbose )
 	src = (unsigned char *) base64_test_enc;
 
 	if( base64_decode( buffer, &len, src, 88 ) != 0 ||
-		memcmp( base64_test_dec, buffer, 64 ) != 0 )
-	{
+	                memcmp( base64_test_dec, buffer, 64 ) != 0 ) {
 		if( verbose != 0 )
 			printf( "failed\n" );
 

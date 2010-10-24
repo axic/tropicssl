@@ -8,7 +8,7 @@
  *	Redistribution and use in source and binary forms, with or without
  *	modification, are permitted provided that the following conditions
  *	are met:
- *	
+ *
  *	  * Redistributions of source code must retain the above copyright
  *		notice, this list of conditions and the following disclaimer.
  *	  * Redistributions in binary form must reproduce the above copyright
@@ -17,7 +17,7 @@
  *	  * Neither the names of PolarSSL or XySSL nor the names of its contributors
  *		may be used to endorse or promote products derived from this software
  *		without specific prior written permission.
- *	
+ *
  *	THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  *	"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  *	LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
@@ -71,8 +71,7 @@ void xtea_setup( xtea_context *ctx, unsigned char key[16] )
 
 	memset(ctx, 0, sizeof(xtea_context));
 
-	for( i = 0; i < 4; i++ )
-	{
+	for( i = 0; i < 4; i++ ) {
 		GET_ULONG_BE( ctx->k[i], key, i << 2 );
 	}
 }
@@ -85,27 +84,22 @@ void xtea_crypt_ecb( xtea_context *ctx, int mode, unsigned char input[8], unsign
 	unsigned long *k, v0, v1, i;
 
 	k = ctx->k;
-	
+
 	GET_ULONG_BE( v0, input, 0 );
 	GET_ULONG_BE( v1, input, 4 );
 
-	if( mode == XTEA_ENCRYPT )
-	{
+	if( mode == XTEA_ENCRYPT ) {
 		unsigned long sum = 0, delta = 0x9E3779B9;
 
-		for( i = 0; i < 32; i++ )
-		{
+		for( i = 0; i < 32; i++ ) {
 			v0 += (((v1 << 4) ^ (v1 >> 5)) + v1) ^ (sum + k[sum & 3]);
 			sum += delta;
 			v1 += (((v0 << 4) ^ (v0 >> 5)) + v0) ^ (sum + k[(sum>>11) & 3]);
 		}
-	}
-	else /* XTEA_DECRYPT */
-	{
+	} else { /* XTEA_DECRYPT */
 		unsigned long delta = 0x9E3779B9, sum = delta * 32;
 
-		for( i = 0; i < 32; i++ )
-		{
+		for( i = 0; i < 32; i++ ) {
 			v1 -= (((v0 << 4) ^ (v0 >> 5)) + v0) ^ (sum + k[(sum>>11) & 3]);
 			sum -= delta;
 			v0 -= (((v1 << 4) ^ (v1 >> 5)) + v1) ^ (sum + k[sum & 3]);
@@ -125,8 +119,7 @@ void xtea_crypt_ecb( xtea_context *ctx, int mode, unsigned char input[8], unsign
  * XTEA tests vectors (non-official)
  */
 
-static const unsigned char xtea_test_key[6][16] =
-{
+static const unsigned char xtea_test_key[6][16] = {
 	{ 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f },
 	{ 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f },
 	{ 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f },
@@ -135,8 +128,7 @@ static const unsigned char xtea_test_key[6][16] =
 	{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }
 };
 
-static const unsigned char xtea_test_pt[6][8] =
-{
+static const unsigned char xtea_test_pt[6][8] = {
 	{ 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48 },
 	{ 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41 },
 	{ 0x5a, 0x5b, 0x6e, 0x27, 0x89, 0x48, 0xd7, 0x7f },
@@ -145,8 +137,7 @@ static const unsigned char xtea_test_pt[6][8] =
 	{ 0x70, 0xe1, 0x22, 0x5d, 0x6e, 0x4e, 0x76, 0x55 }
 };
 
-static const unsigned char xtea_test_ct[6][8] =
-{
+static const unsigned char xtea_test_ct[6][8] = {
 	{ 0x49, 0x7d, 0xf3, 0xd0, 0x72, 0x61, 0x2c, 0xb5 },
 	{ 0xe7, 0x8f, 0x2d, 0x13, 0x74, 0x43, 0x41, 0xd8 },
 	{ 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41 },
@@ -164,8 +155,7 @@ int xtea_self_test( int verbose )
 	unsigned char buf[8];
 	xtea_context ctx;
 
-	for( i = 0; i < 6; i++ )
-	{
+	for( i = 0; i < 6; i++ ) {
 		if( verbose != 0 )
 			printf( "  XTEA test #%d: ", i + 1 );
 
@@ -174,8 +164,7 @@ int xtea_self_test( int verbose )
 		xtea_setup( &ctx, (unsigned char *) xtea_test_key[i] );
 		xtea_crypt_ecb( &ctx, XTEA_ENCRYPT, buf, buf );
 
-		if( memcmp( buf, xtea_test_ct[i], 8 ) != 0 )
-		{
+		if( memcmp( buf, xtea_test_ct[i], 8 ) != 0 ) {
 			if( verbose != 0 )
 				printf( "failed\n" );
 

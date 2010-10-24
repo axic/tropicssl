@@ -10,7 +10,7 @@
  *	Redistribution and use in source and binary forms, with or without
  *	modification, are permitted provided that the following conditions
  *	are met:
- *	
+ *
  *	  * Redistributions of source code must retain the above copyright
  *		notice, this list of conditions and the following disclaimer.
  *	  * Redistributions in binary form must reproduce the above copyright
@@ -19,7 +19,7 @@
  *	  * Neither the names of PolarSSL or XySSL nor the names of its contributors
  *		may be used to endorse or promote products derived from this software
  *		without specific prior written permission.
- *	
+ *
  *	THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  *	"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  *	LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
@@ -50,8 +50,8 @@
  * helper to validate the mpi size and import it
  */
 static int dhm_read_bignum( mpi *X,
-							unsigned char **p,
-							unsigned char *end )
+                            unsigned char **p,
+                            unsigned char *end )
 {
 	int ret, n;
 
@@ -76,16 +76,16 @@ static int dhm_read_bignum( mpi *X,
  * Parse the ServerKeyExchange parameters
  */
 int dhm_read_params( dhm_context *ctx,
-					 unsigned char **p,
-					 unsigned char *end )
+                     unsigned char **p,
+                     unsigned char *end )
 {
 	int ret, n;
 
 	memset( ctx, 0, sizeof( dhm_context ) );
 
 	if( ( ret = dhm_read_bignum( &ctx->P,  p, end ) ) != 0 ||
-		( ret = dhm_read_bignum( &ctx->G,  p, end ) ) != 0 ||
-		( ret = dhm_read_bignum( &ctx->GY, p, end ) ) != 0 )
+	                ( ret = dhm_read_bignum( &ctx->G,  p, end ) ) != 0 ||
+	                ( ret = dhm_read_bignum( &ctx->GY, p, end ) ) != 0 )
 		return( ret );
 
 	ctx->len = mpi_size( &ctx->P );
@@ -106,8 +106,8 @@ int dhm_read_params( dhm_context *ctx,
  * Setup and write the ServerKeyExchange parameters
  */
 int dhm_make_params( dhm_context *ctx, int x_size,
-					 unsigned char *output, int *olen,
-					 int (*f_rng)(void *), void *p_rng )
+                     unsigned char *output, int *olen,
+                     int (*f_rng)(void *), void *p_rng )
 {
 	int i, ret, n, n1, n2, n3;
 	unsigned char *p;
@@ -128,7 +128,7 @@ int dhm_make_params( dhm_context *ctx, int x_size,
 		mpi_shift_r( &ctx->X, 1 );
 
 	MPI_CHK( mpi_exp_mod( &ctx->GX, &ctx->G, &ctx->X,
-						  &ctx->P , &ctx->RP ) );
+	                      &ctx->P , &ctx->RP ) );
 
 	/*
 	 * export P, G, GX
@@ -163,7 +163,7 @@ cleanup:
  * Import the peer's public value G^Y
  */
 int dhm_read_public( dhm_context *ctx,
-					 unsigned char *input, int ilen )
+                     unsigned char *input, int ilen )
 {
 	int ret;
 
@@ -180,8 +180,8 @@ int dhm_read_public( dhm_context *ctx,
  * Create own private value X and export G^X
  */
 int dhm_make_public( dhm_context *ctx, int x_size,
-					 unsigned char *output, int olen,
-					 int (*f_rng)(void *), void *p_rng )
+                     unsigned char *output, int olen,
+                     int (*f_rng)(void *), void *p_rng )
 {
 	int ret, i, n;
 	unsigned char *p;
@@ -205,7 +205,7 @@ int dhm_make_public( dhm_context *ctx, int x_size,
 		mpi_shift_r( &ctx->X, 1 );
 
 	MPI_CHK( mpi_exp_mod( &ctx->GX, &ctx->G, &ctx->X,
-						  &ctx->P , &ctx->RP ) );
+	                      &ctx->P , &ctx->RP ) );
 
 	MPI_CHK( mpi_write_binary( &ctx->GX, output, olen ) );
 
@@ -221,7 +221,7 @@ cleanup:
  * Derive and export the shared secret (G^Y)^X mod P
  */
 int dhm_calc_secret( dhm_context *ctx,
-					 unsigned char *output, int *olen )
+                     unsigned char *output, int *olen )
 {
 	int ret;
 
@@ -229,7 +229,7 @@ int dhm_calc_secret( dhm_context *ctx,
 		return( TROPICSSL_ERR_DHM_BAD_INPUT_DATA );
 
 	MPI_CHK( mpi_exp_mod( &ctx->K, &ctx->GY, &ctx->X,
-						  &ctx->P, &ctx->RP ) );
+	                      &ctx->P, &ctx->RP ) );
 
 	*olen = mpi_size( &ctx->K );
 
@@ -249,8 +249,8 @@ cleanup:
 void dhm_free( dhm_context *ctx )
 {
 	mpi_free( &ctx->RP, &ctx->K, &ctx->GY,
-			  &ctx->GX, &ctx->X, &ctx->G,
-			  &ctx->P, NULL );	  
+	          &ctx->GX, &ctx->X, &ctx->G,
+	          &ctx->P, NULL );
 }
 
 #if defined(TROPICSSL_SELF_TEST)

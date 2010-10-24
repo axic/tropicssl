@@ -10,7 +10,7 @@
  *	Redistribution and use in source and binary forms, with or without
  *	modification, are permitted provided that the following conditions
  *	are met:
- *	
+ *
  *	  * Redistributions of source code must retain the above copyright
  *		notice, this list of conditions and the following disclaimer.
  *	  * Redistributions in binary form must reproduce the above copyright
@@ -19,7 +19,7 @@
  *	  * Neither the names of PolarSSL or XySSL nor the names of its contributors
  *		may be used to endorse or promote products derived from this software
  *		without specific prior written permission.
- *	
+ *
  *	THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  *	"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  *	LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
@@ -53,10 +53,10 @@
  * Initialize an RSA context
  */
 void rsa_init( rsa_context *ctx,
-			   int padding,
-			   int hash_id,
-			   int (*f_rng)(void *),
-			   void *p_rng )
+               int padding,
+               int hash_id,
+               int (*f_rng)(void *),
+               void *p_rng )
 {
 	memset( ctx, 0, sizeof( rsa_context ) );
 
@@ -88,13 +88,12 @@ int rsa_gen_key( rsa_context *ctx, int nbits, int exponent )
 	 */
 	MPI_CHK( mpi_lset( &ctx->E, exponent ) );
 
-	do
-	{
-		MPI_CHK( mpi_gen_prime( &ctx->P, ( nbits + 1 ) >> 1, 0, 
-								ctx->f_rng, ctx->p_rng ) );
+	do {
+		MPI_CHK( mpi_gen_prime( &ctx->P, ( nbits + 1 ) >> 1, 0,
+		                        ctx->f_rng, ctx->p_rng ) );
 
 		MPI_CHK( mpi_gen_prime( &ctx->Q, ( nbits + 1 ) >> 1, 0,
-								ctx->f_rng, ctx->p_rng ) );
+		                        ctx->f_rng, ctx->p_rng ) );
 
 		if( mpi_cmp_mpi( &ctx->P, &ctx->Q ) < 0 )
 			mpi_swap( &ctx->P, &ctx->Q );
@@ -110,8 +109,7 @@ int rsa_gen_key( rsa_context *ctx, int nbits, int exponent )
 		MPI_CHK( mpi_sub_int( &Q1, &ctx->Q, 1 ) );
 		MPI_CHK( mpi_mul_mpi( &H, &P1, &Q1 ) );
 		MPI_CHK( mpi_gcd( &G, &ctx->E, &H  ) );
-	}
-	while( mpi_cmp_int( &G, 1 ) != 0 );
+	} while( mpi_cmp_int( &G, 1 ) != 0 );
 
 	/*
 	 * D  = E^-1 mod ((P-1)*(Q-1))
@@ -130,13 +128,12 @@ cleanup:
 
 	mpi_free( &G, &H, &Q1, &P1, NULL );
 
-	if( ret != 0 )
-	{
+	if( ret != 0 ) {
 		rsa_free( ctx );
 		return( TROPICSSL_ERR_RSA_KEY_GEN_FAILED | ret );
 	}
 
-	return( 0 );   
+	return( 0 );
 }
 
 #endif
@@ -146,16 +143,16 @@ cleanup:
  */
 int rsa_check_pubkey( rsa_context *ctx )
 {
-	if( ( ctx->N.p[0] & 1 ) == 0 || 
-		( ctx->E.p[0] & 1 ) == 0 )
+	if( ( ctx->N.p[0] & 1 ) == 0 ||
+	                ( ctx->E.p[0] & 1 ) == 0 )
 		return( TROPICSSL_ERR_RSA_KEY_CHECK_FAILED );
 
 	if( mpi_msb( &ctx->N ) < 128 ||
-		mpi_msb( &ctx->N ) > 4096 )
+	                mpi_msb( &ctx->N ) > 4096 )
 		return( TROPICSSL_ERR_RSA_KEY_CHECK_FAILED );
 
 	if( mpi_msb( &ctx->E ) < 2 ||
-		mpi_msb( &ctx->E ) > 64 )
+	                mpi_msb( &ctx->E ) > 64 )
 		return( TROPICSSL_ERR_RSA_KEY_CHECK_FAILED );
 
 	return( 0 );
@@ -183,9 +180,8 @@ int rsa_check_privkey( rsa_context *ctx )
 	MPI_CHK( mpi_gcd( &G, &ctx->E, &H  ) );
 
 	if( mpi_cmp_mpi( &PQ, &ctx->N ) == 0 &&
-		mpi_cmp_int( &I, 1 ) == 0 &&
-		mpi_cmp_int( &G, 1 ) == 0 )
-	{
+	                mpi_cmp_int( &I, 1 ) == 0 &&
+	                mpi_cmp_int( &G, 1 ) == 0 ) {
 		mpi_free( &G, &I, &H, &Q1, &P1, &DE, &PQ, NULL );
 		return( 0 );
 	}
@@ -200,8 +196,8 @@ cleanup:
  * Do an RSA public key operation
  */
 int rsa_public( rsa_context *ctx,
-				unsigned char *input,
-				unsigned char *output )
+                unsigned char *input,
+                unsigned char *output )
 {
 	int ret, olen;
 	mpi T;
@@ -210,8 +206,7 @@ int rsa_public( rsa_context *ctx,
 
 	MPI_CHK( mpi_read_binary( &T, input, ctx->len ) );
 
-	if( mpi_cmp_mpi( &T, &ctx->N ) >= 0 )
-	{
+	if( mpi_cmp_mpi( &T, &ctx->N ) >= 0 ) {
 		mpi_free( &T, NULL );
 		return( TROPICSSL_ERR_RSA_BAD_INPUT_DATA );
 	}
@@ -234,8 +229,8 @@ cleanup:
  * Do an RSA private key operation
  */
 int rsa_private( rsa_context *ctx,
-				 unsigned char *input,
-				 unsigned char *output )
+                 unsigned char *input,
+                 unsigned char *output )
 {
 	int ret, olen;
 	mpi T, T1, T2;
@@ -244,8 +239,7 @@ int rsa_private( rsa_context *ctx,
 
 	MPI_CHK( mpi_read_binary( &T, input, ctx->len ) );
 
-	if( mpi_cmp_mpi( &T, &ctx->N ) >= 0 )
-	{
+	if( mpi_cmp_mpi( &T, &ctx->N ) >= 0 ) {
 		mpi_free( &T, NULL );
 		return( TROPICSSL_ERR_RSA_BAD_INPUT_DATA );
 	}
@@ -293,17 +287,16 @@ cleanup:
  * Add the message padding, then do an RSA operation
  */
 int rsa_pkcs1_encrypt( rsa_context *ctx,
-					   int mode, int  ilen,
-					   unsigned char *input,
-					   unsigned char *output )
+                       int mode, int  ilen,
+                       unsigned char *input,
+                       unsigned char *output )
 {
 	int nb_pad, olen;
 	unsigned char *p = output;
 
 	olen = ctx->len;
 
-	switch( ctx->padding )
-	{
+	switch( ctx->padding ) {
 	case RSA_PKCS_V15:
 
 		if( ilen < 0 || olen < ilen + 11 )
@@ -314,8 +307,7 @@ int rsa_pkcs1_encrypt( rsa_context *ctx,
 		*p++ = 0;
 		*p++ = RSA_CRYPT;
 
-		while( nb_pad-- > 0 )
-		{
+		while( nb_pad-- > 0 ) {
 			do {
 				*p = (unsigned char) rand();
 			} while( *p == 0 );
@@ -331,18 +323,18 @@ int rsa_pkcs1_encrypt( rsa_context *ctx,
 	}
 
 	return( ( mode == RSA_PUBLIC )
-			? rsa_public(  ctx, output, output )
-			: rsa_private( ctx, output, output ) );
+	        ? rsa_public(  ctx, output, output )
+	        : rsa_private( ctx, output, output ) );
 }
 
 /*
  * Do an RSA operation, then remove the message padding
  */
 int rsa_pkcs1_decrypt( rsa_context *ctx,
-					   int mode, int *olen,
-					   unsigned char *input,
-					   unsigned char *output,
-					   int output_max_len)
+                       int mode, int *olen,
+                       unsigned char *input,
+                       unsigned char *output,
+                       int output_max_len)
 {
 	int ret, ilen;
 	unsigned char *p;
@@ -354,23 +346,21 @@ int rsa_pkcs1_decrypt( rsa_context *ctx,
 		return( TROPICSSL_ERR_RSA_BAD_INPUT_DATA );
 
 	ret = ( mode == RSA_PUBLIC )
-		? rsa_public(	 ctx, input, buf )
-		: rsa_private( ctx, input, buf );
+	      ? rsa_public(	 ctx, input, buf )
+	      : rsa_private( ctx, input, buf );
 
 	if( ret != 0 )
 		return( ret );
 
 	p = buf;
 
-	switch( ctx->padding )
-	{
+	switch( ctx->padding ) {
 	case RSA_PKCS_V15:
 
 		if( *p++ != 0 || *p++ != RSA_CRYPT )
 			return( TROPICSSL_ERR_RSA_INVALID_PADDING );
 
-		while( *p != 0 )
-		{
+		while( *p != 0 ) {
 			if( p >= buf + ilen - 1 )
 				return( TROPICSSL_ERR_RSA_INVALID_PADDING );
 			p++;
@@ -396,23 +386,21 @@ int rsa_pkcs1_decrypt( rsa_context *ctx,
  * Do an RSA operation to sign the message digest
  */
 int rsa_pkcs1_sign( rsa_context *ctx,
-					int mode,
-					int hash_id,
-					int hashlen,
-					unsigned char *hash,
-					unsigned char *sig )
+                    int mode,
+                    int hash_id,
+                    int hashlen,
+                    unsigned char *hash,
+                    unsigned char *sig )
 {
 	int nb_pad, olen;
 	unsigned char *p = sig;
 
 	olen = ctx->len;
 
-	switch( ctx->padding )
-	{
+	switch( ctx->padding ) {
 	case RSA_PKCS_V15:
 
-		switch( hash_id )
-		{
+		switch( hash_id ) {
 		case RSA_RAW:
 			nb_pad = olen - 3 - hashlen;
 			break;
@@ -446,8 +434,7 @@ int rsa_pkcs1_sign( rsa_context *ctx,
 		return( TROPICSSL_ERR_RSA_INVALID_PADDING );
 	}
 
-	switch( hash_id )
-	{
+	switch( hash_id ) {
 	case RSA_RAW:
 		memcpy( p, hash, hashlen );
 		break;
@@ -455,17 +442,20 @@ int rsa_pkcs1_sign( rsa_context *ctx,
 	case RSA_MD2:
 		memcpy( p, ASN1_HASH_MDX, 18 );
 		memcpy( p + 18, hash, 16 );
-		p[13] = 2; break;
+		p[13] = 2;
+		break;
 
 	case RSA_MD4:
 		memcpy( p, ASN1_HASH_MDX, 18 );
 		memcpy( p + 18, hash, 16 );
-		p[13] = 4; break;
+		p[13] = 4;
+		break;
 
 	case RSA_MD5:
 		memcpy( p, ASN1_HASH_MDX, 18 );
 		memcpy( p + 18, hash, 16 );
-		p[13] = 5; break;
+		p[13] = 5;
+		break;
 
 	case RSA_SHA1:
 		memcpy( p, ASN1_HASH_SHA1, 15 );
@@ -477,19 +467,19 @@ int rsa_pkcs1_sign( rsa_context *ctx,
 	}
 
 	return( ( mode == RSA_PUBLIC )
-			? rsa_public(  ctx, sig, sig )
-			: rsa_private( ctx, sig, sig ) );
+	        ? rsa_public(  ctx, sig, sig )
+	        : rsa_private( ctx, sig, sig ) );
 }
 
 /*
  * Do an RSA operation and check the message digest
  */
 int rsa_pkcs1_verify( rsa_context *ctx,
-					  int mode,
-					  int hash_id,
-					  int hashlen,
-					  unsigned char *hash,
-					  unsigned char *sig )
+                      int mode,
+                      int hash_id,
+                      int hashlen,
+                      unsigned char *hash,
+                      unsigned char *sig )
 {
 	int ret, len, siglen;
 	unsigned char *p, c;
@@ -501,23 +491,21 @@ int rsa_pkcs1_verify( rsa_context *ctx,
 		return( TROPICSSL_ERR_RSA_BAD_INPUT_DATA );
 
 	ret = ( mode == RSA_PUBLIC )
-		? rsa_public(	 ctx, sig, buf )
-		: rsa_private( ctx, sig, buf );
+	      ? rsa_public(	 ctx, sig, buf )
+	      : rsa_private( ctx, sig, buf );
 
 	if( ret != 0 )
 		return( ret );
 
 	p = buf;
 
-	switch( ctx->padding )
-	{
+	switch( ctx->padding ) {
 	case RSA_PKCS_V15:
 
 		if( *p++ != 0 || *p++ != RSA_SIGN )
 			return( TROPICSSL_ERR_RSA_INVALID_PADDING );
 
-		while( *p != 0 )
-		{
+		while( *p != 0 ) {
 			if( p >= buf + siglen - 1 || *p != 0xFF )
 				return( TROPICSSL_ERR_RSA_INVALID_PADDING );
 			p++;
@@ -532,8 +520,7 @@ int rsa_pkcs1_verify( rsa_context *ctx,
 
 	len = siglen - (int)( p - buf );
 
-	if( len == 34 )
-	{
+	if( len == 34 ) {
 		c = p[13];
 		p[13] = 0;
 
@@ -541,27 +528,24 @@ int rsa_pkcs1_verify( rsa_context *ctx,
 			return( TROPICSSL_ERR_RSA_VERIFY_FAILED );
 
 		if( ( c == 2 && hash_id == RSA_MD2 ) ||
-			( c == 4 && hash_id == RSA_MD4 ) ||
-			( c == 5 && hash_id == RSA_MD5 ) )
-		{
-			if( memcmp( p + 18, hash, 16 ) == 0 ) 
+		                ( c == 4 && hash_id == RSA_MD4 ) ||
+		                ( c == 5 && hash_id == RSA_MD5 ) ) {
+			if( memcmp( p + 18, hash, 16 ) == 0 )
 				return( 0 );
 			else
 				return( TROPICSSL_ERR_RSA_VERIFY_FAILED );
 		}
 	}
 
-	if( len == 35 && hash_id == RSA_SHA1 )
-	{
+	if( len == 35 && hash_id == RSA_SHA1 ) {
 		if( memcmp( p, ASN1_HASH_SHA1, 15 ) == 0 &&
-			memcmp( p + 15, hash, 20 ) == 0 )
+		                memcmp( p + 15, hash, 20 ) == 0 )
 			return( 0 );
 		else
 			return( TROPICSSL_ERR_RSA_VERIFY_FAILED );
 	}
 
-	if( len == hashlen && hash_id == RSA_RAW )
-	{
+	if( len == hashlen && hash_id == RSA_RAW ) {
 		if( memcmp( p, hash, hashlen ) == 0 )
 			return( 0 );
 		else
@@ -577,9 +561,9 @@ int rsa_pkcs1_verify( rsa_context *ctx,
 void rsa_free( rsa_context *ctx )
 {
 	mpi_free( &ctx->RQ, &ctx->RP, &ctx->RN,
-			  &ctx->QP, &ctx->DQ, &ctx->DP,
-			  &ctx->Q,	&ctx->P,  &ctx->D,
-			  &ctx->E,	&ctx->N,  NULL );
+	          &ctx->QP, &ctx->DQ, &ctx->DP,
+	          &ctx->Q,	&ctx->P,  &ctx->D,
+	          &ctx->E,	&ctx->N,  NULL );
 }
 
 #if defined(TROPICSSL_SELF_TEST)
@@ -668,8 +652,7 @@ int rsa_self_test( int verbose )
 		printf( "  RSA key validation: " );
 
 	if( rsa_check_pubkey(  &rsa ) != 0 ||
-		rsa_check_privkey( &rsa ) != 0 )
-	{
+	                rsa_check_privkey( &rsa ) != 0 ) {
 		if( verbose != 0 )
 			printf( "failed\n" );
 
@@ -682,8 +665,7 @@ int rsa_self_test( int verbose )
 	memcpy( rsa_plaintext, RSA_PT, PT_LEN );
 
 	if( rsa_pkcs1_encrypt( &rsa, RSA_PUBLIC, PT_LEN,
-						   rsa_plaintext, rsa_ciphertext ) != 0 )
-	{
+	                       rsa_plaintext, rsa_ciphertext ) != 0 ) {
 		if( verbose != 0 )
 			printf( "failed\n" );
 
@@ -694,17 +676,15 @@ int rsa_self_test( int verbose )
 		printf( "passed\n  PKCS#1 decryption : " );
 
 	if( rsa_pkcs1_decrypt( &rsa, RSA_PRIVATE, &len,
-						   rsa_ciphertext, rsa_decrypted,
-						   sizeof(rsa_decrypted) ) != 0 )
-	{
+	                       rsa_ciphertext, rsa_decrypted,
+	                       sizeof(rsa_decrypted) ) != 0 ) {
 		if( verbose != 0 )
 			printf( "failed\n" );
 
 		return( 1 );
 	}
 
-	if( memcmp( rsa_decrypted, rsa_plaintext, len ) != 0 )
-	{
+	if( memcmp( rsa_decrypted, rsa_plaintext, len ) != 0 ) {
 		if( verbose != 0 )
 			printf( "failed\n" );
 
@@ -717,8 +697,7 @@ int rsa_self_test( int verbose )
 	sha1( rsa_plaintext, PT_LEN, sha1sum );
 
 	if( rsa_pkcs1_sign( &rsa, RSA_PRIVATE, RSA_SHA1, 20,
-						sha1sum, rsa_ciphertext ) != 0 )
-	{
+	                    sha1sum, rsa_ciphertext ) != 0 ) {
 		if( verbose != 0 )
 			printf( "failed\n" );
 
@@ -729,8 +708,7 @@ int rsa_self_test( int verbose )
 		printf( "passed\n  PKCS#1 sig. verify: " );
 
 	if( rsa_pkcs1_verify( &rsa, RSA_PUBLIC, RSA_SHA1, 20,
-						  sha1sum, rsa_ciphertext ) != 0 )
-	{
+	                      sha1sum, rsa_ciphertext ) != 0 ) {
 		if( verbose != 0 )
 			printf( "failed\n" );
 

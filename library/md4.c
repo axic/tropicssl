@@ -10,7 +10,7 @@
  *	Redistribution and use in source and binary forms, with or without
  *	modification, are permitted provided that the following conditions
  *	are met:
- *	
+ *
  *	  * Redistributions of source code must retain the above copyright
  *		notice, this list of conditions and the following disclaimer.
  *	  * Redistributions in binary form must reproduce the above copyright
@@ -19,7 +19,7 @@
  *	  * Neither the names of PolarSSL or XySSL nor the names of its contributors
  *		may be used to endorse or promote products derived from this software
  *		without specific prior written permission.
- *	
+ *
  *	THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  *	"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  *	LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
@@ -208,32 +208,28 @@ void md4_update( md4_context *ctx, unsigned char *input, int ilen )
 	if( ctx->total[0] < (unsigned long) ilen )
 		ctx->total[1]++;
 
-	if( left && ilen >= fill )
-	{
+	if( left && ilen >= fill ) {
 		memcpy( (void *) (ctx->buffer + left),
-				(void *) input, fill );
+		        (void *) input, fill );
 		md4_process( ctx, ctx->buffer );
 		input += fill;
 		ilen  -= fill;
 		left = 0;
 	}
 
-	while( ilen >= 64 )
-	{
+	while( ilen >= 64 ) {
 		md4_process( ctx, input );
 		input += 64;
 		ilen  -= 64;
 	}
 
-	if( ilen > 0 )
-	{
+	if( ilen > 0 ) {
 		memcpy( (void *) (ctx->buffer + left),
-				(void *) input, ilen );
+		        (void *) input, ilen );
 	}
 }
 
-static const unsigned char md4_padding[64] =
-{
+static const unsigned char md4_padding[64] = {
 	0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -250,7 +246,7 @@ void md4_finish( md4_context *ctx, unsigned char output[16] )
 	unsigned char msglen[8];
 
 	high = ( ctx->total[0] >> 29 )
-		| ( ctx->total[1] <<  3 );
+	       | ( ctx->total[1] <<  3 );
 	low	 = ( ctx->total[0] <<  3 );
 
 	PUT_ULONG_LE( low,	msglen, 0 );
@@ -304,8 +300,7 @@ int md4_file( char *path, unsigned char output[16] )
 
 	memset( &ctx, 0, sizeof( md4_context ) );
 
-	if( ferror( f ) != 0 )
-	{
+	if( ferror( f ) != 0 ) {
 		fclose( f );
 		return( 2 );
 	}
@@ -322,8 +317,7 @@ void md4_hmac_starts( md4_context *ctx, unsigned char *key, int keylen )
 	int i;
 	unsigned char sum[16];
 
-	if( keylen > 64 )
-	{
+	if( keylen > 64 ) {
 		md4( key, keylen, sum );
 		keylen = 16;
 		key = sum;
@@ -332,8 +326,7 @@ void md4_hmac_starts( md4_context *ctx, unsigned char *key, int keylen )
 	memset( ctx->ipad, 0x36, 64 );
 	memset( ctx->opad, 0x5C, 64 );
 
-	for( i = 0; i < keylen; i++ )
-	{
+	for( i = 0; i < keylen; i++ ) {
 		ctx->ipad[i] = (unsigned char)( ctx->ipad[i] ^ key[i] );
 		ctx->opad[i] = (unsigned char)( ctx->opad[i] ^ key[i] );
 	}
@@ -372,7 +365,7 @@ void md4_hmac_finish( md4_context *ctx, unsigned char output[16] )
  * output = HMAC-MD4( hmac key, input buffer )
  */
 void md4_hmac( unsigned char *key, int keylen, unsigned char *input, int ilen,
-			   unsigned char output[16] )
+               unsigned char output[16] )
 {
 	md4_context ctx;
 
@@ -388,34 +381,48 @@ void md4_hmac( unsigned char *key, int keylen, unsigned char *input, int ilen,
 /*
  * RFC 1320 test vectors
  */
-static const char md4_test_str[7][81] =
-{
-	{ "" }, 
+static const char md4_test_str[7][81] = {
+	{ "" },
 	{ "a" },
 	{ "abc" },
 	{ "message digest" },
 	{ "abcdefghijklmnopqrstuvwxyz" },
 	{ "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789" },
-	{ "12345678901234567890123456789012345678901234567890123456789012" \
-	  "345678901234567890" }
+	{
+		"12345678901234567890123456789012345678901234567890123456789012" \
+		"345678901234567890"
+	}
 };
 
-static const unsigned char md4_test_sum[7][16] =
-{
-	{ 0x31, 0xD6, 0xCF, 0xE0, 0xD1, 0x6A, 0xE9, 0x31,
-	  0xB7, 0x3C, 0x59, 0xD7, 0xE0, 0xC0, 0x89, 0xC0 },
-	{ 0xBD, 0xE5, 0x2C, 0xB3, 0x1D, 0xE3, 0x3E, 0x46,
-	  0x24, 0x5E, 0x05, 0xFB, 0xDB, 0xD6, 0xFB, 0x24 },
-	{ 0xA4, 0x48, 0x01, 0x7A, 0xAF, 0x21, 0xD8, 0x52,
-	  0x5F, 0xC1, 0x0A, 0xE8, 0x7A, 0xA6, 0x72, 0x9D },
-	{ 0xD9, 0x13, 0x0A, 0x81, 0x64, 0x54, 0x9F, 0xE8,
-	  0x18, 0x87, 0x48, 0x06, 0xE1, 0xC7, 0x01, 0x4B },
-	{ 0xD7, 0x9E, 0x1C, 0x30, 0x8A, 0xA5, 0xBB, 0xCD,
-	  0xEE, 0xA8, 0xED, 0x63, 0xDF, 0x41, 0x2D, 0xA9 },
-	{ 0x04, 0x3F, 0x85, 0x82, 0xF2, 0x41, 0xDB, 0x35,
-	  0x1C, 0xE6, 0x27, 0xE1, 0x53, 0xE7, 0xF0, 0xE4 },
-	{ 0xE3, 0x3B, 0x4D, 0xDC, 0x9C, 0x38, 0xF2, 0x19,
-	  0x9C, 0x3E, 0x7B, 0x16, 0x4F, 0xCC, 0x05, 0x36 }
+static const unsigned char md4_test_sum[7][16] = {
+	{
+		0x31, 0xD6, 0xCF, 0xE0, 0xD1, 0x6A, 0xE9, 0x31,
+		0xB7, 0x3C, 0x59, 0xD7, 0xE0, 0xC0, 0x89, 0xC0
+	},
+	{
+		0xBD, 0xE5, 0x2C, 0xB3, 0x1D, 0xE3, 0x3E, 0x46,
+		0x24, 0x5E, 0x05, 0xFB, 0xDB, 0xD6, 0xFB, 0x24
+	},
+	{
+		0xA4, 0x48, 0x01, 0x7A, 0xAF, 0x21, 0xD8, 0x52,
+		0x5F, 0xC1, 0x0A, 0xE8, 0x7A, 0xA6, 0x72, 0x9D
+	},
+	{
+		0xD9, 0x13, 0x0A, 0x81, 0x64, 0x54, 0x9F, 0xE8,
+		0x18, 0x87, 0x48, 0x06, 0xE1, 0xC7, 0x01, 0x4B
+	},
+	{
+		0xD7, 0x9E, 0x1C, 0x30, 0x8A, 0xA5, 0xBB, 0xCD,
+		0xEE, 0xA8, 0xED, 0x63, 0xDF, 0x41, 0x2D, 0xA9
+	},
+	{
+		0x04, 0x3F, 0x85, 0x82, 0xF2, 0x41, 0xDB, 0x35,
+		0x1C, 0xE6, 0x27, 0xE1, 0x53, 0xE7, 0xF0, 0xE4
+	},
+	{
+		0xE3, 0x3B, 0x4D, 0xDC, 0x9C, 0x38, 0xF2, 0x19,
+		0x9C, 0x3E, 0x7B, 0x16, 0x4F, 0xCC, 0x05, 0x36
+	}
 };
 
 /*
@@ -426,16 +433,14 @@ int md4_self_test( int verbose )
 	int i;
 	unsigned char md4sum[16];
 
-	for( i = 0; i < 7; i++ )
-	{
+	for( i = 0; i < 7; i++ ) {
 		if( verbose != 0 )
 			printf( "  MD4 test #%d: ", i + 1 );
 
 		md4( (unsigned char *) md4_test_str[i],
-			 strlen( md4_test_str[i] ), md4sum );
+		     strlen( md4_test_str[i] ), md4sum );
 
-		if( memcmp( md4sum, md4_test_sum[i], 16 ) != 0 )
-		{
+		if( memcmp( md4sum, md4_test_sum[i], 16 ) != 0 ) {
 			if( verbose != 0 )
 				printf( "failed\n" );
 

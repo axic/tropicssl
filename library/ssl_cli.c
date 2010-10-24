@@ -10,7 +10,7 @@
  *	Redistribution and use in source and binary forms, with or without
  *	modification, are permitted provided that the following conditions
  *	are met:
- *	
+ *
  *	  * Redistributions of source code must retain the above copyright
  *		notice, this list of conditions and the following disclaimer.
  *	  * Redistributions in binary form must reproduce the above copyright
@@ -19,7 +19,7 @@
  *	  * Neither the names of PolarSSL or XySSL nor the names of its contributors
  *		may be used to endorse or promote products derived from this software
  *		without specific prior written permission.
- *	
+ *
  *	THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  *	"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  *	LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
@@ -74,7 +74,7 @@ static int ssl_write_client_hello( ssl_context *ssl )
 	*p++ = (unsigned char) ssl->max_minor_ver;
 
 	SSL_DEBUG_MSG( 3, ( "client hello, max version: [%d:%d]",
-						buf[4], buf[5] ) );
+	                    buf[4], buf[5] ) );
 
 	t = time( NULL );
 	*p++ = (unsigned char)( t >> 24 );
@@ -102,7 +102,7 @@ static int ssl_write_client_hello( ssl_context *ssl )
 	n = ssl->session->length;
 
 	if( n < 16 || n > 32 || ssl->resume == 0 ||
-		t - ssl->session->start > ssl->timeout )
+	                t - ssl->session->start > ssl->timeout )
 		n = 0;
 
 	*p++ = (unsigned char) n;
@@ -119,10 +119,9 @@ static int ssl_write_client_hello( ssl_context *ssl )
 
 	SSL_DEBUG_MSG( 3, ( "client hello, got %d ciphers", n ) );
 
-	for( i = 0; i < n; i++ )
-	{
+	for( i = 0; i < n; i++ ) {
 		SSL_DEBUG_MSG( 3, ( "client hello, add cipher: %2d",
-							ssl->ciphers[i] ) );
+		                    ssl->ciphers[i] ) );
 
 		*p++ = (unsigned char)( ssl->ciphers[i] >> 8 );
 		*p++ = (unsigned char)( ssl->ciphers[i]		 );
@@ -134,10 +133,9 @@ static int ssl_write_client_hello( ssl_context *ssl )
 	*p++ = 1;
 	*p++ = SSL_COMPRESS_NULL;
 
-	if ( ssl->hostname != NULL )
-	{
+	if ( ssl->hostname != NULL ) {
 		SSL_DEBUG_MSG( 3, ( "client hello, server name extension: %s",
-							ssl->hostname ) );
+		                    ssl->hostname ) );
 
 		*p++ = (unsigned char)( ( (ssl->hostname_len + 9) >> 8 ) & 0xFF );
 		*p++ = (unsigned char)( ( (ssl->hostname_len + 9)	   ) & 0xFF );
@@ -166,8 +164,7 @@ static int ssl_write_client_hello( ssl_context *ssl )
 
 	ssl->state++;
 
-	if( ( ret = ssl_write_record( ssl ) ) != 0 )
-	{
+	if( ( ret = ssl_write_record( ssl ) ) != 0 ) {
 		SSL_DEBUG_RET( 1, "ssl_write_record", ret );
 		return( ret );
 	}
@@ -195,32 +192,28 @@ static int ssl_parse_server_hello( ssl_context *ssl )
 	 */
 	buf = ssl->in_msg;
 
-	if( ( ret = ssl_read_record( ssl ) ) != 0 )
-	{
+	if( ( ret = ssl_read_record( ssl ) ) != 0 ) {
 		SSL_DEBUG_RET( 1, "ssl_read_record", ret );
 		return( ret );
 	}
 
-	if( ssl->in_msgtype != SSL_MSG_HANDSHAKE )
-	{
+	if( ssl->in_msgtype != SSL_MSG_HANDSHAKE ) {
 		SSL_DEBUG_MSG( 1, ( "bad server hello message" ) );
 		return( TROPICSSL_ERR_SSL_UNEXPECTED_MESSAGE );
 	}
 
 	SSL_DEBUG_MSG( 3, ( "server hello, chosen version: [%d:%d]",
-						buf[4], buf[5] ) );
+	                    buf[4], buf[5] ) );
 
 	if( ssl->in_hslen < 42 ||
-		buf[0] != SSL_HS_SERVER_HELLO ||
-		buf[4] != SSL_MAJOR_VERSION_3 )
-	{
+	                buf[0] != SSL_HS_SERVER_HELLO ||
+	                buf[4] != SSL_MAJOR_VERSION_3 ) {
 		SSL_DEBUG_MSG( 1, ( "bad server hello message" ) );
 		return( TROPICSSL_ERR_SSL_BAD_HS_SERVER_HELLO );
 	}
 
 	if( buf[5] != SSL_MINOR_VERSION_0 &&
-		buf[5] != SSL_MINOR_VERSION_1 )
-	{
+	                buf[5] != SSL_MINOR_VERSION_1 ) {
 		SSL_DEBUG_MSG( 1, ( "bad server hello message" ) );
 		return( TROPICSSL_ERR_SSL_BAD_HS_SERVER_HELLO );
 	}
@@ -228,9 +221,9 @@ static int ssl_parse_server_hello( ssl_context *ssl )
 	ssl->minor_ver = buf[5];
 
 	t = ( (time_t) buf[6] << 24 )
-		| ( (time_t) buf[7] << 16 )
-		| ( (time_t) buf[8] <<	8 )
-		| ( (time_t) buf[9]		  );
+	    | ( (time_t) buf[7] << 16 )
+	    | ( (time_t) buf[8] <<	8 )
+	    | ( (time_t) buf[9]		  );
 
 	memcpy( ssl->randbytes + 32, buf + 6, 32 );
 
@@ -247,18 +240,14 @@ static int ssl_parse_server_hello( ssl_context *ssl )
 	 *	 42+n . 43+n  extensions length
 	 *	 44+n . 44+n+m extensions
 	 */
-	if( n < 0 || n > 32 || ssl->in_hslen > 42 + n )
-	{
+	if( n < 0 || n > 32 || ssl->in_hslen > 42 + n ) {
 		ext_len = ( ( buf[42 + n] <<  8 )
-					| ( buf[43 + n]		  ) ) + 2;
-	}
-	else
-	{
+		            | ( buf[43 + n]		  ) ) + 2;
+	} else {
 		ext_len = 0;
 	}
 
-	if( n < 0 || n > 32 || ssl->in_hslen != 42 + n + ext_len )
-	{
+	if( n < 0 || n > 32 || ssl->in_hslen != 42 + n + ext_len ) {
 		SSL_DEBUG_MSG( 1, ( "bad server hello message" ) );
 		return( TROPICSSL_ERR_SSL_BAD_HS_SERVER_HELLO );
 	}
@@ -272,34 +261,29 @@ static int ssl_parse_server_hello( ssl_context *ssl )
 	 * Check if the session can be resumed
 	 */
 	if( ssl->resume == 0 || n == 0 ||
-		ssl->session->cipher  != i ||
-		ssl->session->length  != n ||
-		memcmp( ssl->session->id, buf + 39, n ) != 0 )
-	{
+	                ssl->session->cipher  != i ||
+	                ssl->session->length  != n ||
+	                memcmp( ssl->session->id, buf + 39, n ) != 0 ) {
 		ssl->state++;
 		ssl->resume = 0;
 		ssl->session->start = time( NULL );
 		ssl->session->cipher = i;
 		ssl->session->length = n;
 		memcpy( ssl->session->id, buf + 39, n );
-	}
-	else
-	{
+	} else {
 		ssl->state = SSL_SERVER_CHANGE_CIPHER_SPEC;
 		ssl_derive_keys( ssl );
 	}
 
 	SSL_DEBUG_MSG( 3, ( "%s session has been resumed",
-						ssl->resume ? "a" : "no" ) );
+	                    ssl->resume ? "a" : "no" ) );
 
 	SSL_DEBUG_MSG( 3, ( "server hello, chosen cipher: %d", i ) );
 	SSL_DEBUG_MSG( 3, ( "server hello, compress alg.: %d", buf[41 + n] ) );
 
 	i = 0;
-	while( 1 )
-	{
-		if( ssl->ciphers[i] == 0 )
-		{
+	while( 1 ) {
+		if( ssl->ciphers[i] == 0 ) {
 			SSL_DEBUG_MSG( 1, ( "bad server hello message" ) );
 			return( TROPICSSL_ERR_SSL_BAD_HS_SERVER_HELLO );
 		}
@@ -308,8 +292,7 @@ static int ssl_parse_server_hello( ssl_context *ssl )
 			break;
 	}
 
-	if( buf[41 + n] != SSL_COMPRESS_NULL )
-	{
+	if( buf[41 + n] != SSL_COMPRESS_NULL ) {
 		SSL_DEBUG_MSG( 1, ( "bad server hello message" ) );
 		return( TROPICSSL_ERR_SSL_BAD_HS_SERVER_HELLO );
 	}
@@ -332,9 +315,8 @@ static int ssl_parse_server_key_exchange( ssl_context *ssl )
 	SSL_DEBUG_MSG( 2, ( "=> parse server key exchange" ) );
 
 	if( ssl->session->cipher != SSL_EDH_RSA_DES_168_SHA &&
-		ssl->session->cipher != SSL_EDH_RSA_AES_256_SHA &&
-		ssl->session->cipher != SSL_EDH_RSA_CAMELLIA_256_SHA)
-	{
+	                ssl->session->cipher != SSL_EDH_RSA_AES_256_SHA &&
+	                ssl->session->cipher != SSL_EDH_RSA_CAMELLIA_256_SHA) {
 		SSL_DEBUG_MSG( 2, ( "<= skip parse server key exchange" ) );
 		ssl->state++;
 		return( 0 );
@@ -344,20 +326,17 @@ static int ssl_parse_server_key_exchange( ssl_context *ssl )
 	SSL_DEBUG_MSG( 1, ( "support for dhm in not available" ) );
 	return( TROPICSSL_ERR_SSL_FEATURE_UNAVAILABLE );
 #else
-	if( ( ret = ssl_read_record( ssl ) ) != 0 )
-	{
+	if( ( ret = ssl_read_record( ssl ) ) != 0 ) {
 		SSL_DEBUG_RET( 1, "ssl_read_record", ret );
 		return( ret );
 	}
 
-	if( ssl->in_msgtype != SSL_MSG_HANDSHAKE )
-	{
+	if( ssl->in_msgtype != SSL_MSG_HANDSHAKE ) {
 		SSL_DEBUG_MSG( 1, ( "bad server key exchange message" ) );
 		return( TROPICSSL_ERR_SSL_UNEXPECTED_MESSAGE );
 	}
 
-	if( ssl->in_msg[0] != SSL_HS_SERVER_KEY_EXCHANGE )
-	{
+	if( ssl->in_msg[0] != SSL_HS_SERVER_KEY_EXCHANGE ) {
 		SSL_DEBUG_MSG( 1, ( "bad server key exchange message" ) );
 		return( TROPICSSL_ERR_SSL_BAD_HS_SERVER_KEY_EXCHANGE );
 	}
@@ -374,20 +353,17 @@ static int ssl_parse_server_key_exchange( ssl_context *ssl )
 	p	= ssl->in_msg + 4;
 	end = ssl->in_msg + ssl->in_hslen;
 
-	if( ( ret = dhm_read_params( &ssl->dhm_ctx, &p, end ) ) != 0 )
-	{
+	if( ( ret = dhm_read_params( &ssl->dhm_ctx, &p, end ) ) != 0 ) {
 		SSL_DEBUG_MSG( 1, ( "bad server key exchange message" ) );
 		return( TROPICSSL_ERR_SSL_BAD_HS_SERVER_KEY_EXCHANGE );
 	}
 
-	if( (int)( end - p ) != ssl->peer_cert->rsa.len )
-	{
+	if( (int)( end - p ) != ssl->peer_cert->rsa.len ) {
 		SSL_DEBUG_MSG( 1, ( "bad server key exchange message" ) );
 		return( TROPICSSL_ERR_SSL_BAD_HS_SERVER_KEY_EXCHANGE );
 	}
 
-	if( ssl->dhm_ctx.len < 64 || ssl->dhm_ctx.len > 256 )
-	{
+	if( ssl->dhm_ctx.len < 64 || ssl->dhm_ctx.len > 256 ) {
 		SSL_DEBUG_MSG( 1, ( "bad server key exchange message" ) );
 		return( TROPICSSL_ERR_SSL_BAD_HS_SERVER_KEY_EXCHANGE );
 	}
@@ -424,8 +400,7 @@ static int ssl_parse_server_key_exchange( ssl_context *ssl )
 	SSL_DEBUG_BUF( 3, "parameters hash", hash, 36 );
 
 	if( ( ret = rsa_pkcs1_verify( &ssl->peer_cert->rsa, RSA_PUBLIC,
-								  RSA_RAW, 36, hash, p ) ) != 0 )
-	{
+	                              RSA_RAW, 36, hash, p ) ) != 0 ) {
 		SSL_DEBUG_RET( 1, "rsa_pkcs1_verify", ret );
 		return( ret );
 	}
@@ -455,14 +430,12 @@ static int ssl_parse_certificate_request( ssl_context *ssl )
 	 *	  n+4 .. ...  Distinguished Name #1
 	 *	  ... .. ...  length of DN 2, etc.
 	 */
-	if( ( ret = ssl_read_record( ssl ) ) != 0 )
-	{
+	if( ( ret = ssl_read_record( ssl ) ) != 0 ) {
 		SSL_DEBUG_RET( 1, "ssl_read_record", ret );
 		return( ret );
 	}
 
-	if( ssl->in_msgtype != SSL_MSG_HANDSHAKE )
-	{
+	if( ssl->in_msgtype != SSL_MSG_HANDSHAKE ) {
 		SSL_DEBUG_MSG( 1, ( "bad certificate request message" ) );
 		return( TROPICSSL_ERR_SSL_UNEXPECTED_MESSAGE );
 	}
@@ -474,7 +447,7 @@ static int ssl_parse_certificate_request( ssl_context *ssl )
 		ssl->client_auth++;
 
 	SSL_DEBUG_MSG( 3, ( "got %s certificate request",
-						ssl->client_auth ? "a" : "no" ) );
+	                    ssl->client_auth ? "a" : "no" ) );
 
 	SSL_DEBUG_MSG( 2, ( "<= parse certificate request" ) );
 
@@ -487,24 +460,20 @@ static int ssl_parse_server_hello_done( ssl_context *ssl )
 
 	SSL_DEBUG_MSG( 2, ( "=> parse server hello done" ) );
 
-	if( ssl->client_auth != 0 )
-	{
-		if( ( ret = ssl_read_record( ssl ) ) != 0 )
-		{
+	if( ssl->client_auth != 0 ) {
+		if( ( ret = ssl_read_record( ssl ) ) != 0 ) {
 			SSL_DEBUG_RET( 1, "ssl_read_record", ret );
 			return( ret );
 		}
 
-		if( ssl->in_msgtype != SSL_MSG_HANDSHAKE )
-		{
+		if( ssl->in_msgtype != SSL_MSG_HANDSHAKE ) {
 			SSL_DEBUG_MSG( 1, ( "bad server hello done message" ) );
 			return( TROPICSSL_ERR_SSL_UNEXPECTED_MESSAGE );
 		}
 	}
 
 	if( ssl->in_hslen  != 4 ||
-		ssl->in_msg[0] != SSL_HS_SERVER_HELLO_DONE )
-	{
+	                ssl->in_msg[0] != SSL_HS_SERVER_HELLO_DONE ) {
 		SSL_DEBUG_MSG( 1, ( "bad server hello done message" ) );
 		return( TROPICSSL_ERR_SSL_BAD_HS_SERVER_HELLO_DONE );
 	}
@@ -523,9 +492,8 @@ static int ssl_write_client_key_exchange( ssl_context *ssl )
 	SSL_DEBUG_MSG( 2, ( "=> write client key exchange" ) );
 
 	if( ssl->session->cipher == SSL_EDH_RSA_DES_168_SHA ||
-		ssl->session->cipher == SSL_EDH_RSA_AES_256_SHA ||
-		ssl->session->cipher == SSL_EDH_RSA_CAMELLIA_256_SHA)
-	{
+	                ssl->session->cipher == SSL_EDH_RSA_AES_256_SHA ||
+	                ssl->session->cipher == SSL_EDH_RSA_CAMELLIA_256_SHA) {
 #if !defined(TROPICSSL_DHM_C)
 		SSL_DEBUG_MSG( 1, ( "support for dhm in not available" ) );
 		return( TROPICSSL_ERR_SSL_FEATURE_UNAVAILABLE );
@@ -540,10 +508,9 @@ static int ssl_write_client_key_exchange( ssl_context *ssl )
 		i = 6;
 
 		ret = dhm_make_public( &ssl->dhm_ctx, 256,
-							   &ssl->out_msg[i], n,
-							   ssl->f_rng, ssl->p_rng );
-		if( ret != 0 )
-		{
+		                       &ssl->out_msg[i], n,
+		                       ssl->f_rng, ssl->p_rng );
+		if( ret != 0 ) {
 			SSL_DEBUG_RET( 1, "dhm_make_public", ret );
 			return( ret );
 		}
@@ -554,18 +521,15 @@ static int ssl_write_client_key_exchange( ssl_context *ssl )
 		ssl->pmslen = ssl->dhm_ctx.len;
 
 		if( ( ret = dhm_calc_secret( &ssl->dhm_ctx,
-									 ssl->premaster,
-									 &ssl->pmslen ) ) != 0 )
-		{
+		                             ssl->premaster,
+		                             &ssl->pmslen ) ) != 0 ) {
 			SSL_DEBUG_RET( 1, "dhm_calc_secret", ret );
 			return( ret );
 		}
 
 		SSL_DEBUG_MPI( 3, "DHM: K ", &ssl->dhm_ctx.K  );
 #endif
-	}
-	else
-	{
+	} else {
 		/*
 		 * RSA key exchange -- send rsa_public(pkcs1 v1.5(premaster))
 		 */
@@ -579,18 +543,16 @@ static int ssl_write_client_key_exchange( ssl_context *ssl )
 		i = 4;
 		n = ssl->peer_cert->rsa.len;
 
-		if( ssl->minor_ver != SSL_MINOR_VERSION_0 )
-		{
+		if( ssl->minor_ver != SSL_MINOR_VERSION_0 ) {
 			i += 2;
 			ssl->out_msg[4] = (unsigned char)( n >> 8 );
 			ssl->out_msg[5] = (unsigned char)( n	  );
 		}
 
 		ret = rsa_pkcs1_encrypt( &ssl->peer_cert->rsa, RSA_PUBLIC,
-								 ssl->pmslen, ssl->premaster,
-								 ssl->out_msg + i );
-		if( ret != 0 )
-		{
+		                         ssl->pmslen, ssl->premaster,
+		                         ssl->out_msg + i );
+		if( ret != 0 ) {
 			SSL_DEBUG_RET( 1, "rsa_pkcs1_encrypt", ret );
 			return( ret );
 		}
@@ -604,8 +566,7 @@ static int ssl_write_client_key_exchange( ssl_context *ssl )
 
 	ssl->state++;
 
-	if( ( ret = ssl_write_record( ssl ) ) != 0 )
-	{
+	if( ( ret = ssl_write_record( ssl ) ) != 0 ) {
 		SSL_DEBUG_RET( 1, "ssl_write_record", ret );
 		return( ret );
 	}
@@ -622,15 +583,13 @@ static int ssl_write_certificate_verify( ssl_context *ssl )
 
 	SSL_DEBUG_MSG( 2, ( "=> write certificate verify" ) );
 
-	if( ssl->client_auth == 0 )
-	{
+	if( ssl->client_auth == 0 ) {
 		SSL_DEBUG_MSG( 2, ( "<= skip write certificate verify" ) );
 		ssl->state++;
 		return( 0 );
 	}
 
-	if( ssl->rsa_key == NULL )
-	{
+	if( ssl->rsa_key == NULL ) {
 		SSL_DEBUG_MSG( 1, ( "got no private key" ) );
 		return( TROPICSSL_ERR_SSL_PRIVATE_KEY_REQUIRED );
 	}
@@ -645,8 +604,7 @@ static int ssl_write_certificate_verify( ssl_context *ssl )
 	ssl->out_msg[5] = (unsigned char)( n	  );
 
 	if( ( ret = rsa_pkcs1_sign( ssl->rsa_key, RSA_PRIVATE, RSA_RAW,
-								36, hash, ssl->out_msg + 6 ) ) != 0 )
-	{
+	                            36, hash, ssl->out_msg + 6 ) ) != 0 ) {
 		SSL_DEBUG_RET( 1, "rsa_pkcs1_sign", ret );
 		return( ret );
 	}
@@ -657,8 +615,7 @@ static int ssl_write_certificate_verify( ssl_context *ssl )
 
 	ssl->state++;
 
-	if( ( ret = ssl_write_record( ssl ) ) != 0 )
-	{
+	if( ( ret = ssl_write_record( ssl ) ) != 0 ) {
 		SSL_DEBUG_RET( 1, "ssl_write_record", ret );
 		return( ret );
 	}
@@ -677,15 +634,13 @@ int ssl_handshake_client( ssl_context *ssl )
 
 	SSL_DEBUG_MSG( 2, ( "=> handshake client" ) );
 
-	while( ssl->state != SSL_HANDSHAKE_OVER )
-	{
+	while( ssl->state != SSL_HANDSHAKE_OVER ) {
 		SSL_DEBUG_MSG( 2, ( "client state: %d", ssl->state ) );
 
 		if( ( ret = ssl_flush_output( ssl ) ) != 0 )
 			break;
 
-		switch( ssl->state )
-		{
+		switch( ssl->state ) {
 		case SSL_HELLO_REQUEST:
 			ssl->state = SSL_CLIENT_HELLO;
 			break;

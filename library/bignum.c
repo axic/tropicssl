@@ -10,17 +10,17 @@
  *	Redistribution and use in source and binary forms, with or without
  *	modification, are permitted provided that the following conditions
  *	are met:
- *	
+ *
  *	  * Redistributions of source code must retain the above copyright
  *		notice, this list of conditions and the following disclaimer.
  *	  * Redistributions in binary form must reproduce the above copyright
  *		notice, this list of conditions and the following disclaimer in the
  *		documentation and/or other materials provided with the distribution.
- *	  * Neither the names of Tropic SSL, 
+ *	  * Neither the names of Tropic SSL,
  *		PolarSSL or XySSL nor the names of its contributors
  *		may be used to endorse or promote products derived from this software
  *		without specific prior written permission.
- *	
+ *
  *	THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  *	"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  *	LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
@@ -71,8 +71,7 @@ void mpi_init( mpi *X, ... )
 
 	va_start( args, X );
 
-	while( X != NULL )
-	{
+	while( X != NULL ) {
 		X->s = 1;
 		X->n = 0;
 		X->p = NULL;
@@ -92,10 +91,8 @@ void mpi_free( mpi *X, ... )
 
 	va_start( args, X );
 
-	while( X != NULL )
-	{
-		if( X->p != NULL )
-		{
+	while( X != NULL ) {
+		if( X->p != NULL ) {
 			memset( X->p, 0, X->n * ciL );
 			free( X->p );
 		}
@@ -117,15 +114,13 @@ int mpi_grow( mpi *X, int nblimbs )
 {
 	t_int *p;
 
-	if( X->n < nblimbs )
-	{
+	if( X->n < nblimbs ) {
 		if( ( p = (t_int *) malloc( nblimbs * ciL ) ) == NULL )
 			return( 1 );
 
 		memset( p, 0, nblimbs * ciL );
 
-		if( X->p != NULL )
-		{
+		if( X->p != NULL ) {
 			memcpy( p, X->p, X->n * ciL );
 			memset( X->p, 0, X->n * ciL );
 			free( X->p );
@@ -267,17 +262,14 @@ int mpi_read_string( mpi *X, int radix, char *s )
 
 	mpi_init( &T, NULL );
 
-	if( radix == 16 )
-	{
+	if( radix == 16 ) {
 		n = BITS_TO_LIMBS( strlen( s ) << 2 );
 
 		MPI_CHK( mpi_grow( X, n ) );
 		MPI_CHK( mpi_lset( X, 0 ) );
 
-		for( i = strlen( s ) - 1, j = 0; i >= 0; i--, j++ )
-		{
-			if( i == 0 && s[i] == '-' )
-			{
+		for( i = strlen( s ) - 1, j = 0; i >= 0; i--, j++ ) {
+			if( i == 0 && s[i] == '-' ) {
 				X->s = -1;
 				break;
 			}
@@ -285,15 +277,11 @@ int mpi_read_string( mpi *X, int radix, char *s )
 			MPI_CHK( mpi_get_digit( &d, radix, s[i] ) );
 			X->p[j / (2 * ciL)] |= d << ( (j % (2 * ciL)) << 2 );
 		}
-	}
-	else
-	{
+	} else {
 		MPI_CHK( mpi_lset( X, 0 ) );
 
-		for( i = 0; i < (int) strlen( s ); i++ )
-		{
-			if( i == 0 && s[i] == '-' )
-			{
+		for( i = 0; i < (int) strlen( s ); i++ ) {
+			if( i == 0 && s[i] == '-' ) {
 				X->s = -1;
 				continue;
 			}
@@ -355,8 +343,7 @@ int mpi_write_string( mpi *X, int radix, char *s, int *slen )
 	if( radix >= 16 ) n >>= 1;
 	n += 3;
 
-	if( *slen < n )
-	{
+	if( *slen < n ) {
 		*slen = n;
 		return( TROPICSSL_ERR_MPI_BUFFER_TOO_SMALL );
 	}
@@ -367,14 +354,11 @@ int mpi_write_string( mpi *X, int radix, char *s, int *slen )
 	if( X->s == -1 )
 		*p++ = '-';
 
-	if( radix == 16 )
-	{
+	if( radix == 16 ) {
 		int c, i, j, k;
 
-		for( i = X->n - 1, k = 0; i >= 0; i-- )
-		{
-			for( j = ciL - 1; j >= 0; j-- )
-			{
+		for( i = X->n - 1, k = 0; i >= 0; i-- ) {
+			for( j = ciL - 1; j >= 0; j-- ) {
 				c = ( X->p[i] >> (j << 3) ) & 0xFF;
 
 				if( c == 0 && k == 0 && (i + j) != 0 )
@@ -384,9 +368,7 @@ int mpi_write_string( mpi *X, int radix, char *s, int *slen )
 				k = 1;
 			}
 		}
-	}
-	else
-	{
+	} else {
 		MPI_CHK( mpi_copy( &T, X ) );
 		MPI_CHK( mpi_write_hlp( &T, radix, &p ) );
 	}
@@ -416,8 +398,14 @@ int mpi_read_file( mpi *X, int radix, FILE *fin )
 		return( TROPICSSL_ERR_MPI_FILE_IO_ERROR );
 
 	slen = strlen( s );
-	if( s[slen - 1] == '\n' ) { slen--; s[slen] = '\0'; }
-	if( s[slen - 1] == '\r' ) { slen--; s[slen] = '\0'; }
+	if( s[slen - 1] == '\n' ) {
+		slen--;
+		s[slen] = '\0';
+	}
+	if( s[slen - 1] == '\r' ) {
+		slen--;
+		s[slen] = '\0';
+	}
 
 	p = s + slen;
 	while( --p >= s )
@@ -450,13 +438,11 @@ int mpi_write_file( char *p, mpi *X, int radix, FILE *fout )
 	s[slen++] = '\r';
 	s[slen++] = '\n';
 
-	if( fout != NULL )
-	{
+	if( fout != NULL ) {
 		if( fwrite( p, 1, plen, fout ) != plen ||
-			fwrite( s, 1, slen, fout ) != slen )
+		                fwrite( s, 1, slen, fout ) != slen )
 			return( TROPICSSL_ERR_MPI_FILE_IO_ERROR );
-	}
-	else
+	} else
 		printf( "%s%s", p, s );
 
 cleanup:
@@ -527,8 +513,7 @@ int mpi_shift_l( mpi *X, int count )
 	/*
 	 * shift by count / limb_size
 	 */
-	if( v0 > 0 )
-	{
+	if( v0 > 0 ) {
 		for( i = X->n - 1; i >= v0; i-- )
 			X->p[i] = X->p[i - v0];
 
@@ -539,10 +524,8 @@ int mpi_shift_l( mpi *X, int count )
 	/*
 	 * shift by count % limb_size
 	 */
-	if( t1 > 0 )
-	{
-		for( i = v0; i < X->n; i++ )
-		{
+	if( t1 > 0 ) {
+		for( i = v0; i < X->n; i++ ) {
 			r1 = X->p[i] >> (biL - t1);
 			X->p[i] <<= t1;
 			X->p[i] |= r0;
@@ -569,8 +552,7 @@ int mpi_shift_r( mpi *X, int count )
 	/*
 	 * shift by count / limb_size
 	 */
-	if( v0 > 0 )
-	{
+	if( v0 > 0 ) {
 		for( i = 0; i < X->n - v0; i++ )
 			X->p[i] = X->p[i + v0];
 
@@ -581,10 +563,8 @@ int mpi_shift_r( mpi *X, int count )
 	/*
 	 * shift by count % limb_size
 	 */
-	if( v1 > 0 )
-	{
-		for( i = X->n - 1; i >= 0; i-- )
-		{
+	if( v1 > 0 ) {
+		for( i = X->n - 1; i >= 0; i-- ) {
 			r1 = X->p[i] << (biL - v1);
 			X->p[i] >>= v1;
 			X->p[i] |= r0;
@@ -616,8 +596,7 @@ int mpi_cmp_abs( mpi *X, mpi *Y )
 	if( i > j ) return(	 1 );
 	if( j > i ) return( -1 );
 
-	for( ; i >= 0; i-- )
-	{
+	for( ; i >= 0; i-- ) {
 		if( X->p[i] > Y->p[i] ) return(	 1 );
 		if( X->p[i] < Y->p[i] ) return( -1 );
 	}
@@ -649,8 +628,7 @@ int mpi_cmp_mpi( mpi *X, mpi *Y )
 	if( X->s > 0 && Y->s < 0 ) return(	1 );
 	if( Y->s > 0 && X->s < 0 ) return( -1 );
 
-	for( ; i >= 0; i-- )
-	{
+	for( ; i >= 0; i-- ) {
 		if( X->p[i] > Y->p[i] ) return(	 X->s );
 		if( X->p[i] < Y->p[i] ) return( -X->s );
 	}
@@ -682,9 +660,10 @@ int mpi_add_abs( mpi *X, mpi *A, mpi *B )
 	int ret, i, j;
 	t_int *o, *p, c;
 
-	if( X == B )
-	{
-		mpi *T = A; A = X; B = T;
+	if( X == B ) {
+		mpi *T = A;
+		A = X;
+		B = T;
 	}
 
 	if( X != A )
@@ -696,23 +675,26 @@ int mpi_add_abs( mpi *X, mpi *A, mpi *B )
 
 	MPI_CHK( mpi_grow( X, j + 1 ) );
 
-	o = B->p; p = X->p; c = 0;
+	o = B->p;
+	p = X->p;
+	c = 0;
 
-	for( i = 0; i <= j; i++, o++, p++ )
-	{
-		*p +=  c; c	 = ( *p <  c );
-		*p += *o; c += ( *p < *o );
+	for( i = 0; i <= j; i++, o++, p++ ) {
+		*p +=  c;
+		c	 = ( *p <  c );
+		*p += *o;
+		c += ( *p < *o );
 	}
 
-	while( c != 0 )
-	{
-		if( i >= X->n )
-		{
+	while( c != 0 ) {
+		if( i >= X->n ) {
 			MPI_CHK( mpi_grow( X, i + 1 ) );
 			p = X->p + i;
 		}
 
-		*p += c; c = ( *p < c ); i++;
+		*p += c;
+		c = ( *p < c );
+		i++;
 	}
 
 cleanup:
@@ -728,16 +710,19 @@ static void mpi_sub_hlp( int n, t_int *s, t_int *d )
 	int i;
 	t_int c, z;
 
-	for( i = c = 0; i < n; i++, s++, d++ )
-	{
-		z = ( *d <	c );	 *d -=	c;
-		c = ( *d < *s ) + z; *d -= *s;
+	for( i = c = 0; i < n; i++, s++, d++ ) {
+		z = ( *d <	c );
+		*d -=	c;
+		c = ( *d < *s ) + z;
+		*d -= *s;
 	}
 
-	while( c != 0 )
-	{
-		z = ( *d < c ); *d -= c;
-		c = z; i++; d++;
+	while( c != 0 ) {
+		z = ( *d < c );
+		*d -= c;
+		c = z;
+		i++;
+		d++;
 	}
 }
 
@@ -754,8 +739,7 @@ int mpi_sub_abs( mpi *X, mpi *A, mpi *B )
 
 	mpi_init( &TB, NULL );
 
-	if( X == B )
-	{
+	if( X == B ) {
 		MPI_CHK( mpi_copy( &TB, B ) );
 		B = &TB;
 	}
@@ -785,21 +769,15 @@ int mpi_add_mpi( mpi *X, mpi *A, mpi *B )
 {
 	int ret, s = A->s;
 
-	if( A->s * B->s < 0 )
-	{
-		if( mpi_cmp_abs( A, B ) >= 0 )
-		{
+	if( A->s * B->s < 0 ) {
+		if( mpi_cmp_abs( A, B ) >= 0 ) {
 			MPI_CHK( mpi_sub_abs( X, A, B ) );
 			X->s =	s;
-		}
-		else
-		{
+		} else {
 			MPI_CHK( mpi_sub_abs( X, B, A ) );
 			X->s = -s;
 		}
-	}
-	else
-	{
+	} else {
 		MPI_CHK( mpi_add_abs( X, A, B ) );
 		X->s = s;
 	}
@@ -816,21 +794,15 @@ int mpi_sub_mpi( mpi *X, mpi *A, mpi *B )
 {
 	int ret, s = A->s;
 
-	if( A->s * B->s > 0 )
-	{
-		if( mpi_cmp_abs( A, B ) >= 0 )
-		{
+	if( A->s * B->s > 0 ) {
+		if( mpi_cmp_abs( A, B ) >= 0 ) {
 			MPI_CHK( mpi_sub_abs( X, A, B ) );
 			X->s =	s;
-		}
-		else
-		{
+		} else {
 			MPI_CHK( mpi_sub_abs( X, B, A ) );
 			X->s = -s;
 		}
-	}
-	else
-	{
+	} else {
 		MPI_CHK( mpi_add_abs( X, A, B ) );
 		X->s = s;
 	}
@@ -874,66 +846,62 @@ int mpi_sub_int( mpi *X, mpi *A, int b )
 
 /*
  * Helper for mpi multiplication
- */ 
+ */
 static void mpi_mul_hlp( int i, t_int *s, t_int *d, t_int b )
 {
 	t_int c = 0, t = 0;
 
 #if defined(MULADDC_HUIT)
-	for( ; i >= 8; i -= 8 )
-	{
+	for( ; i >= 8; i -= 8 ) {
 		MULADDC_INIT
-			MULADDC_HUIT
-			MULADDC_STOP
-			}
+		MULADDC_HUIT
+		MULADDC_STOP
+	}
 
-	for( ; i > 0; i-- )
-	{
+	for( ; i > 0; i-- ) {
 		MULADDC_INIT
-			MULADDC_CORE
-			MULADDC_STOP
-			}
+		MULADDC_CORE
+		MULADDC_STOP
+	}
 #else
-	for( ; i >= 16; i -= 16 )
-	{
+	for( ; i >= 16; i -= 16 ) {
 		MULADDC_INIT
-			MULADDC_CORE   MULADDC_CORE
-			MULADDC_CORE   MULADDC_CORE
-			MULADDC_CORE   MULADDC_CORE
-			MULADDC_CORE   MULADDC_CORE
+		MULADDC_CORE   MULADDC_CORE
+		MULADDC_CORE   MULADDC_CORE
+		MULADDC_CORE   MULADDC_CORE
+		MULADDC_CORE   MULADDC_CORE
 
-			MULADDC_CORE   MULADDC_CORE
-			MULADDC_CORE   MULADDC_CORE
-			MULADDC_CORE   MULADDC_CORE
-			MULADDC_CORE   MULADDC_CORE
-			MULADDC_STOP
-			}
+		MULADDC_CORE   MULADDC_CORE
+		MULADDC_CORE   MULADDC_CORE
+		MULADDC_CORE   MULADDC_CORE
+		MULADDC_CORE   MULADDC_CORE
+		MULADDC_STOP
+	}
 
-	for( ; i >= 8; i -= 8 )
-	{
+	for( ; i >= 8; i -= 8 ) {
 		MULADDC_INIT
-			MULADDC_CORE   MULADDC_CORE
-			MULADDC_CORE   MULADDC_CORE
+		MULADDC_CORE   MULADDC_CORE
+		MULADDC_CORE   MULADDC_CORE
 
-			MULADDC_CORE   MULADDC_CORE
-			MULADDC_CORE   MULADDC_CORE
-			MULADDC_STOP
-			}
+		MULADDC_CORE   MULADDC_CORE
+		MULADDC_CORE   MULADDC_CORE
+		MULADDC_STOP
+	}
 
-	for( ; i > 0; i-- )
-	{
+	for( ; i > 0; i-- ) {
 		MULADDC_INIT
-			MULADDC_CORE
-			MULADDC_STOP
-			}
+		MULADDC_CORE
+		MULADDC_STOP
+	}
 #endif
 
 	t++;
 
 	do {
-		*d += c; c = ( *d < c ); d++;
-	}
-	while( c != 0 );
+		*d += c;
+		c = ( *d < c );
+		d++;
+	} while( c != 0 );
 }
 
 /*
@@ -946,8 +914,14 @@ int mpi_mul_mpi( mpi *X, mpi *A, mpi *B )
 
 	mpi_init( &TA, &TB, NULL );
 
-	if( X == A ) { MPI_CHK( mpi_copy( &TA, A ) ); A = &TA; }
-	if( X == B ) { MPI_CHK( mpi_copy( &TB, B ) ); B = &TB; }
+	if( X == A ) {
+		MPI_CHK( mpi_copy( &TA, A ) );
+		A = &TA;
+	}
+	if( X == B ) {
+		MPI_CHK( mpi_copy( &TB, B ) );
+		B = &TB;
+	}
 
 	for( i = A->n - 1; i >= 0; i-- )
 		if( A->p[i] != 0 )
@@ -1001,8 +975,7 @@ int mpi_div_mpi( mpi *Q, mpi *R, mpi *A, mpi *B )
 
 	mpi_init( &X, &Y, &Z, &T1, &T2, NULL );
 
-	if( mpi_cmp_abs( A, B ) < 0 )
-	{
+	if( mpi_cmp_abs( A, B ) < 0 ) {
 		if( Q != NULL ) MPI_CHK( mpi_lset( Q, 0 ) );
 		if( R != NULL ) MPI_CHK( mpi_copy( R, A ) );
 		return( 0 );
@@ -1018,31 +991,26 @@ int mpi_div_mpi( mpi *Q, mpi *R, mpi *A, mpi *B )
 	MPI_CHK( mpi_grow( &T2, 3 ) );
 
 	k = mpi_msb( &Y ) % biL;
-	if( k < (int) biL - 1 )
-	{
+	if( k < (int) biL - 1 ) {
 		k = biL - 1 - k;
 		MPI_CHK( mpi_shift_l( &X, k ) );
 		MPI_CHK( mpi_shift_l( &Y, k ) );
-	}
-	else k = 0;
+	} else k = 0;
 
 	n = X.n - 1;
 	t = Y.n - 1;
 	mpi_shift_l( &Y, biL * (n - t) );
 
-	while( mpi_cmp_mpi( &X, &Y ) >= 0 )
-	{
+	while( mpi_cmp_mpi( &X, &Y ) >= 0 ) {
 		Z.p[n - t]++;
 		mpi_sub_mpi( &X, &X, &Y );
 	}
 	mpi_shift_r( &Y, biL * (n - t) );
 
-	for( i = n; i > t ; i-- )
-	{
+	for( i = n; i > t ; i-- ) {
 		if( X.p[i] >= Y.p[t] )
 			Z.p[i - t - 1] = ~0;
-		else
-		{
+		else {
 #if defined(TROPICSSL_HAVE_LONGLONG)
 			t_dbl r;
 
@@ -1070,8 +1038,7 @@ int mpi_div_mpi( mpi *Q, mpi *R, mpi *A, mpi *B )
 			r1 |= ( X.p[i - 1] >> biH );
 
 			m = q1 * d0;
-			if( r1 < m )
-			{
+			if( r1 < m ) {
 				q1--, r1 += d;
 				while( r1 >= d && r1 < m )
 					q1--, r1 += d;
@@ -1084,8 +1051,7 @@ int mpi_div_mpi( mpi *Q, mpi *R, mpi *A, mpi *B )
 			r0 |= ( X.p[i - 1] << biH ) >> biH;
 
 			m = q0 * d0;
-			if( r0 < m )
-			{
+			if( r0 < m ) {
 				q0--, r0 += d;
 				while( r0 >= d && r0 < m )
 					q0--, r0 += d;
@@ -1097,8 +1063,7 @@ int mpi_div_mpi( mpi *Q, mpi *R, mpi *A, mpi *B )
 		}
 
 		Z.p[i - t - 1]++;
-		do
-		{
+		do {
 			Z.p[i - t - 1]--;
 
 			MPI_CHK( mpi_lset( &T1, 0 ) );
@@ -1110,15 +1075,13 @@ int mpi_div_mpi( mpi *Q, mpi *R, mpi *A, mpi *B )
 			T2.p[0] = (i < 2) ? 0 : X.p[i - 2];
 			T2.p[1] = (i < 1) ? 0 : X.p[i - 1];
 			T2.p[2] = X.p[i];
-		}
-		while( mpi_cmp_mpi( &T1, &T2 ) > 0 );
+		} while( mpi_cmp_mpi( &T1, &T2 ) > 0 );
 
 		MPI_CHK( mpi_mul_int( &T1, &Y, Z.p[i - t - 1] ) );
 		MPI_CHK( mpi_shift_l( &T1,	biL * (i - t - 1) ) );
 		MPI_CHK( mpi_sub_mpi( &X, &X, &T1 ) );
 
-		if( mpi_cmp_int( &X, 0 ) < 0 )
-		{
+		if( mpi_cmp_int( &X, 0 ) < 0 ) {
 			MPI_CHK( mpi_copy( &T1, &Y ) );
 			MPI_CHK( mpi_shift_l( &T1, biL * (i - t - 1) ) );
 			MPI_CHK( mpi_add_mpi( &X, &X, &T1 ) );
@@ -1126,14 +1089,12 @@ int mpi_div_mpi( mpi *Q, mpi *R, mpi *A, mpi *B )
 		}
 	}
 
-	if( Q != NULL )
-	{
+	if( Q != NULL ) {
 		mpi_copy( Q, &Z );
 		Q->s = A->s * B->s;
 	}
 
-	if( R != NULL )
-	{
+	if( R != NULL ) {
 		mpi_shift_r( &X, k );
 		mpi_copy( R, &X );
 
@@ -1206,14 +1167,12 @@ int mpi_mod_int( t_int *r, mpi *A, int b )
 	/*
 	 * handle trivial cases
 	 */
-	if( b == 1 )
-	{
+	if( b == 1 ) {
 		*r = 0;
 		return( 0 );
 	}
 
-	if( b == 2 )
-	{
+	if( b == 2 ) {
 		*r = A->p[0] & 1;
 		return( 0 );
 	}
@@ -1221,8 +1180,7 @@ int mpi_mod_int( t_int *r, mpi *A, int b )
 	/*
 	 * general case
 	 */
-	for( i = A->n - 1, y = 0; i >= 0; i-- )
-	{
+	for( i = A->n - 1, y = 0; i >= 0; i-- ) {
 		x  = A->p[i];
 		y  = ( y << biH ) | ( x >> biH );
 		z  = y / b;
@@ -1271,8 +1229,7 @@ static void mpi_montmul( mpi *A, mpi *B, mpi *N, t_int mm, mpi *T )
 	n = N->n;
 	m = ( B->n < n ) ? B->n : n;
 
-	for( i = 0; i < n; i++ )
-	{
+	for( i = 0; i < n; i++ ) {
 		/*
 		 * T = (T + u0*B + u1*N) / 2^biL
 		 */
@@ -1282,7 +1239,8 @@ static void mpi_montmul( mpi *A, mpi *B, mpi *N, t_int mm, mpi *T )
 		mpi_mul_hlp( m, B->p, d, u0 );
 		mpi_mul_hlp( n, N->p, d, u1 );
 
-		*d++ = u0; d[n + 1] = 0;
+		*d++ = u0;
+		d[n + 1] = 0;
 	}
 
 	memcpy( A->p, d, (n + 1) * ciL );
@@ -1331,7 +1289,7 @@ int mpi_exp_mod( mpi *X, mpi *A, mpi *E, mpi *N, mpi *_RR )
 	i = mpi_msb( E );
 
 	wsize = ( i > 671 ) ? 6 : ( i > 239 ) ? 5 :
-		( i >  79 ) ? 4 : ( i >	 23 ) ? 3 : 1;
+	        ( i >  79 ) ? 4 : ( i >	 23 ) ? 3 : 1;
 
 	j = N->n + 1;
 	MPI_CHK( mpi_grow( X, j ) );
@@ -1341,16 +1299,14 @@ int mpi_exp_mod( mpi *X, mpi *A, mpi *E, mpi *N, mpi *_RR )
 	/*
 	 * If 1st call, pre-compute R^2 mod N
 	 */
-	if( _RR == NULL || _RR->p == NULL )
-	{
+	if( _RR == NULL || _RR->p == NULL ) {
 		MPI_CHK( mpi_lset( &RR, 1 ) );
 		MPI_CHK( mpi_shift_l( &RR, N->n * 2 * biL ) );
 		MPI_CHK( mpi_mod_mpi( &RR, &RR, N ) );
 
 		if( _RR != NULL )
 			memcpy( _RR, &RR, sizeof( mpi ) );
-	}
-	else
+	} else
 		memcpy( &RR, _RR, sizeof( mpi ) );
 
 	/*
@@ -1368,8 +1324,7 @@ int mpi_exp_mod( mpi *X, mpi *A, mpi *E, mpi *N, mpi *_RR )
 	MPI_CHK( mpi_copy( X, &RR ) );
 	mpi_montred( X, N, mm, &T );
 
-	if( wsize > 1 )
-	{
+	if( wsize > 1 ) {
 		/*
 		 * W[1 << (wsize - 1)] = W[1] ^ (wsize - 1)
 		 */
@@ -1380,12 +1335,11 @@ int mpi_exp_mod( mpi *X, mpi *A, mpi *E, mpi *N, mpi *_RR )
 
 		for( i = 0; i < wsize - 1; i++ )
 			mpi_montmul( &W[j], &W[j], N, mm, &T );
-	
+
 		/*
 		 * W[i] = W[i - 1] * W[1]
 		 */
-		for( i = j + 1; i < (1 << wsize); i++ )
-		{
+		for( i = j + 1; i < (1 << wsize); i++ ) {
 			MPI_CHK( mpi_grow( &W[i], N->n + 1 ) );
 			MPI_CHK( mpi_copy( &W[i], &W[i - 1] ) );
 
@@ -1399,10 +1353,8 @@ int mpi_exp_mod( mpi *X, mpi *A, mpi *E, mpi *N, mpi *_RR )
 	wbits	= 0;
 	state	= 0;
 
-	while( 1 )
-	{
-		if( bufsize == 0 )
-		{
+	while( 1 ) {
+		if( bufsize == 0 ) {
 			if( nblimbs-- == 0 )
 				break;
 
@@ -1419,8 +1371,7 @@ int mpi_exp_mod( mpi *X, mpi *A, mpi *E, mpi *N, mpi *_RR )
 		if( ei == 0 && state == 0 )
 			continue;
 
-		if( ei == 0 && state == 1 )
-		{
+		if( ei == 0 && state == 1 ) {
 			/*
 			 * out of window, square X
 			 */
@@ -1436,8 +1387,7 @@ int mpi_exp_mod( mpi *X, mpi *A, mpi *E, mpi *N, mpi *_RR )
 		nbits++;
 		wbits |= (ei << (wsize - nbits));
 
-		if( nbits == wsize )
-		{
+		if( nbits == wsize ) {
 			/*
 			 * X = X^wsize R^-1 mod N
 			 */
@@ -1458,8 +1408,7 @@ int mpi_exp_mod( mpi *X, mpi *A, mpi *E, mpi *N, mpi *_RR )
 	/*
 	 * process the remaining bits
 	 */
-	for( i = 0; i < nbits; i++ )
-	{
+	for( i = 0; i < nbits; i++ ) {
 		mpi_montmul( X, X, N, mm, &T );
 
 		wbits <<= 1;
@@ -1509,18 +1458,14 @@ int mpi_gcd( mpi *G, mpi *A, mpi *B )
 
 	TA.s = TB.s = 1;
 
-	while( mpi_cmp_int( &TA, 0 ) != 0 )
-	{
+	while( mpi_cmp_int( &TA, 0 ) != 0 ) {
 		MPI_CHK( mpi_shift_r( &TA, mpi_lsb( &TA ) ) );
 		MPI_CHK( mpi_shift_r( &TB, mpi_lsb( &TB ) ) );
 
-		if( mpi_cmp_mpi( &TA, &TB ) >= 0 )
-		{
+		if( mpi_cmp_mpi( &TA, &TB ) >= 0 ) {
 			MPI_CHK( mpi_sub_abs( &TA, &TA, &TB ) );
 			MPI_CHK( mpi_shift_r( &TA, 1 ) );
-		}
-		else
-		{
+		} else {
 			MPI_CHK( mpi_sub_abs( &TB, &TB, &TA ) );
 			MPI_CHK( mpi_shift_r( &TB, 1 ) );
 		}
@@ -1550,12 +1495,11 @@ int mpi_inv_mod( mpi *X, mpi *A, mpi *N )
 		return( TROPICSSL_ERR_MPI_BAD_INPUT_DATA );
 
 	mpi_init( &TA, &TU, &U1, &U2, &G,
-			  &TB, &TV, &V1, &V2, NULL );
+	          &TB, &TV, &V1, &V2, NULL );
 
 	MPI_CHK( mpi_gcd( &G, A, N ) );
 
-	if( mpi_cmp_int( &G, 1 ) != 0 )
-	{
+	if( mpi_cmp_int( &G, 1 ) != 0 ) {
 		ret = TROPICSSL_ERR_MPI_NOT_ACCEPTABLE;
 		goto cleanup;
 	}
@@ -1570,14 +1514,11 @@ int mpi_inv_mod( mpi *X, mpi *A, mpi *N )
 	MPI_CHK( mpi_lset( &V1, 0 ) );
 	MPI_CHK( mpi_lset( &V2, 1 ) );
 
-	do
-	{
-		while( ( TU.p[0] & 1 ) == 0 )
-		{
+	do {
+		while( ( TU.p[0] & 1 ) == 0 ) {
 			MPI_CHK( mpi_shift_r( &TU, 1 ) );
 
-			if( ( U1.p[0] & 1 ) != 0 || ( U2.p[0] & 1 ) != 0 )
-			{
+			if( ( U1.p[0] & 1 ) != 0 || ( U2.p[0] & 1 ) != 0 ) {
 				MPI_CHK( mpi_add_mpi( &U1, &U1, &TB ) );
 				MPI_CHK( mpi_sub_mpi( &U2, &U2, &TA ) );
 			}
@@ -1586,12 +1527,10 @@ int mpi_inv_mod( mpi *X, mpi *A, mpi *N )
 			MPI_CHK( mpi_shift_r( &U2, 1 ) );
 		}
 
-		while( ( TV.p[0] & 1 ) == 0 )
-		{
+		while( ( TV.p[0] & 1 ) == 0 ) {
 			MPI_CHK( mpi_shift_r( &TV, 1 ) );
 
-			if( ( V1.p[0] & 1 ) != 0 || ( V2.p[0] & 1 ) != 0 )
-			{
+			if( ( V1.p[0] & 1 ) != 0 || ( V2.p[0] & 1 ) != 0 ) {
 				MPI_CHK( mpi_add_mpi( &V1, &V1, &TB ) );
 				MPI_CHK( mpi_sub_mpi( &V2, &V2, &TA ) );
 			}
@@ -1600,20 +1539,16 @@ int mpi_inv_mod( mpi *X, mpi *A, mpi *N )
 			MPI_CHK( mpi_shift_r( &V2, 1 ) );
 		}
 
-		if( mpi_cmp_mpi( &TU, &TV ) >= 0 )
-		{
+		if( mpi_cmp_mpi( &TU, &TV ) >= 0 ) {
 			MPI_CHK( mpi_sub_mpi( &TU, &TU, &TV ) );
 			MPI_CHK( mpi_sub_mpi( &U1, &U1, &V1 ) );
 			MPI_CHK( mpi_sub_mpi( &U2, &U2, &V2 ) );
-		}
-		else
-		{
+		} else {
 			MPI_CHK( mpi_sub_mpi( &TV, &TV, &TU ) );
 			MPI_CHK( mpi_sub_mpi( &V1, &V1, &U1 ) );
 			MPI_CHK( mpi_sub_mpi( &V2, &V2, &U2 ) );
 		}
-	}
-	while( mpi_cmp_int( &TU, 0 ) != 0 );
+	} while( mpi_cmp_int( &TU, 0 ) != 0 );
 
 	while( mpi_cmp_int( &V1, 0 ) < 0 )
 		MPI_CHK( mpi_add_mpi( &V1, &V1, N ) );
@@ -1626,13 +1561,12 @@ int mpi_inv_mod( mpi *X, mpi *A, mpi *N )
 cleanup:
 
 	mpi_free( &V2, &V1, &TV, &TB, &G,
-			  &U2, &U1, &TU, &TA, NULL );
+	          &U2, &U1, &TU, &TA, NULL );
 
 	return( ret );
 }
 
-static const int small_prime[] =
-{
+static const int small_prime[] = {
 	3,	  5,	7,	 11,   13,	 17,   19,	 23,
 	29,	  31,	37,	  41,	43,	  47,	53,	  59,
 	61,	  67,	71,	  73,	79,	  83,	89,	  97,
@@ -1670,7 +1604,8 @@ int mpi_is_prime( mpi *X, int (*f_rng)(void *), void *p_rng )
 
 	mpi_init( &W, &R, &T, &A, &RR, NULL );
 
-	xs = X->s; X->s = 1;
+	xs = X->s;
+	X->s = 1;
 
 	/*
 	 * test trivial factors first
@@ -1678,8 +1613,7 @@ int mpi_is_prime( mpi *X, int (*f_rng)(void *), void *p_rng )
 	if( ( X->p[0] & 1 ) == 0 )
 		return( TROPICSSL_ERR_MPI_NOT_ACCEPTABLE );
 
-	for( i = 0; small_prime[i] > 0; i++ )
-	{
+	for( i = 0; small_prime[i] > 0; i++ ) {
 		t_int r;
 
 		if( mpi_cmp_int( X, small_prime[i] ) <= 0 )
@@ -1705,11 +1639,10 @@ int mpi_is_prime( mpi *X, int (*f_rng)(void *), void *p_rng )
 	 * HAC, table 4.4
 	 */
 	n = ( ( i >= 1300 ) ?  2 : ( i >=  850 ) ?	3 :
-		  ( i >=  650 ) ?  4 : ( i >=  350 ) ?	8 :
-		  ( i >=  250 ) ? 12 : ( i >=  150 ) ? 18 : 27 );
+	      ( i >=  650 ) ?  4 : ( i >=  350 ) ?	8 :
+	      ( i >=  250 ) ? 12 : ( i >=  150 ) ? 18 : 27 );
 
-	for( i = 0; i < n; i++ )
-	{
+	for( i = 0; i < n; i++ ) {
 		/*
 		 * pick a random A, 1 < A < |X| - 1
 		 */
@@ -1729,12 +1662,11 @@ int mpi_is_prime( mpi *X, int (*f_rng)(void *), void *p_rng )
 		MPI_CHK( mpi_exp_mod( &A, &A, &R, X, &RR ) );
 
 		if( mpi_cmp_mpi( &A, &W ) == 0 ||
-			mpi_cmp_int( &A,  1 ) == 0 )
+		                mpi_cmp_int( &A,  1 ) == 0 )
 			continue;
 
 		j = 1;
-		while( j < s && mpi_cmp_mpi( &A, &W ) != 0 )
-		{
+		while( j < s && mpi_cmp_mpi( &A, &W ) != 0 ) {
 			/*
 			 * A = A * A mod |X|
 			 */
@@ -1751,8 +1683,7 @@ int mpi_is_prime( mpi *X, int (*f_rng)(void *), void *p_rng )
 		 * not prime if A != |X| - 1 or A == 1
 		 */
 		if( mpi_cmp_mpi( &A, &W ) != 0 ||
-			mpi_cmp_int( &A,  1 ) == 0 )
-		{
+		                mpi_cmp_int( &A,  1 ) == 0 ) {
 			ret = TROPICSSL_ERR_MPI_NOT_ACCEPTABLE;
 			break;
 		}
@@ -1771,7 +1702,7 @@ cleanup:
  * Prime number generation
  */
 int mpi_gen_prime( mpi *X, int nbits, int dh_flag,
-				   int (*f_rng)(void *), void *p_rng )
+                   int (*f_rng)(void *), void *p_rng )
 {
 	int ret, k, n;
 	unsigned char *p;
@@ -1797,25 +1728,19 @@ int mpi_gen_prime( mpi *X, int nbits, int dh_flag,
 
 	X->p[0] |= 3;
 
-	if( dh_flag == 0 )
-	{
-		while( ( ret = mpi_is_prime( X, f_rng, p_rng ) ) != 0 )
-		{
+	if( dh_flag == 0 ) {
+		while( ( ret = mpi_is_prime( X, f_rng, p_rng ) ) != 0 ) {
 			if( ret != TROPICSSL_ERR_MPI_NOT_ACCEPTABLE )
 				goto cleanup;
 
 			MPI_CHK( mpi_add_int( X, X, 2 ) );
 		}
-	}
-	else
-	{
+	} else {
 		MPI_CHK( mpi_sub_int( &Y, X, 1 ) );
 		MPI_CHK( mpi_shift_r( &Y, 1 ) );
 
-		while( 1 )
-		{
-			if( ( ret = mpi_is_prime( X, f_rng, p_rng ) ) == 0 )
-			{
+		while( 1 ) {
+			if( ( ret = mpi_is_prime( X, f_rng, p_rng ) ) == 0 ) {
 				if( ( ret = mpi_is_prime( &Y, f_rng, p_rng ) ) == 0 )
 					break;
 
@@ -1845,8 +1770,7 @@ cleanup:
 
 #define GCD_PAIR_COUNT	3
 
-static const int gcd_pairs[GCD_PAIR_COUNT][3] =
-{
+static const int gcd_pairs[GCD_PAIR_COUNT][3] = {
 	{ 693, 609, 21 },
 	{ 1764, 868, 28 },
 	{ 768454923, 542167814, 1 }
@@ -1863,38 +1787,37 @@ int mpi_self_test( int verbose )
 	mpi_init( &A, &E, &N, &X, &Y, &U, &V, NULL );
 
 	MPI_CHK( mpi_read_string( &A, 16,
-							  "EFE021C2645FD1DC586E69184AF4A31E" \
-							  "D5F53E93B5F123FA41680867BA110131" \
-							  "944FE7952E2517337780CB0DB80E61AA" \
-							  "E7C8DDC6C5C6AADEB34EB38A2F40D5E6" ) );
+	                          "EFE021C2645FD1DC586E69184AF4A31E" \
+	                          "D5F53E93B5F123FA41680867BA110131" \
+	                          "944FE7952E2517337780CB0DB80E61AA" \
+	                          "E7C8DDC6C5C6AADEB34EB38A2F40D5E6" ) );
 
 	MPI_CHK( mpi_read_string( &E, 16,
-							  "B2E7EFD37075B9F03FF989C7C5051C20" \
-							  "34D2A323810251127E7BF8625A4F49A5" \
-							  "F3E27F4DA8BD59C47D6DAABA4C8127BD" \
-							  "5B5C25763222FEFCCFC38B832366C29E" ) );
+	                          "B2E7EFD37075B9F03FF989C7C5051C20" \
+	                          "34D2A323810251127E7BF8625A4F49A5" \
+	                          "F3E27F4DA8BD59C47D6DAABA4C8127BD" \
+	                          "5B5C25763222FEFCCFC38B832366C29E" ) );
 
 	MPI_CHK( mpi_read_string( &N, 16,
-							  "0066A198186C18C10B2F5ED9B522752A" \
-							  "9830B69916E535C8F047518A889A43A5" \
-							  "94B6BED27A168D31D4A52F88925AA8F5" ) );
+	                          "0066A198186C18C10B2F5ED9B522752A" \
+	                          "9830B69916E535C8F047518A889A43A5" \
+	                          "94B6BED27A168D31D4A52F88925AA8F5" ) );
 
 	MPI_CHK( mpi_mul_mpi( &X, &A, &N ) );
 
 	MPI_CHK( mpi_read_string( &U, 16,
-							  "602AB7ECA597A3D6B56FF9829A5E8B85" \
-							  "9E857EA95A03512E2BAE7391688D264A" \
-							  "A5663B0341DB9CCFD2C4C5F421FEC814" \
-							  "8001B72E848A38CAE1C65F78E56ABDEF" \
-							  "E12D3C039B8A02D6BE593F0BBBDA56F1" \
-							  "ECF677152EF804370C1A305CAF3B5BF1" \
-							  "30879B56C61DE584A0F53A2447A51E" ) );
+	                          "602AB7ECA597A3D6B56FF9829A5E8B85" \
+	                          "9E857EA95A03512E2BAE7391688D264A" \
+	                          "A5663B0341DB9CCFD2C4C5F421FEC814" \
+	                          "8001B72E848A38CAE1C65F78E56ABDEF" \
+	                          "E12D3C039B8A02D6BE593F0BBBDA56F1" \
+	                          "ECF677152EF804370C1A305CAF3B5BF1" \
+	                          "30879B56C61DE584A0F53A2447A51E" ) );
 
 	if( verbose != 0 )
 		printf( "  MPI test #1 (mul_mpi): " );
 
-	if( mpi_cmp_mpi( &X, &U ) != 0 )
-	{
+	if( mpi_cmp_mpi( &X, &U ) != 0 ) {
 		if( verbose != 0 )
 			printf( "failed\n" );
 
@@ -1907,19 +1830,18 @@ int mpi_self_test( int verbose )
 	MPI_CHK( mpi_div_mpi( &X, &Y, &A, &N ) );
 
 	MPI_CHK( mpi_read_string( &U, 16,
-							  "256567336059E52CAE22925474705F39A94" ) );
+	                          "256567336059E52CAE22925474705F39A94" ) );
 
 	MPI_CHK( mpi_read_string( &V, 16,
-							  "6613F26162223DF488E9CD48CC132C7A" \
-							  "0AC93C701B001B092E4E5B9F73BCD27B" \
-							  "9EE50D0657C77F374E903CDFA4C642" ) );
+	                          "6613F26162223DF488E9CD48CC132C7A" \
+	                          "0AC93C701B001B092E4E5B9F73BCD27B" \
+	                          "9EE50D0657C77F374E903CDFA4C642" ) );
 
 	if( verbose != 0 )
 		printf( "  MPI test #2 (div_mpi): " );
 
 	if( mpi_cmp_mpi( &X, &U ) != 0 ||
-		mpi_cmp_mpi( &Y, &V ) != 0 )
-	{
+	                mpi_cmp_mpi( &Y, &V ) != 0 ) {
 		if( verbose != 0 )
 			printf( "failed\n" );
 
@@ -1932,15 +1854,14 @@ int mpi_self_test( int verbose )
 	MPI_CHK( mpi_exp_mod( &X, &A, &E, &N, NULL ) );
 
 	MPI_CHK( mpi_read_string( &U, 16,
-							  "36E139AEA55215609D2816998ED020BB" \
-							  "BD96C37890F65171D948E9BC7CBAA4D9" \
-							  "325D24D6A3C12710F10A09FA08AB87" ) );
+	                          "36E139AEA55215609D2816998ED020BB" \
+	                          "BD96C37890F65171D948E9BC7CBAA4D9" \
+	                          "325D24D6A3C12710F10A09FA08AB87" ) );
 
 	if( verbose != 0 )
 		printf( "  MPI test #3 (exp_mod): " );
 
-	if( mpi_cmp_mpi( &X, &U ) != 0 )
-	{
+	if( mpi_cmp_mpi( &X, &U ) != 0 ) {
 		if( verbose != 0 )
 			printf( "failed\n" );
 
@@ -1953,15 +1874,14 @@ int mpi_self_test( int verbose )
 	MPI_CHK( mpi_inv_mod( &X, &A, &N ) );
 
 	MPI_CHK( mpi_read_string( &U, 16,
-							  "003A0AAEDD7E784FC07D8F9EC6E3BFD5" \
-							  "C3DBA76456363A10869622EAC2DD84EC" \
-							  "C5B8A74DAC4D09E03B5E0BE779F2DF61" ) );
+	                          "003A0AAEDD7E784FC07D8F9EC6E3BFD5" \
+	                          "C3DBA76456363A10869622EAC2DD84EC" \
+	                          "C5B8A74DAC4D09E03B5E0BE779F2DF61" ) );
 
 	if( verbose != 0 )
 		printf( "  MPI test #4 (inv_mod): " );
 
-	if( mpi_cmp_mpi( &X, &U ) != 0 )
-	{
+	if( mpi_cmp_mpi( &X, &U ) != 0 ) {
 		if( verbose != 0 )
 			printf( "failed\n" );
 
@@ -1974,15 +1894,13 @@ int mpi_self_test( int verbose )
 	if( verbose != 0 )
 		printf( "  MPI test #5 (simple gcd): " );
 
-	for ( i = 0; i < GCD_PAIR_COUNT; i++)
-	{
+	for ( i = 0; i < GCD_PAIR_COUNT; i++) {
 		MPI_CHK( mpi_lset( &X, gcd_pairs[i][0] ) );
 		MPI_CHK( mpi_lset( &Y, gcd_pairs[i][1] ) );
 
 		MPI_CHK( mpi_gcd( &A, &X, &Y ) );
 
-		if( mpi_cmp_int( &A, gcd_pairs[i][2] ) != 0 )
-		{
+		if( mpi_cmp_int( &A, gcd_pairs[i][2] ) != 0 ) {
 			if( verbose != 0 )
 				printf( "failed at %d\n", i );
 

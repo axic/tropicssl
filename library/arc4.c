@@ -10,7 +10,7 @@
  *	Redistribution and use in source and binary forms, with or without
  *	modification, are permitted provided that the following conditions
  *	are met:
- *	
+ *
  *	  * Redistributions of source code must retain the above copyright
  *		notice, this list of conditions and the following disclaimer.
  *	  * Redistributions in binary form must reproduce the above copyright
@@ -19,7 +19,7 @@
  *	  * Neither the names of PolarSSL or XySSL nor the names of its contributors
  *		may be used to endorse or promote products derived from this software
  *		without specific prior written permission.
- *	
+ *
  *	THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  *	"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
  *	LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
@@ -61,8 +61,7 @@ void arc4_setup( arc4_context *ctx, unsigned char *key, int keylen )
 
 	j = k = 0;
 
-	for( i = 0; i < 256; i++, k++ )
-	{
+	for( i = 0; i < 256; i++, k++ ) {
 		if( k >= keylen ) k = 0;
 
 		a = m[i];
@@ -84,16 +83,17 @@ void arc4_crypt( arc4_context *ctx, unsigned char *buf, int buflen )
 	y = ctx->y;
 	m = ctx->m;
 
-	for( i = 0; i < buflen; i++ )
-	{
-		x = ( x + 1 ) & 0xFF; a = m[x];
-		y = ( y + a ) & 0xFF; b = m[y];
+	for( i = 0; i < buflen; i++ ) {
+		x = ( x + 1 ) & 0xFF;
+		a = m[x];
+		y = ( y + a ) & 0xFF;
+		b = m[y];
 
 		m[x] = (unsigned char) b;
 		m[y] = (unsigned char) a;
 
 		buf[i] = (unsigned char)
-			( buf[i] ^ m[(unsigned char)( a + b )] );
+		         ( buf[i] ^ m[(unsigned char)( a + b )] );
 	}
 
 	ctx->x = x;
@@ -110,22 +110,19 @@ void arc4_crypt( arc4_context *ctx, unsigned char *buf, int buflen )
  *
  * http://groups.google.com/group/comp.security.misc/msg/10a300c9d21afca0
  */
-static const unsigned char arc4_test_key[3][8] =
-{
+static const unsigned char arc4_test_key[3][8] = {
 	{ 0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF },
 	{ 0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF },
 	{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }
 };
 
-static const unsigned char arc4_test_pt[3][8] =
-{
+static const unsigned char arc4_test_pt[3][8] = {
 	{ 0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF },
 	{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
 	{ 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }
 };
 
-static const unsigned char arc4_test_ct[3][8] =
-{
+static const unsigned char arc4_test_ct[3][8] = {
 	{ 0x75, 0xB7, 0x87, 0x80, 0x99, 0xE0, 0xC5, 0x96 },
 	{ 0x74, 0x94, 0xC2, 0xE7, 0x10, 0x4B, 0x08, 0x79 },
 	{ 0xDE, 0x18, 0x89, 0x41, 0xA3, 0x37, 0x5D, 0x3A }
@@ -140,8 +137,7 @@ int arc4_self_test( int verbose )
 	unsigned char buf[8];
 	arc4_context ctx;
 
-	for( i = 0; i < 3; i++ )
-	{
+	for( i = 0; i < 3; i++ ) {
 		if( verbose != 0 )
 			printf( "  ARC4 test #%d: ", i + 1 );
 
@@ -150,8 +146,7 @@ int arc4_self_test( int verbose )
 		arc4_setup( &ctx, (unsigned char *) arc4_test_key[i], 8 );
 		arc4_crypt( &ctx, buf, 8 );
 
-		if( memcmp( buf, arc4_test_ct[i], 8 ) != 0 )
-		{
+		if( memcmp( buf, arc4_test_ct[i], 8 ) != 0 ) {
 			if( verbose != 0 )
 				printf( "failed\n" );
 
