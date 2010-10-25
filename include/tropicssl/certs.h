@@ -51,5 +51,4 @@ extern "C" {
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* certs.h */
+#endif				/* certs.h */

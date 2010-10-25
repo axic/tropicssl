@@ -183,9 +183,7 @@ static void havege_fill(havege_state * hs)
 	memset(RES, 0, sizeof(RES));
 
 	while (n < COLLECT_SIZE * 4) {
-	ONE_ITERATION ONE_ITERATION ONE_ITERATION ONE_ITERATION}
-
-	hs->PT1 = PT1;
+	ONE_ITERATION ONE_ITERATION ONE_ITERATION ONE_ITERATION} hs->PT1 = PT1;
 	hs->PT2 = PT2;
 
 	hs->offset[0] = 0;

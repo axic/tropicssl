@@ -41,25 +41,26 @@
 
 #include "tropicssl/md5.h"
 
-int main( void )
+int main(void)
 {
-    int i;
-    unsigned char digest[16];
-    char str[] = "Hello, world!";
+	int i;
+	unsigned char digest[16];
+	char str[] = "Hello, world!";
 
-    printf( "\n  MD5('%s') = ", str );
+	printf("\n  MD5('%s') = ", str);
 
-    md5( (unsigned char *) str, 13, digest );
+	md5((unsigned char *)str, 13, digest);
 
-    for( i = 0; i < 16; i++ )
-        printf( "%02x", digest[i] );
+	for (i = 0; i < 16; i++)
+		printf("%02x", digest[i]);
 
-    printf( "\n\n" );
+	printf("\n\n");
 
 #ifdef WIN32
-    printf( "  Press Enter to exit this program.\n" );
-    fflush( stdout ); getchar();
+	printf("  Press Enter to exit this program.\n");
+	fflush(stdout);
+	getchar();
 #endif
 
-    return( 0 );
+	return (0);
 }

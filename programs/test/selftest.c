@@ -57,101 +57,100 @@
 #include "tropicssl/x509.h"
 #include "tropicssl/xtea.h"
 
-int main( int argc, char *argv[] )
+int main(int argc, char *argv[])
 {
-    int ret, v;
+	int ret, v;
 
-    if( argc == 2 && strcmp( argv[1], "-quiet" ) == 0 )
-        v = 0;
-    else
-    {
-        v = 1;
-        printf( "\n" );
-    }
+	if (argc == 2 && strcmp(argv[1], "-quiet") == 0)
+		v = 0;
+	else {
+		v = 1;
+		printf("\n");
+	}
 
 #if defined(TROPICSSL_MD2_C)
-    if( ( ret = md2_self_test( v ) ) != 0 )
-        return( ret );
+	if ((ret = md2_self_test(v)) != 0)
+		return (ret);
 #endif
 
 #if defined(TROPICSSL_MD4_C)
-    if( ( ret = md4_self_test( v ) ) != 0 )
-        return( ret );
+	if ((ret = md4_self_test(v)) != 0)
+		return (ret);
 #endif
 
 #if defined(TROPICSSL_MD5_C)
-    if( ( ret = md5_self_test( v ) ) != 0 )
-        return( ret );
+	if ((ret = md5_self_test(v)) != 0)
+		return (ret);
 #endif
 
 #if defined(TROPICSSL_SHA1_C)
-    if( ( ret = sha1_self_test( v ) ) != 0 )
-        return( ret );
+	if ((ret = sha1_self_test(v)) != 0)
+		return (ret);
 #endif
 
 #if defined(TROPICSSL_SHA2_C)
-    if( ( ret = sha2_self_test( v ) ) != 0 )
-        return( ret );
+	if ((ret = sha2_self_test(v)) != 0)
+		return (ret);
 #endif
 
 #if defined(TROPICSSL_SHA4_C)
-    if( ( ret = sha4_self_test( v ) ) != 0 )
-        return( ret );
+	if ((ret = sha4_self_test(v)) != 0)
+		return (ret);
 #endif
 
 #if defined(TROPICSSL_ARC4_C)
-    if( ( ret = arc4_self_test( v ) ) != 0 )
-        return( ret );
+	if ((ret = arc4_self_test(v)) != 0)
+		return (ret);
 #endif
 
 #if defined(TROPICSSL_DES_C)
-    if( ( ret = des_self_test( v ) ) != 0 )
-        return( ret );
+	if ((ret = des_self_test(v)) != 0)
+		return (ret);
 #endif
 
 #if defined(TROPICSSL_AES_C)
-    if( ( ret = aes_self_test( v ) ) != 0 )
-        return( ret );
+	if ((ret = aes_self_test(v)) != 0)
+		return (ret);
 #endif
 
 #if defined(TROPICSSL_BASE64_C)
-    if( ( ret = base64_self_test( v ) ) != 0 )
-        return( ret );
+	if ((ret = base64_self_test(v)) != 0)
+		return (ret);
 #endif
 
 #if defined(TROPICSSL_BIGNUM_C)
-    if( ( ret = mpi_self_test( v ) ) != 0 )
-        return( ret );
+	if ((ret = mpi_self_test(v)) != 0)
+		return (ret);
 #endif
 
 #if defined(TROPICSSL_RSA_C)
-    if( ( ret = rsa_self_test( v ) ) != 0 )
-        return( ret );
+	if ((ret = rsa_self_test(v)) != 0)
+		return (ret);
 #endif
 
 #if defined(TROPICSSL_X509_C)
-    if( ( ret = x509_self_test( v ) ) != 0 )
-        return( ret );
+	if ((ret = x509_self_test(v)) != 0)
+		return (ret);
 #endif
 
 #if defined(TROPICSSL_XTEA_C)
-    if( ( ret = xtea_self_test( v ) ) != 0 )
-        return( ret );
+	if ((ret = xtea_self_test(v)) != 0)
+		return (ret);
 #endif
 
 #if defined(TROPICSSL_CAMELLIA_C)
-    if( ( ret = camellia_self_test( v ) ) != 0 )
-        return( ret );
+	if ((ret = camellia_self_test(v)) != 0)
+		return (ret);
 #endif
 
-    if( v != 0 )
-    {
-        printf( "  [ All tests passed ]\n\n" );
+	if (v != 0) {
+		printf("  [ All tests passed ]\n\n");
 #ifdef WIN32
-        printf( "  Press Enter to exit this program.\n" );
-        fflush( stdout ); getchar();
+		printf("  Press Enter to exit this program.\n");
+		fflush(stdout);
+		getchar();
 #endif
-    }
+	}
 
-    return( ret );
+	return (ret);
 }

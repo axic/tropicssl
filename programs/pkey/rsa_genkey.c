@@ -47,70 +47,67 @@
 #define KEY_SIZE 1024
 #define EXPONENT 65537
 
-int main( void )
+int main(void)
 {
-    int ret;
-    rsa_context rsa;
-    havege_state hs;
-    FILE *fpub  = NULL;
-    FILE *fpriv = NULL;
-    x509_raw cert;
+	int ret;
+	rsa_context rsa;
+	havege_state hs;
+	FILE *fpub = NULL;
+	FILE *fpriv = NULL;
+	x509_raw cert;
 
-    printf( "\n  . Seeding the random number generator..." );
-    fflush( stdout );
+	printf("\n  . Seeding the random number generator...");
+	fflush(stdout);
 
-    havege_init( &hs );
+	havege_init(&hs);
 
-    printf( " ok\n  . Generating the RSA key [ %d-bit ]...", KEY_SIZE );
-    fflush( stdout );
+	printf(" ok\n  . Generating the RSA key [ %d-bit ]...", KEY_SIZE);
+	fflush(stdout);
 
-    rsa_init( &rsa, RSA_PKCS_V15, 0, havege_rand, &hs );
-    
-    if( ( ret = rsa_gen_key( &rsa, KEY_SIZE, EXPONENT ) ) != 0 )
-    {
-        printf( " failed\n  ! rsa_gen_key returned %d\n\n", ret );
-        goto exit;
-    }
+	rsa_init(&rsa, RSA_PKCS_V15, 0, havege_rand, &hs);
 
-    printf( " ok\n  . Exporting the public  key in rsa_pub.txt...." );
-    fflush( stdout );
+	if ((ret = rsa_gen_key(&rsa, KEY_SIZE, EXPONENT)) != 0) {
+		printf(" failed\n  ! rsa_gen_key returned %d\n\n", ret);
+		goto exit;
+	}
 
-    if( ( fpub = fopen( "rsa_pub.txt", "wb+" ) ) == NULL )
-    {
-        printf( " failed\n  ! could not open rsa_pub.txt for writing\n\n" );
-        ret = 1;
-        goto exit;
-    }
+	printf(" ok\n  . Exporting the public  key in rsa_pub.txt....");
+	fflush(stdout);
 
-    if( ( ret = mpi_write_file( "N = ", &rsa.N, 16, fpub ) ) != 0 ||
-        ( ret = mpi_write_file( "E = ", &rsa.E, 16, fpub ) ) != 0 )
-    {
-        printf( " failed\n  ! mpi_write_file returned %d\n\n", ret );
-        goto exit;
-    }
+	if ((fpub = fopen("rsa_pub.txt", "wb+")) == NULL) {
+		printf
+		    (" failed\n  ! could not open rsa_pub.txt for writing\n\n");
+		ret = 1;
+		goto exit;
+	}
 
-    printf( " ok\n  . Exporting the private key in rsa_priv.txt..." );
-    fflush( stdout );
+	if ((ret = mpi_write_file("N = ", &rsa.N, 16, fpub)) != 0 ||
+	    (ret = mpi_write_file("E = ", &rsa.E, 16, fpub)) != 0) {
+		printf(" failed\n  ! mpi_write_file returned %d\n\n", ret);
+		goto exit;
+	}
 
-    if( ( fpriv = fopen( "rsa_priv.txt", "wb+" ) ) == NULL )
-    {
-        printf( " failed\n  ! could not open rsa_priv.txt for writing\n" );
-        ret = 1;
-        goto exit;
-    }
+	printf(" ok\n  . Exporting the private key in rsa_priv.txt...");
+	fflush(stdout);
 
-    if( ( ret = mpi_write_file( "N = " , &rsa.N , 16, fpriv ) ) != 0 ||
-        ( ret = mpi_write_file( "E = " , &rsa.E , 16, fpriv ) ) != 0 ||
-        ( ret = mpi_write_file( "D = " , &rsa.D , 16, fpriv ) ) != 0 ||
-        ( ret = mpi_write_file( "P = " , &rsa.P , 16, fpriv ) ) != 0 ||
-        ( ret = mpi_write_file( "Q = " , &rsa.Q , 16, fpriv ) ) != 0 ||
-        ( ret = mpi_write_file( "DP = ", &rsa.DP, 16, fpriv ) ) != 0 ||
-        ( ret = mpi_write_file( "DQ = ", &rsa.DQ, 16, fpriv ) ) != 0 ||
-        ( ret = mpi_write_file( "QP = ", &rsa.QP, 16, fpriv ) ) != 0 )
-    {
-        printf( " failed\n  ! mpi_write_file returned %d\n\n", ret );
-        goto exit;
-    }
+	if ((fpriv = fopen("rsa_priv.txt", "wb+")) == NULL) {
+		printf
+		    (" failed\n  ! could not open rsa_priv.txt for writing\n");
+		ret = 1;
+		goto exit;
+	}
+
+	if ((ret = mpi_write_file("N = ", &rsa.N, 16, fpriv)) != 0 ||
+	    (ret = mpi_write_file("E = ", &rsa.E, 16, fpriv)) != 0 ||
+	    (ret = mpi_write_file("D = ", &rsa.D, 16, fpriv)) != 0 ||
+	    (ret = mpi_write_file("P = ", &rsa.P, 16, fpriv)) != 0 ||
+	    (ret = mpi_write_file("Q = ", &rsa.Q, 16, fpriv)) != 0 ||
+	    (ret = mpi_write_file("DP = ", &rsa.DP, 16, fpriv)) != 0 ||
+	    (ret = mpi_write_file("DQ = ", &rsa.DQ, 16, fpriv)) != 0 ||
+	    (ret = mpi_write_file("QP = ", &rsa.QP, 16, fpriv)) != 0) {
+		printf(" failed\n  ! mpi_write_file returned %d\n\n", ret);
+		goto exit;
+	}
 /*
     printf( " ok\n  . Generating the certificate..." );
 
@@ -124,22 +121,23 @@ int main( void )
     x509write_crtfile( &cert, "cert.pem", X509_OUTPUT_PEM );
     x509write_free_raw( &cert );
 */
-    printf( " ok\n\n" );
+	printf(" ok\n\n");
 
 exit:
 
-    if( fpub  != NULL )
-        fclose( fpub );
+	if (fpub != NULL)
+		fclose(fpub);
 
-    if( fpriv != NULL )
-        fclose( fpriv );
+	if (fpriv != NULL)
+		fclose(fpriv);
 
-    rsa_free( &rsa );
+	rsa_free(&rsa);
 
 #ifdef WIN32
-    printf( "  Press Enter to exit this program.\n" );
-    fflush( stdout ); getchar();
+	printf("  Press Enter to exit this program.\n");
+	fflush(stdout);
+	getchar();
 #endif
 
-    return( ret );
+	return (ret);
 }

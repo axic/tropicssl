@@ -128,21 +128,18 @@ typedef struct _x509_buf {
 	int tag;
 	int len;
 	unsigned char *p;
-}
-x509_buf;
+} x509_buf;
 
 typedef struct _x509_name {
 	x509_buf oid;
 	x509_buf val;
 	struct _x509_name *next;
-}
-x509_name;
+} x509_name;
 
 typedef struct _x509_time {
 	int year, mon, day;
 	int hour, min, sec;
-}
-x509_time;
+} x509_time;
 
 typedef struct _x509_cert {
 	x509_buf raw;
@@ -175,8 +172,7 @@ typedef struct _x509_cert {
 	x509_buf sig;
 
 	struct _x509_cert *next;
-}
-x509_cert;
+} x509_cert;
 
 /*
  * Structures for writing X.509 certificates
@@ -187,8 +183,7 @@ typedef struct _x509_node {
 	unsigned char *end;
 
 	size_t len;
-}
-x509_node;
+} x509_node;
 
 typedef struct _x509_raw {
 	x509_node raw;
@@ -204,8 +199,7 @@ typedef struct _x509_raw {
 
 	x509_node signalg;
 	x509_node sign;
-}
-x509_raw;
+} x509_raw;
 
 #ifdef __cplusplus
 extern "C" {
@@ -221,7 +215,7 @@ extern "C" {
 	 *
 	 * \return         0 if successful, or a specific X509 error code
 	 */
-	int x509parse_crt( x509_cert *crt, unsigned char *buf, int buflen );
+	int x509parse_crt(x509_cert * crt, unsigned char *buf, int buflen);
 
 	/**
 	 * \brief          Load one or more certificates and add them
@@ -232,7 +226,7 @@ extern "C" {
 	 *
 	 * \return         0 if successful, or a specific X509 error code
 	 */
-	int x509parse_crtfile( x509_cert *crt, char *path );
+	int x509parse_crtfile(x509_cert * crt, char *path);
 
 	/**
 	 * \brief          Parse a private RSA key
@@ -245,9 +239,9 @@ extern "C" {
 	 *
 	 * \return         0 if successful, or a specific X509 error code
 	 */
-	int x509parse_key( rsa_context *rsa,
-	                   unsigned char *buf, int buflen,
-	                   unsigned char *pwd, int pwdlen );
+	int x509parse_key(rsa_context * rsa,
+			  unsigned char *buf, int buflen,
+			  unsigned char *pwd, int pwdlen);
 
 	/**
 	 * \brief          Load and parse a private RSA key
@@ -258,25 +252,25 @@ extern "C" {
 	 *
 	 * \return         0 if successful, or a specific X509 error code
 	 */
-	int x509parse_keyfile( rsa_context *rsa, char *path, char *password );
+	int x509parse_keyfile(rsa_context * rsa, char *path, char *password);
 
 	/**
 	 * \brief          Store the certificate DN in printable form into buf;
 	 *                 no more than (end - buf) characters will be written.
 	 */
-	int x509parse_dn_gets( char *buf, char *end, x509_name *dn );
+	int x509parse_dn_gets(char *buf, char *end, x509_name * dn);
 
 	/**
 	 * \brief          Returns an informational string about the
 	 *                 certificate.
 	 */
-	char *x509parse_cert_info( char *prefix, x509_cert *crt );
+	char *x509parse_cert_info(char *prefix, x509_cert * crt);
 
 	/**
 	 * \brief          Return 0 if the certificate is still valid,
 	 *                 or BADCERT_EXPIRED
 	 */
-	int x509parse_expired( x509_cert *crt );
+	int x509parse_expired(x509_cert * crt);
 
 	/**
 	 * \brief          Verify the certificate signature
@@ -297,24 +291,22 @@ extern "C" {
 	 *
 	 * \note           TODO: add two arguments, depth and crl
 	 */
-	int x509parse_verify( x509_cert *crt,
-	                      x509_cert *trust_ca,
-	                      char *cn, int *flags );
+	int x509parse_verify(x509_cert * crt,
+			     x509_cert * trust_ca, char *cn, int *flags);
 
 	/**
 	 * \brief          Unallocate all certificate data
 	 */
-	void x509_free( x509_cert *crt );
+	void x509_free(x509_cert * crt);
 
 	/**
 	 * \brief          Checkup routine
 	 *
 	 * \return         0 if successful, or 1 if the test failed
 	 */
-	int x509_self_test( int verbose );
+	int x509_self_test(int verbose);
 
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* x509.h */
+#endif				/* x509.h */

@@ -588,8 +588,9 @@ static int ssl_encrypt_buf(ssl_context * ssl)
 			    ssl->session->cipher == SSL_RSA_CAMELLIA_256_SHA ||
 			    ssl->session->cipher ==
 			    SSL_EDH_RSA_CAMELLIA_256_SHA) {
-				camellia_crypt_cbc((camellia_context *) ssl->
-						   ctx_enc, CAMELLIA_ENCRYPT,
+				camellia_crypt_cbc((camellia_context *)
+						   ssl->ctx_enc,
+						   CAMELLIA_ENCRYPT,
 						   ssl->out_msglen, ssl->iv_enc,
 						   ssl->out_msg, ssl->out_msg);
 				break;
@@ -664,8 +665,9 @@ static int ssl_decrypt_buf(ssl_context * ssl)
 			    ssl->session->cipher == SSL_RSA_CAMELLIA_256_SHA ||
 			    ssl->session->cipher ==
 			    SSL_EDH_RSA_CAMELLIA_256_SHA) {
-				camellia_crypt_cbc((camellia_context *) ssl->
-						   ctx_dec, CAMELLIA_DECRYPT,
+				camellia_crypt_cbc((camellia_context *)
+						   ssl->ctx_dec,
+						   CAMELLIA_DECRYPT,
 						   ssl->in_msglen, ssl->iv_dec,
 						   ssl->in_msg, ssl->in_msg);
 				break;
@@ -696,9 +698,9 @@ static int ssl_decrypt_buf(ssl_context * ssl)
 						      ("bad padding byte: should be "
 						       "%02x, but is %02x",
 						       padlen - 1,
-						       ssl->in_msg[ssl->
-								   in_msglen -
-								   i]));
+						       ssl->
+						       in_msg[ssl->in_msglen -
+							      i]));
 					padlen = 0;
 				}
 			}
@@ -1049,8 +1051,8 @@ int ssl_read_record(ssl_context * ssl)
 		 */
 		if (ssl->in_msg[0] == SSL_ALERT_FATAL) {
 			SSL_DEBUG_MSG(1, ("is a fatal alert message"));
-			return (TROPICSSL_ERR_SSL_FATAL_ALERT_MESSAGE | ssl->
-				in_msg[1]);
+			return (TROPICSSL_ERR_SSL_FATAL_ALERT_MESSAGE |
+				ssl->in_msg[1]);
 		}
 
 		if (ssl->in_msg[0] == SSL_ALERT_WARNING &&

@@ -36,14 +36,12 @@
 #define XTEA_ENCRYPT     1
 #define XTEA_DECRYPT     0
 
-
 /**
  * \brief          XTEA context structure
  */
 typedef struct {
-	unsigned long k[4];       /*!< key */
-}
-xtea_context;
+	unsigned long k[4];	/*!< key */
+} xtea_context;
 
 #ifdef __cplusplus
 extern "C" {
@@ -55,7 +53,7 @@ extern "C" {
 	 * \param ctx      XTEA context to be initialized
 	 * \param key      the secret key
 	 */
-	void xtea_setup( xtea_context *ctx, unsigned char key[16] );
+	void xtea_setup(xtea_context * ctx, unsigned char key[16]);
 
 	/**
 	 * \brief          XTEA cipher function
@@ -65,20 +63,18 @@ extern "C" {
 	 * \param input    8-byte input block
 	 * \param output   8-byte output block
 	 */
-	void xtea_crypt( xtea_context *ctx,
-	                 int mode,
-	                 unsigned char input[8],
-	                 unsigned char output[8] );
+	void xtea_crypt(xtea_context * ctx,
+			int mode,
+			unsigned char input[8], unsigned char output[8]);
 
 	/*
 	 * \brief          Checkup routine
 	 *
 	 * \return         0 if successful, or 1 if the test failed
 	 */
-	int xtea_self_test( int verbose );
+	int xtea_self_test(int verbose);
 
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* xtea.h */
+#endif				/* xtea.h */

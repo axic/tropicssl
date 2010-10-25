@@ -57,8 +57,8 @@ extern "C" {
 	 * \note           Call this function with *dlen = 0 to obtain the
 	 *                 required buffer size in *dlen
 	 */
-	int base64_encode( unsigned char *dst, int *dlen,
-	                   unsigned char *src, int  slen );
+	int base64_encode(unsigned char *dst, int *dlen,
+			  unsigned char *src, int slen);
 
 	/**
 	 * \brief          Decode a base64-formatted buffer
@@ -76,18 +76,17 @@ extern "C" {
 	 * \note           Call this function with *dlen = 0 to obtain the
 	 *                 required buffer size in *dlen
 	 */
-	int base64_decode( unsigned char *dst, int *dlen,
-	                   unsigned char *src, int  slen );
+	int base64_decode(unsigned char *dst, int *dlen,
+			  unsigned char *src, int slen);
 
 	/**
 	 * \brief          Checkup routine
 	 *
 	 * \return         0 if successful, or 1 if the test failed
 	 */
-	int base64_self_test( int verbose );
+	int base64_self_test(int verbose);
 
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* base64.h */
+#endif				/* base64.h */
