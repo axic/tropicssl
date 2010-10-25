@@ -166,28 +166,24 @@
 /*
  * Entropy gathering function
  */
-static void havege_fill( havege_state *hs )
+static void havege_fill(havege_state * hs)
 {
 	int i, n = 0;
-	int	 U1,  U2, *A, *B, *C, *D;
+	int U1, U2, *A, *B, *C, *D;
 	int PT1, PT2, *WALK, RES[16];
 	int PTX, PTY, CLK, PTEST, IN;
 
 	WALK = hs->WALK;
-	PT1	 = hs->PT1;
-	PT2	 = hs->PT2;
+	PT1 = hs->PT1;
+	PT2 = hs->PT2;
 
-	PTX	 = U1 = 0;
-	PTY	 = U2 = 0;
+	PTX = U1 = 0;
+	PTY = U2 = 0;
 
-	memset( RES, 0, sizeof( RES ) );
+	memset(RES, 0, sizeof(RES));
 
-	while( n < COLLECT_SIZE * 4 ) {
-		ONE_ITERATION
-		ONE_ITERATION
-		ONE_ITERATION
-		ONE_ITERATION
-	}
+	while (n < COLLECT_SIZE * 4) {
+	ONE_ITERATION ONE_ITERATION ONE_ITERATION ONE_ITERATION}
 
 	hs->PT1 = PT1;
 	hs->PT2 = PT2;
@@ -199,35 +195,35 @@ static void havege_fill( havege_state *hs )
 /*
  * HAVEGE initialization
  */
-void havege_init( havege_state *hs )
+void havege_init(havege_state * hs)
 {
-	memset( hs, 0, sizeof( havege_state ) );
+	memset(hs, 0, sizeof(havege_state));
 
-	havege_fill( hs );
+	havege_fill(hs);
 }
 
 /*
  * HAVEGE rand function
  */
-int havege_rand( void *p_rng )
+int havege_rand(void *p_rng)
 {
 	int ret;
 	havege_state *hs = (havege_state *) p_rng;
 
-	if( hs->offset[1] >= COLLECT_SIZE )
-		havege_fill( hs );
+	if (hs->offset[1] >= COLLECT_SIZE)
+		havege_fill(hs);
 
-	ret	 = hs->pool[hs->offset[0]++];
+	ret = hs->pool[hs->offset[0]++];
 	ret ^= hs->pool[hs->offset[1]++];
 
-	return( ret );
+	return (ret);
 }
 
 #if defined(TROPICSSL_RAND_TEST)
 
 #include <stdio.h>
 
-int main( int argc, char *argv[] )
+int main(int argc, char *argv[])
 {
 	FILE *f;
 	time_t t;
@@ -235,36 +231,36 @@ int main( int argc, char *argv[] )
 	havege_state hs;
 	unsigned char buf[1024];
 
-	if( argc < 2 ) {
-		fprintf( stderr, "usage: %s <output filename>\n", argv[0] );
-		return( 1 );
+	if (argc < 2) {
+		fprintf(stderr, "usage: %s <output filename>\n", argv[0]);
+		return (1);
 	}
 
-	if( ( f = fopen( argv[1], "wb+" ) ) == NULL ) {
-		printf( "failed to open '%s' for writing.\n", argv[0] );
-		return( 1 );
+	if ((f = fopen(argv[1], "wb+")) == NULL) {
+		printf("failed to open '%s' for writing.\n", argv[0]);
+		return (1);
 	}
 
-	havege_init( &hs );
+	havege_init(&hs);
 
-	t = time( NULL );
+	t = time(NULL);
 
-	for( i = 0, k = 32768; i < k; i++ ) {
-		for( j = 0; j < sizeof( buf ); j++ )
-			buf[j] = havege_rand( &hs );
+	for (i = 0, k = 32768; i < k; i++) {
+		for (j = 0; j < sizeof(buf); j++)
+			buf[j] = havege_rand(&hs);
 
-		fwrite( buf, sizeof( buf ), 1, f );
+		fwrite(buf, sizeof(buf), 1, f);
 
-		printf( "Generating 32Mb of data in file '%s'... %04.1f" \
-		        "%% done\r", argv[1], (100 * (float) (i + 1)) / k );
-		fflush( stdout );
+		printf("Generating 32Mb of data in file '%s'... %04.1f"
+		       "%% done\r", argv[1], (100 * (float)(i + 1)) / k);
+		fflush(stdout);
 	}
 
-	if( t == time( NULL ) )
+	if (t == time(NULL))
 		t--;
 
-	fclose( f );
-	return( 0 );
+	fclose(f);
+	return (0);
 }
 
 #endif
